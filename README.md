@@ -56,14 +56,14 @@ This produces a self-contained `dist/index.js`. Point your client at it (see bel
 ## Connect it to an MCP client
 
 Add the server to your client's MCP config (Claude Desktop/Code, Cursor, VS Code,
-Cline, …). Use the absolute path to the built `dist/index.js`:
+Cline, …). The simplest option is `npx` — no clone, no build:
 
 ```json
 {
   "mcpServers": {
     "mal": {
-      "command": "node",
-      "args": ["/absolute/path/to/mal-mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "mal-mcp"],
       "env": {
         "MAL_CLIENT_ID": "...",
         "MAL_CLIENT_SECRET": "...",
@@ -79,8 +79,11 @@ Or with the Claude Code CLI:
 ```sh
 claude mcp add mal \
   -e MAL_CLIENT_ID=... -e MAL_CLIENT_SECRET=... -e MAL_REFRESH_TOKEN=... \
-  -- node /absolute/path/to/mal-mcp/dist/index.js
+  -- npx -y mal-mcp
 ```
+
+If you built from source instead, replace `"command": "npx", "args": ["-y", "mal-mcp"]`
+with `"command": "node", "args": ["/absolute/path/to/mal-mcp/dist/index.js"]`.
 
 The `env` block is **optional** — omit it to use only the credential-free read
 tools (search, details, rankings, …); the personal-list tools will return a clear
