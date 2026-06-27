@@ -19,7 +19,6 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          registry-url: "https://registry.npmjs.org"
       - run: npm ci
       - name: Health-check upstream APIs (gate)
         run: npm run check:api
@@ -32,7 +31,8 @@ jobs:
         with:
           files: mal-mcp.mcpb
           generate_release_notes: true
-      - name: Publish to npm (with provenance)
+      # Trusted Publishing (OIDC): no token. Requires npm >= 11.5.1.
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@latest
+      - name: Publish to npm (trusted publishing + provenance)
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

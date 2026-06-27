@@ -5,13 +5,12 @@ GitHub Issues once the repository is public.
 
 ## Distribution
 
-- [ ] **Publish to npm** so clients can run `npx -y mal-mcp` with no local path.
-      Add `NPM_TOKEN`, publish with `--provenance` (GitHub OIDC), and update the
-      `npx` snippet in `docs/clients.md`.
-- [ ] **Submit to the official MCP Registry.** Finalize `server.json` (fill the
-      released `.mcpb` asset URL + `fileSha256`), authenticate the
-      `io.github.Grinv/*` namespace via GitHub OIDC, and add an
-      `mcp-publisher publish` step to `release.yml`. Pairs with the npm step.
+- [x] **Publish to npm** (`npx -y mal-mcp`). v0.1.0 published; CI publishes future
+      versions via **Trusted Publishing** (OIDC, no token) with `--provenance`.
+- [ ] **Submit to the official MCP Registry.** Now unblocked (package exists).
+      Finalize `server.json` (released `.mcpb` asset URL + `fileSha256`),
+      authenticate the `io.github.Grinv/*` namespace via GitHub OIDC, and add an
+      `mcp-publisher publish` step to `release.yml`.
 
 ## Release engineering
 
