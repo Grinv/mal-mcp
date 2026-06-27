@@ -1,0 +1,121 @@
+{
+  "manifest_version": "0.3",
+  "name": "mal-mcp",
+  "display_name": "MyAnimeList (MAL)",
+  "version": "0.1.0",
+  "description": "Search and browse MyAnimeList anime/manga and manage your personal list.",
+  "long_description": "MCP server for MyAnimeList. Reads (search, details, rankings, seasons, characters, recommendations, reviews, public profiles) are served via the public Jikan API and require no credentials. Personal-list tools (read/update/delete your own anime & manga list) use the official MyAnimeList API and require a user token; without one they return an actionable error. Works with any MCP client.",
+  "author": {
+    "name": "Grinv",
+    "email": "4070730+Grinv@users.noreply.github.com",
+    "url": "https://github.com/Grinv"
+  },
+  "homepage": "https://github.com/Grinv/mal-mcp",
+  "documentation": "https://github.com/Grinv/mal-mcp#readme",
+  "support": "https://github.com/Grinv/mal-mcp/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Grinv/mal-mcp"
+  },
+  "license": "MIT",
+  "keywords": ["mcp", "myanimelist", "mal", "jikan", "anime", "manga"],
+  "privacy_policies": ["https://myanimelist.net/about/privacy_policy", "https://jikan.moe"],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"],
+      "env": {
+        "MAL_ACCESS_TOKEN": "${user_config.mal_access_token}",
+        "MAL_CLIENT_ID": "${user_config.mal_client_id}",
+        "MAL_CLIENT_SECRET": "${user_config.mal_client_secret}",
+        "MAL_REFRESH_TOKEN": "${user_config.mal_refresh_token}"
+      }
+    }
+  },
+  "tools_generated": false,
+  "tools": [
+    { "name": "search_anime", "description": "Search anime by keyword." },
+    { "name": "search_manga", "description": "Search manga by keyword." },
+    { "name": "get_anime", "description": "Get full details for one anime by id." },
+    { "name": "get_manga", "description": "Get full details for one manga by id." },
+    {
+      "name": "get_anime_characters",
+      "description": "List an anime's characters and voice actors."
+    },
+    {
+      "name": "get_anime_recommendations",
+      "description": "Community recommendations for an anime."
+    },
+    { "name": "get_anime_reviews", "description": "User reviews for an anime." },
+    { "name": "get_top_anime", "description": "Ranked/top anime, with optional filters." },
+    { "name": "get_top_manga", "description": "Ranked/top manga, with optional filters." },
+    { "name": "get_seasonal_anime", "description": "Anime for a given (or current) season." },
+    { "name": "get_anime_schedule", "description": "Broadcast schedule, optionally by weekday." },
+    { "name": "get_user_profile", "description": "A public user's profile and statistics." },
+    {
+      "name": "get_user_favorites",
+      "description": "A public user's favorite anime/manga/characters/people."
+    },
+    {
+      "name": "get_my_user_info",
+      "description": "The authenticated user's profile (requires token)."
+    },
+    {
+      "name": "get_my_anime_list",
+      "description": "The authenticated user's anime list (requires token)."
+    },
+    {
+      "name": "get_my_manga_list",
+      "description": "The authenticated user's manga list (requires token)."
+    },
+    {
+      "name": "update_my_anime_status",
+      "description": "Add/update an anime on your list (requires token)."
+    },
+    {
+      "name": "update_my_manga_status",
+      "description": "Add/update a manga on your list (requires token)."
+    },
+    {
+      "name": "delete_my_anime_list_item",
+      "description": "Remove an anime from your list (requires token)."
+    },
+    {
+      "name": "delete_my_manga_list_item",
+      "description": "Remove a manga from your list (requires token)."
+    }
+  ],
+  "prompts_generated": true,
+  "user_config": {
+    "mal_access_token": {
+      "type": "string",
+      "title": "MyAnimeList Access Token",
+      "description": "Optional. Required only for personal-list tools. See docs/auth.md.",
+      "required": false,
+      "sensitive": true
+    },
+    "mal_client_id": {
+      "type": "string",
+      "title": "MyAnimeList Client ID",
+      "description": "Optional. Together with the client secret and refresh token, enables automatic token refresh.",
+      "required": false,
+      "sensitive": true
+    },
+    "mal_client_secret": {
+      "type": "string",
+      "title": "MyAnimeList Client Secret",
+      "description": "Optional. Used with the client ID and refresh token for automatic token refresh.",
+      "required": false,
+      "sensitive": true
+    },
+    "mal_refresh_token": {
+      "type": "string",
+      "title": "MyAnimeList Refresh Token",
+      "description": "Optional. Enables silent token refresh so you don't have to re-authenticate monthly.",
+      "required": false,
+      "sensitive": true
+    }
+  }
+}
