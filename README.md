@@ -51,8 +51,43 @@ npm ci
 npm run build
 ```
 
-This produces a self-contained `dist/index.js`. Point your client at it (see
-[docs/clients.md](docs/clients.md)).
+This produces a self-contained `dist/index.js`. Point your client at it (see below).
+
+## Connect it to an MCP client
+
+Add the server to your client's MCP config (Claude Desktop/Code, Cursor, VS Code,
+Cline, …). Use the absolute path to the built `dist/index.js`:
+
+```json
+{
+  "mcpServers": {
+    "mal": {
+      "command": "node",
+      "args": ["/absolute/path/to/mal-mcp/dist/index.js"],
+      "env": {
+        "MAL_CLIENT_ID": "...",
+        "MAL_CLIENT_SECRET": "...",
+        "MAL_REFRESH_TOKEN": "..."
+      }
+    }
+  }
+}
+```
+
+Or with the Claude Code CLI:
+
+```sh
+claude mcp add mal \
+  -e MAL_CLIENT_ID=... -e MAL_CLIENT_SECRET=... -e MAL_REFRESH_TOKEN=... \
+  -- node /absolute/path/to/mal-mcp/dist/index.js
+```
+
+The `env` block is **optional** — omit it to use only the credential-free read
+tools (search, details, rankings, …); the personal-list tools will return a clear
+error until a token is configured. The server does not read a `.env` file, so pass
+credentials via this `env` block (or your shell environment). See
+[docs/auth.md](docs/auth.md) for obtaining the token values and
+[docs/clients.md](docs/clients.md) for more clients.
 
 ## Configuration
 
