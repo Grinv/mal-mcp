@@ -49,6 +49,8 @@ npm run check:api      # live upstream health-check (network)
 - **Never commit secrets.** Tokens come from env vars / OS keychain only.
 - Cross-platform: macOS, Linux and Windows. Avoid POSIX-only shell in npm
   scripts (use the Node helper scripts).
+- **Commits:** author/committer `Grinv <4070730+Grinv@users.noreply.github.com>`;
+  do **not** add a `Co-Authored-By` trailer.
 
 ## Before opening a PR
 
