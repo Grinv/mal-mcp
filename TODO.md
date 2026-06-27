@@ -14,9 +14,10 @@ GitHub Issues once the repository is public.
 
 ## Release engineering
 
-- [ ] **Sign `.mcpb` bundles** (`mcpb sign` + `mcpb verify` in `release.yml`).
-      Needs a persistent signing key in repo secrets — an ephemeral self-signed
-      key per run adds no trust, so this is deferred until a key exists.
+- [ ] **Sign `.mcpb` bundles** — _blocked_: `@anthropic-ai/mcpb` 2.1.2 does not
+      verify its own signature (`mcpb sign` reports success, but `mcpb verify`/
+      `info` still say "Not signed"). Wiring it up would add a signing key in
+      secrets for zero effect. Revisit when the CLI fixes signature round-trip.
 - [ ] **Automate the changelog/releases** with release-please or Changesets
       (Conventional Commits) once npm publishing is in place.
 
