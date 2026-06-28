@@ -1,6 +1,6 @@
 {
   "name": "mal-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "MyAnimeList MCP server — Jikan-powered reads plus official MAL personal-list management",
   "type": "module",
   "license": "MIT",
@@ -8,6 +8,12 @@
     "name": "Grinv",
     "email": "4070730+Grinv@users.noreply.github.com"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Grinv/mal-mcp.git"
+  },
+  "homepage": "https://github.com/Grinv/mal-mcp#readme",
+  "bugs": "https://github.com/Grinv/mal-mcp/issues",
   "keywords": [
     "mcp",
     "model-context-protocol",

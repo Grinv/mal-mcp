@@ -3,7 +3,7 @@
   "name": "io.github.Grinv/mal-mcp",
   "description": "MyAnimeList MCP server: Jikan-powered reads plus official MAL personal-list management.",
   "status": "active",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "repository": {
     "url": "https://github.com/Grinv/mal-mcp",
     "source": "github"
@@ -11,8 +11,8 @@
   "packages": [
     {
       "registryType": "mcpb",
-      "identifier": "https://github.com/Grinv/mal-mcp/releases/download/v0.1.1/mal-mcp.mcpb",
-      "version": "0.1.1",
+      "identifier": "https://github.com/Grinv/mal-mcp/releases/download/v0.1.2/mal-mcp.mcpb",
+      "version": "0.1.2",
       "transport": {
         "type": "stdio"
       }

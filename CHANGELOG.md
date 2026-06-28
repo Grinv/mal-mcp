@@ -6,6 +6,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-06-28
+
+### Fixed
+
+- Add the `repository` field to `package.json` so npm provenance (Trusted
+  Publishing) validates. The 0.1.1 CI publish to npm failed with `E422`
+  (provenance could not match an empty `repository.url`); 0.1.2 supersedes it on
+  npm. (The 0.1.1 GitHub Release and `.mcpb` were unaffected.)
+
 ## [0.1.1] - 2026-06-28
 
 ### Changed
@@ -38,6 +47,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - In-memory TTL caching, polite Jikan rate limiting, retries with backoff.
 - `.mcpb` bundle packaging and `server.json` metadata for the MCP Registry.
 
-[Unreleased]: https://github.com/Grinv/mal-mcp/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/Grinv/mal-mcp/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/Grinv/mal-mcp/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/Grinv/mal-mcp/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Grinv/mal-mcp/releases/tag/v0.1.0
