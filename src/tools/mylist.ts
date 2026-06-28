@@ -9,9 +9,11 @@ import { errorResult, jsonResult, type ToolResult } from "../lib/result.js";
 import { guard } from "./guard.js";
 
 const NEEDS_TOKEN =
-  "This tool needs a MyAnimeList account token, which is not configured. " +
-  "Set MAL_ACCESS_TOKEN (and optionally MAL_CLIENT_ID/MAL_CLIENT_SECRET/MAL_REFRESH_TOKEN " +
-  "for automatic refresh). See docs/auth.md.";
+  "This tool needs MyAnimeList credentials, which are not configured. Set " +
+  "MAL_CLIENT_ID, MAL_CLIENT_SECRET and MAL_REFRESH_TOKEN in your MCP client config " +
+  "(the server's `env` block — it does not read a .env file). Get them via the " +
+  "one-time OAuth described in docs/auth.md; the access token is then managed " +
+  "automatically. (Advanced: a standalone MAL_ACCESS_TOKEN also works but expires in ~30 days.)";
 
 const animeListStatus = z
   .enum(["watching", "completed", "on_hold", "dropped", "plan_to_watch"])

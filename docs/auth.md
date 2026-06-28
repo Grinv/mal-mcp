@@ -52,28 +52,31 @@ The response contains `access_token` (valid ~30 days) and `refresh_token`.
 
 ## 3. Configure the server
 
-Recommended (enables silent refresh, so you do this only once):
+You now have three values to give the server — two from step 1, one from step 2:
 
-```sh
-export MAL_CLIENT_ID="<client id>"
-export MAL_CLIENT_SECRET="<client secret>"
-export MAL_REFRESH_TOKEN="<refresh token>"
-# Optional: skips one refresh on first use.
-export MAL_ACCESS_TOKEN="<access token>"
+| Value               | From                      |
+| ------------------- | ------------------------- |
+| `MAL_CLIENT_ID`     | step 1 (app registration) |
+| `MAL_CLIENT_SECRET` | step 1 (app registration) |
+| `MAL_REFRESH_TOKEN` | step 2 (OAuth exchange)   |
+
+Put these three in your **MCP client config's `env` block** (see
+[clients.md](clients.md)) — the server does **not** read a `.env` file:
+
+```json
+"env": {
+  "MAL_CLIENT_ID": "...",
+  "MAL_CLIENT_SECRET": "...",
+  "MAL_REFRESH_TOKEN": "..."
+}
 ```
 
-Minimal (token expires in ~30 days, then re-run step 2):
+That's it — the server fetches and silently refreshes the access token itself, so
+you do this once. You do **not** need to set `MAL_ACCESS_TOKEN`.
 
-```sh
-export MAL_ACCESS_TOKEN="<access token>"
-```
-
-### Storing the token securely (macOS example)
-
-```sh
-security add-generic-password -s mal-refresh-token -a "$USER" -w '<refresh token>'
-export MAL_REFRESH_TOKEN="$(security find-generic-password -s mal-refresh-token -w)"
-```
+> **Advanced:** you may instead set just `MAL_ACCESS_TOKEN` (the access token from
+> step 2). It works without the trio but expires in ~30 days with no auto-refresh,
+> so it's only useful for a quick throwaway test.
 
 The rotated refresh token is cached at `~/.config/mal-mcp/tokens.json`
 (`%APPDATA%\mal-mcp\tokens.json` on Windows). Delete that file to reset, or set

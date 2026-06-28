@@ -89,31 +89,31 @@
   ],
   "prompts_generated": true,
   "user_config": {
-    "mal_access_token": {
-      "type": "string",
-      "title": "MyAnimeList Access Token",
-      "description": "Optional. Required only for personal-list tools. See docs/auth.md.",
-      "required": false,
-      "sensitive": true
-    },
     "mal_client_id": {
       "type": "string",
       "title": "MyAnimeList Client ID",
-      "description": "Optional. Together with the client secret and refresh token, enables automatic token refresh.",
+      "description": "For personal-list tools. From your app at myanimelist.net/apiconfig. See docs/auth.md.",
       "required": false,
       "sensitive": true
     },
     "mal_client_secret": {
       "type": "string",
       "title": "MyAnimeList Client Secret",
-      "description": "Optional. Used with the client ID and refresh token for automatic token refresh.",
+      "description": "For personal-list tools. From your app at myanimelist.net/apiconfig. See docs/auth.md.",
       "required": false,
       "sensitive": true
     },
     "mal_refresh_token": {
       "type": "string",
       "title": "MyAnimeList Refresh Token",
-      "description": "Optional. Enables silent token refresh so you don't have to re-authenticate monthly.",
+      "description": "For personal-list tools. From the one-time OAuth in docs/auth.md. Enables silent auto-refresh.",
+      "required": false,
+      "sensitive": true
+    },
+    "mal_access_token": {
+      "type": "string",
+      "title": "MyAnimeList Access Token (advanced)",
+      "description": "Optional. Standalone token; works ~30 days with no refresh. Usually leave blank and set the three above.",
       "required": false,
       "sensitive": true
     }

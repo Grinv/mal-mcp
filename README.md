@@ -94,25 +94,20 @@ credentials via this `env` block (or your shell environment). See
 
 ## Configuration
 
-The server reads configuration from environment variables. All are optional;
-without a token the read tools still work.
+All configuration is via environment variables, all optional — without credentials
+the read tools still work. For the personal-list tools, set the **three credentials**
+below; the access token is then fetched and refreshed automatically.
 
-| Variable                                                  | Purpose                                                              |
-| --------------------------------------------------------- | -------------------------------------------------------------------- |
-| `MAL_ACCESS_TOKEN`                                        | User token for personal-list tools.                                  |
-| `MAL_CLIENT_ID`, `MAL_CLIENT_SECRET`, `MAL_REFRESH_TOKEN` | Enable silent token refresh (recommended — avoids monthly re-auth).  |
-| `MAL_TOKEN_STORE`                                         | Override the token cache path (default: OS config dir).              |
-| `LOG_LEVEL`                                               | `debug` \| `info` \| `warn` \| `error` \| `silent` (default `info`). |
+| Variable                                                  | Purpose                                                                          |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `MAL_CLIENT_ID`, `MAL_CLIENT_SECRET`, `MAL_REFRESH_TOKEN` | Personal-list credentials (with auto-refresh). See [docs/auth.md](docs/auth.md). |
+| `MAL_ACCESS_TOKEN`                                        | _Advanced/optional._ A standalone token; works ~30 days, no refresh.             |
+| `MAL_TOKEN_STORE`                                         | Override the token cache path (default: OS config dir).                          |
+| `LOG_LEVEL`                                               | `debug` \| `info` \| `warn` \| `error` \| `silent` (default `info`).             |
 
-The server only reads `MAL_ACCESS_TOKEN` (and friends) — it does not care how you
-populate them. For example, on macOS you can keep the token in the Keychain and
-export it from your shell:
-
-```sh
-export MAL_ACCESS_TOKEN="$(security find-generic-password -s mal-access-token -w)"
-```
-
-See [docs/auth.md](docs/auth.md) for how to obtain a token, and
+Provide these in your MCP client config's `env` block (the server does **not**
+read a `.env` file). See [docs/auth.md](docs/auth.md) for how to obtain the
+credentials, and
 [docs/clients.md](docs/clients.md) for client configuration snippets.
 
 ## NSFW content
