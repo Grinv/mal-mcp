@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "mal-mcp",
   "display_name": "MyAnimeList (MAL)",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Search and browse MyAnimeList anime/manga and manage your personal list.",
   "long_description": "MCP server for MyAnimeList. Reads (search, details, rankings, seasons, characters, recommendations, reviews, public profiles) are served via the public Jikan API and require no credentials. Personal-list tools (read/update/delete your own anime & manga list) use the official MyAnimeList API and require a user token; without one they return an actionable error. Works with any MCP client.",
   "author": {
@@ -36,10 +36,22 @@
   },
   "tools_generated": false,
   "tools": [
-    { "name": "search_anime", "description": "Search anime by keyword." },
-    { "name": "search_manga", "description": "Search manga by keyword." },
-    { "name": "get_anime", "description": "Get full details for one anime by id." },
-    { "name": "get_manga", "description": "Get full details for one manga by id." },
+    {
+      "name": "search_anime",
+      "description": "Search anime by keyword."
+    },
+    {
+      "name": "search_manga",
+      "description": "Search manga by keyword."
+    },
+    {
+      "name": "get_anime",
+      "description": "Get full details for one anime by id."
+    },
+    {
+      "name": "get_manga",
+      "description": "Get full details for one manga by id."
+    },
     {
       "name": "get_anime_characters",
       "description": "List an anime's characters and voice actors."
@@ -48,12 +60,30 @@
       "name": "get_anime_recommendations",
       "description": "Community recommendations for an anime."
     },
-    { "name": "get_anime_reviews", "description": "User reviews for an anime." },
-    { "name": "get_top_anime", "description": "Ranked/top anime, with optional filters." },
-    { "name": "get_top_manga", "description": "Ranked/top manga, with optional filters." },
-    { "name": "get_seasonal_anime", "description": "Anime for a given (or current) season." },
-    { "name": "get_anime_schedule", "description": "Broadcast schedule, optionally by weekday." },
-    { "name": "get_user_profile", "description": "A public user's profile and statistics." },
+    {
+      "name": "get_anime_reviews",
+      "description": "User reviews for an anime."
+    },
+    {
+      "name": "get_top_anime",
+      "description": "Ranked/top anime, with optional filters."
+    },
+    {
+      "name": "get_top_manga",
+      "description": "Ranked/top manga, with optional filters."
+    },
+    {
+      "name": "get_seasonal_anime",
+      "description": "Anime for a given (or current) season."
+    },
+    {
+      "name": "get_anime_schedule",
+      "description": "Broadcast schedule, optionally by weekday."
+    },
+    {
+      "name": "get_user_profile",
+      "description": "A public user's profile and statistics."
+    },
     {
       "name": "get_user_favorites",
       "description": "A public user's favorite anime/manga/characters/people."

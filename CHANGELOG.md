@@ -6,6 +6,19 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-28
+
+### Changed
+
+- Clearer credential setup: docs, the `manifest.json` config fields, and the
+  "not configured" error message now lead with `MAL_CLIENT_ID` +
+  `MAL_CLIENT_SECRET` + `MAL_REFRESH_TOKEN` (the access token is managed
+  automatically); `MAL_ACCESS_TOKEN` is demoted to an advanced/optional override.
+- `npx -y mal-mcp` documented as the primary way to connect (no clone/build).
+- The pre-deploy API health check now distinguishes contract drift (blocks the
+  release) from transient upstream outages such as 5xx/429/timeout (warn only),
+  so a brief Jikan outage no longer blocks a release.
+
 ## [0.1.0] - 2026-06-28
 
 ### Added
@@ -25,5 +38,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - In-memory TTL caching, polite Jikan rate limiting, retries with backoff.
 - `.mcpb` bundle packaging and `server.json` metadata for the MCP Registry.
 
-[Unreleased]: https://github.com/Grinv/mal-mcp/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Grinv/mal-mcp/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/Grinv/mal-mcp/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Grinv/mal-mcp/releases/tag/v0.1.0

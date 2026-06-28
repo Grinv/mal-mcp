@@ -1,7 +1,10 @@
 // Pre-deploy health check for the upstream APIs this server depends on.
-// Jikan endpoints must return 200 with the expected shape; the official MAL
-// endpoint must be reachable (401 without a token confirms it is alive and the
-// auth gate works). Exits non-zero on any mismatch so a release can be gated.
+//
+// Distinguishes two failure classes:
+//   - CONTRACT drift (404, unexpected status, wrong response shape) → FAIL the
+//     release: the API changed and our integration is likely broken.
+//   - TRANSIENT outage (5xx / 429 / timeout / network) → WARN only: the upstream
+//     is momentarily down; that is no reason to block shipping our own code.
 //
 // Run: `npm run check:api`. Requests are spaced to respect Jikan's rate limit.
 
@@ -11,35 +14,41 @@ const SPACING_MS = 700;
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Fetch that tolerates transient 429/5xx (the public Jikan instance rate-limits).
+class TransientError extends Error {}
+class ContractError extends Error {}
+
+// Fetch with retries for transient 429/5xx; network failures are transient too.
 async function fetchResilient(url, attempts = 3) {
+  let last;
   for (let i = 0; ; i += 1) {
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
-    if (res.status !== 429 && res.status < 500) return res;
-    if (i >= attempts - 1) return res;
-    const retryAfter = Number(res.headers.get("retry-after"));
-    await delay(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1000 * (i + 1));
+    try {
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      if (res.status !== 429 && res.status < 500) return res;
+      last = new TransientError(`upstream ${res.status}`);
+    } catch (err) {
+      last = new TransientError(`network: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    if (i >= attempts - 1) throw last;
+    await delay(1000 * (i + 1));
   }
 }
 
-/** @type {{name:string, run:() => Promise<void>}[]} */
 const checks = [];
 const jikan = (name, path, assertFn) =>
   checks.push({
     name,
     run: async () => {
       const res = await fetchResilient(`${JIKAN}${path}`);
-      if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
-      const body = await res.json();
-      assertFn(body);
+      if (res.status !== 200) throw new ContractError(`expected 200, got ${res.status}`);
+      assertFn(await res.json());
     },
   });
 
 const hasData = (b) => {
-  if (!b || b.data === undefined) throw new Error("missing `data`");
+  if (!b || b.data === undefined) throw new ContractError("missing `data`");
 };
 const hasArray = (b) => {
-  if (!Array.isArray(b?.data)) throw new Error("`data` is not an array");
+  if (!Array.isArray(b?.data)) throw new ContractError("`data` is not an array");
 };
 
 jikan("anime search", "/anime?q=frieren&limit=1", hasArray);
@@ -58,28 +67,41 @@ jikan("user favorites", "/users/Xinil/favorites", hasData);
 checks.push({
   name: "MAL reachability (auth required without token)",
   run: async () => {
-    const res = await fetch(`${MAL}/users/@me`, { headers: { Accept: "application/json" } });
+    const res = await fetchResilient(`${MAL}/users/@me`);
     // Alive + auth gate working: MAL rejects unauthenticated calls with 401/403.
     if (res.status !== 401 && res.status !== 403) {
-      throw new Error(`expected 401/403, got ${res.status}`);
+      throw new ContractError(`expected 401/403, got ${res.status}`);
     }
   },
 });
 
 const failures = [];
+const warnings = [];
 for (const check of checks) {
   try {
     await check.run();
-    console.log(`  ok   ${check.name}`);
+    console.log(`  ok    ${check.name}`);
   } catch (err) {
-    failures.push(check.name);
-    console.error(`  FAIL ${check.name}: ${err instanceof Error ? err.message : String(err)}`);
+    if (err instanceof TransientError) {
+      warnings.push(check.name);
+      console.warn(`  warn  ${check.name}: ${err.message} (transient — not blocking)`);
+    } else {
+      failures.push(check.name);
+      console.error(`  FAIL  ${check.name}: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
   await delay(SPACING_MS);
 }
 
+if (warnings.length) {
+  console.warn(
+    `\n${warnings.length}/${checks.length} checks had transient upstream issues (not blocking).`,
+  );
+}
 if (failures.length) {
-  console.error(`\n${failures.length}/${checks.length} API checks failed.`);
+  console.error(`\n${failures.length}/${checks.length} API checks failed (contract drift).`);
   process.exit(1);
 }
-console.log(`\nAll ${checks.length} API checks passed.`);
+console.log(
+  `\nContract checks passed (${checks.length - warnings.length}/${checks.length} reachable).`,
+);

@@ -1,6 +1,6 @@
 {
   "name": "mal-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MyAnimeList MCP server — Jikan-powered reads plus official MAL personal-list management",
   "type": "module",
   "license": "MIT",
