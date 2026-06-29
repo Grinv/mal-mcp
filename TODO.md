@@ -25,4 +25,11 @@ GitHub Issues once the repository is public.
 
 - [ ] Full interactive OAuth2 PKCE flow (local callback server) as an alternative
       to the manual token + silent-refresh approach.
-- [ ] Additional Jikan read surface (e.g. genres list, producers, full schedule).
+- [x] Additional Jikan read surface: genres, episodes, manga parity, characters
+      & people (search + detail), staff, statistics, random, upcoming season,
+      producers, top people/characters/reviews, user statistics/updates, and the
+      watch feeds (episodes/promos) all shipped.
+- [ ] Remaining niche Jikan surface, intentionally skipped to keep the tool
+      surface lean (add only on a concrete use case): clubs, magazines,
+      pictures/videos, forum threads, relations/themes/external links, per-entity
+      `moreinfo`, user history/friends/about, and the `*/popular` watch variants.

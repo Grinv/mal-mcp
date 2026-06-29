@@ -6,6 +6,41 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Tool results now serialize their text mirror as compact JSON (no pretty-print
+  indentation), reducing tokens for clients that feed the text into the model.
+- Every id-based read tool now states where to obtain the `mal_id` (via
+  `search_anime`/`search_manga`), so calling agents don't have to guess.
+- The Jikan rate limiter now enforces sliding-window limits (3 req/s **and**
+  60 req/min, per the API docs) instead of only a minimum interval, so sustained
+  traffic stays under the published per-minute ceiling. `JIKAN_MIN_INTERVAL_MS`
+  still applies as a floor; set it to `0` to disable client-side throttling.
+- A Jikan `score` of `0` (which the API uses to mean "no score yet") is now
+  surfaced as absent instead of a literal `0`, so it is not mistaken for a 0/10
+  rating.
+- Upstream HTTP errors now surface Jikan's structured `message` (and `report_url`
+  when present) instead of a raw body slice; status `304`/`405` are mapped to
+  explicit error codes.
+
+### Added
+
+- New read tools (Jikan): `get_anime_genres` / `get_manga_genres` (discover the
+  genre IDs that `search_*` expect), `get_anime_episodes` (titles, air dates,
+  filler/recap flags), and manga parity with anime — `get_manga_characters`,
+  `get_manga_recommendations`, `get_manga_reviews`.
+- Character & people surface: `search_characters` / `get_character`,
+  `search_people` / `get_person`, and `get_anime_staff` — so the IDs returned by
+  character/voice-actor fields are now navigable.
+- Discovery & stats: `get_random_anime` / `get_random_manga`,
+  `get_upcoming_season`, `get_anime_statistics` / `get_manga_statistics`.
+- Broader surface: `get_producers`, `get_top_people` / `get_top_characters`.
+- Curated extras: `get_seasons_list` (valid args for get_seasonal_anime),
+  `get_random_character` / `get_random_person`, and `get_anime_news`.
+- `update_my_anime_status` / `update_my_manga_status` now accept the remaining
+  MyAnimeList list fields: `priority`, `tags`, and rewatch/reread counts
+  (`num_times_rewatched`/`rewatch_value`, `num_times_reread`/`reread_value`).
+
 ## [0.1.2] - 2026-06-28
 
 ### Fixed

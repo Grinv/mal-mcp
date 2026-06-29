@@ -9,6 +9,20 @@ this file, not in CLAUDE.md. (For end-user/runtime docs, see [README.md](README.
 A TypeScript MCP server. Hybrid backend: read tools call the public Jikan API
 (no auth); personal-list tools call the official MyAnimeList API (user token).
 
+> **Why reads go through Jikan, not the official MAL API.** The official API can
+> serve public data without OAuth via an `X-MAL-CLIENT-ID` header, but that still
+> requires a registered MAL application (a Client ID). Our read tools must work
+> with **zero credentials**, so they use Jikan, which needs none. Don't "upgrade"
+> reads to the official API — it would gate credential-free use behind a Client
+> ID. Also: the official MAL character/people endpoints are explicitly
+> undocumented and off-limits ("don't use them"), which is another reason those
+> reads come from Jikan. The official API is used **only** for personal-list
+> reads/writes that genuinely require a user's OAuth Bearer token.
+
+Upstream API docs (rate limits, endpoints, OAuth, audit notes) are collected in
+[docs/api-references.md](docs/api-references.md) — check there before changing a
+client.
+
 ```
 src/
   index.ts        # bin entry — calls start()

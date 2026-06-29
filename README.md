@@ -20,17 +20,27 @@ error and everything else keeps working.
 
 ## Tools
 
-| Tool                                                                     | Backend | Auth  |
-| ------------------------------------------------------------------------ | ------- | ----- |
-| `search_anime`, `search_manga`                                           | Jikan   | none  |
-| `get_anime`, `get_manga`                                                 | Jikan   | none  |
-| `get_anime_characters`, `get_anime_recommendations`, `get_anime_reviews` | Jikan   | none  |
-| `get_top_anime`, `get_top_manga`                                         | Jikan   | none  |
-| `get_seasonal_anime`, `get_anime_schedule`                               | Jikan   | none  |
-| `get_user_profile`, `get_user_favorites`                                 | Jikan   | none  |
-| `get_my_user_info`, `get_my_anime_list`, `get_my_manga_list`             | MAL     | token |
-| `update_my_anime_status`, `update_my_manga_status`                       | MAL     | token |
-| `delete_my_anime_list_item`, `delete_my_manga_list_item`                 | MAL     | token |
+| Tool                                                                                  | Backend | Auth  |
+| ------------------------------------------------------------------------------------- | ------- | ----- |
+| `search_anime`, `search_manga`                                                        | Jikan   | none  |
+| `get_anime`, `get_manga`                                                              | Jikan   | none  |
+| `get_anime_characters`, `get_anime_recommendations`, `get_anime_reviews`              | Jikan   | none  |
+| `get_manga_characters`, `get_manga_recommendations`, `get_manga_reviews`              | Jikan   | none  |
+| `get_anime_episodes`                                                                  | Jikan   | none  |
+| `get_anime_genres`, `get_manga_genres`                                                | Jikan   | none  |
+| `search_characters`, `get_character`                                                  | Jikan   | none  |
+| `search_people`, `get_person`, `get_anime_staff`                                      | Jikan   | none  |
+| `get_anime_statistics`, `get_manga_statistics`                                        | Jikan   | none  |
+| `get_random_anime`, `get_random_manga`, `get_random_character`, `get_random_person`   | Jikan   | none  |
+| `get_anime_news`                                                                      | Jikan   | none  |
+| `get_top_anime`, `get_top_manga`                                                      | Jikan   | none  |
+| `get_top_people`, `get_top_characters`                                                | Jikan   | none  |
+| `get_seasonal_anime`, `get_upcoming_season`, `get_seasons_list`, `get_anime_schedule` | Jikan   | none  |
+| `get_producers`                                                                       | Jikan   | none  |
+| `get_user_profile`, `get_user_favorites`                                              | Jikan   | none  |
+| `get_my_user_info`, `get_my_anime_list`, `get_my_manga_list`                          | MAL     | token |
+| `update_my_anime_status`, `update_my_manga_status`                                    | MAL     | token |
+| `delete_my_anime_list_item`, `delete_my_manga_list_item`                              | MAL     | token |
 
 Prompts: `recommend_similar`, `seasonal_overview`.
 
@@ -104,6 +114,18 @@ below; the access token is then fetched and refreshed automatically.
 | `MAL_ACCESS_TOKEN`                                        | _Advanced/optional._ A standalone token; works ~30 days, no refresh.             |
 | `MAL_TOKEN_STORE`                                         | Override the token cache path (default: OS config dir).                          |
 | `LOG_LEVEL`                                               | `debug` \| `info` \| `warn` \| `error` \| `silent` (default `info`).             |
+
+### Tuning (rarely needed)
+
+These have sensible defaults; change them only if you self-host Jikan or need
+different timing.
+
+| Variable                                               | Purpose                                                                                                                                                                            |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JIKAN_MIN_INTERVAL_MS`                                | Min spacing between Jikan calls (default `400`). On top of this the client enforces Jikan's published 3/s **and** 60/min limits; set to `0` to disable all client-side throttling. |
+| `CACHE_TTL_MS`                                         | TTL for the in-memory read cache (default `300000` = 5 min).                                                                                                                       |
+| `HTTP_TIMEOUT_MS`, `HTTP_RETRIES`                      | Per-request timeout (default `15000`) and retry attempts for transient failures (default `2`).                                                                                     |
+| `JIKAN_BASE_URL`, `MAL_BASE_URL`, `MAL_OAUTH_BASE_URL` | Override upstream base URLs (e.g. a self-hosted Jikan instance).                                                                                                                   |
 
 Provide these in your MCP client config's `env` block (the server does **not**
 read a `.env` file). See [docs/auth.md](docs/auth.md) for how to obtain the
