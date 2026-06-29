@@ -16,6 +16,8 @@ const MANGA_LIST_FIELDS =
   "list_status{status,score,num_chapters_read,num_volumes_read,is_rereading,updated_at}";
 const USER_FIELDS = "id,name,location,joined_at,anime_statistics";
 
+type Resource = "anime" | "manga";
+
 export interface AnimeListParams {
   status?: string;
   sort?: string;
@@ -28,6 +30,10 @@ export interface AnimeStatusUpdate {
   score?: number;
   num_watched_episodes?: number;
   is_rewatching?: boolean;
+  num_times_rewatched?: number;
+  rewatch_value?: number;
+  priority?: number;
+  tags?: string;
   start_date?: string;
   finish_date?: string;
   comments?: string;
@@ -39,6 +45,10 @@ export interface MangaStatusUpdate {
   num_chapters_read?: number;
   num_volumes_read?: number;
   is_rereading?: boolean;
+  num_times_reread?: number;
+  reread_value?: number;
+  priority?: number;
+  tags?: string;
   comments?: string;
 }
 
@@ -80,6 +90,8 @@ export class MalClient {
   }
 
   // ---- personal list operations -------------------------------------------
+  // Anime and manga share the same MAL endpoints up to a `${resource}` segment,
+  // so each public method delegates to one resource-parameterized private helper.
 
   async getMyUserInfo(): Promise<Record<string, unknown>> {
     return this.#authed((token) =>
@@ -90,84 +102,72 @@ export class MalClient {
     );
   }
 
-  async getMyAnimeList(p: AnimeListParams): Promise<Record<string, unknown>> {
+  getMyAnimeList(p: AnimeListParams): Promise<Record<string, unknown>> {
+    return this.#getMyList("anime", ANIME_LIST_FIELDS, p);
+  }
+
+  getMyMangaList(p: AnimeListParams): Promise<Record<string, unknown>> {
+    return this.#getMyList("manga", MANGA_LIST_FIELDS, p);
+  }
+
+  async #getMyList(
+    resource: Resource,
+    fields: string,
+    p: AnimeListParams,
+  ): Promise<Record<string, unknown>> {
     const res = await this.#authed((token) =>
-      this.#http.getJson<MalListResponse>("users/@me/animelist", {
-        query: {
-          fields: ANIME_LIST_FIELDS,
-          status: p.status,
-          sort: p.sort,
-          limit: p.limit,
-          offset: p.offset,
-        },
+      this.#http.getJson<MalListResponse>(`users/@me/${resource}list`, {
+        query: { fields, status: p.status, sort: p.sort, limit: p.limit, offset: p.offset },
         headers: bearer(token),
       }),
     );
     return trimList(res);
   }
 
-  async getMyMangaList(p: AnimeListParams): Promise<Record<string, unknown>> {
-    const res = await this.#authed((token) =>
-      this.#http.getJson<MalListResponse>("users/@me/mangalist", {
-        query: {
-          fields: MANGA_LIST_FIELDS,
-          status: p.status,
-          sort: p.sort,
-          limit: p.limit,
-          offset: p.offset,
-        },
-        headers: bearer(token),
-      }),
-    );
-    return trimList(res);
-  }
-
-  async updateMyAnimeStatus(
+  updateMyAnimeStatus(
     animeId: number,
     update: AnimeStatusUpdate,
   ): Promise<Record<string, unknown>> {
-    const body = formBody(update);
-    return this.#authed((token) =>
-      this.#http.requestJson<Record<string, unknown>>(`anime/${animeId}/my_list_status`, {
-        method: "PATCH",
-        body,
-        headers: { ...bearer(token), "Content-Type": "application/x-www-form-urlencoded" },
-      }),
-    );
+    return this.#updateStatus("anime", animeId, update);
   }
 
-  async updateMyMangaStatus(
+  updateMyMangaStatus(
     mangaId: number,
     update: MangaStatusUpdate,
   ): Promise<Record<string, unknown>> {
-    const body = formBody(update);
+    return this.#updateStatus("manga", mangaId, update);
+  }
+
+  #updateStatus(
+    resource: Resource,
+    id: number,
+    update: AnimeStatusUpdate | MangaStatusUpdate,
+  ): Promise<Record<string, unknown>> {
     return this.#authed((token) =>
-      this.#http.requestJson<Record<string, unknown>>(`manga/${mangaId}/my_list_status`, {
+      this.#http.requestJson<Record<string, unknown>>(`${resource}/${id}/my_list_status`, {
         method: "PATCH",
-        body,
+        body: formBody(update),
         headers: { ...bearer(token), "Content-Type": "application/x-www-form-urlencoded" },
       }),
     );
   }
 
-  async deleteMyAnimeListItem(animeId: number): Promise<Record<string, unknown>> {
-    await this.#authed((token) =>
-      this.#http.requestJson<unknown>(`anime/${animeId}/my_list_status`, {
-        method: "DELETE",
-        headers: bearer(token),
-      }),
-    );
-    return { deleted: true, anime_id: animeId };
+  deleteMyAnimeListItem(animeId: number): Promise<Record<string, unknown>> {
+    return this.#deleteItem("anime", animeId);
   }
 
-  async deleteMyMangaListItem(mangaId: number): Promise<Record<string, unknown>> {
+  deleteMyMangaListItem(mangaId: number): Promise<Record<string, unknown>> {
+    return this.#deleteItem("manga", mangaId);
+  }
+
+  async #deleteItem(resource: Resource, id: number): Promise<Record<string, unknown>> {
     await this.#authed((token) =>
-      this.#http.requestJson<unknown>(`manga/${mangaId}/my_list_status`, {
+      this.#http.requestJson<unknown>(`${resource}/${id}/my_list_status`, {
         method: "DELETE",
         headers: bearer(token),
       }),
     );
-    return { deleted: true, manga_id: mangaId };
+    return { deleted: true, [`${resource}_id`]: id };
   }
 
   // ---- auth ----------------------------------------------------------------

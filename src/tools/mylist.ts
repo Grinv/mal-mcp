@@ -22,6 +22,19 @@ const mangaListStatus = z
   .enum(["reading", "completed", "on_hold", "dropped", "plan_to_read"])
   .describe("List status bucket.");
 const score = z.number().int().min(0).max(10).describe("Score 0-10 (0 clears the score).");
+const priority = z
+  .number()
+  .int()
+  .min(0)
+  .max(2)
+  .describe("List priority: 0 = low, 1 = medium, 2 = high.");
+const rewatchValue = z
+  .number()
+  .int()
+  .min(0)
+  .max(5)
+  .describe("Rewatch/reread value: 0 = none … 5 = very high.");
+const tags = z.string().describe("Comma-separated free-text tags.");
 const listLimit = z.number().int().min(1).max(100).describe("Max results (1-100).");
 const offset = z.number().int().min(0).describe("Offset for pagination.");
 const malId = z.number().int().positive().describe("MyAnimeList numeric ID.");
@@ -99,6 +112,10 @@ export function registerMyListTools(server: McpServer, mal: MalClient, config: C
         score: score.optional(),
         num_watched_episodes: z.number().int().min(0).describe("Episodes watched.").optional(),
         is_rewatching: z.boolean().describe("Whether currently rewatching.").optional(),
+        num_times_rewatched: z.number().int().min(0).describe("Times rewatched.").optional(),
+        rewatch_value: rewatchValue.optional(),
+        priority: priority.optional(),
+        tags: tags.optional(),
         start_date: date.optional(),
         finish_date: date.optional(),
         comments: z.string().describe("Free-text comments.").optional(),
@@ -128,6 +145,10 @@ export function registerMyListTools(server: McpServer, mal: MalClient, config: C
         num_chapters_read: z.number().int().min(0).describe("Chapters read.").optional(),
         num_volumes_read: z.number().int().min(0).describe("Volumes read.").optional(),
         is_rereading: z.boolean().describe("Whether currently rereading.").optional(),
+        num_times_reread: z.number().int().min(0).describe("Times reread.").optional(),
+        reread_value: rewatchValue.optional(),
+        priority: priority.optional(),
+        tags: tags.optional(),
         comments: z.string().describe("Free-text comments.").optional(),
       },
       annotations: {

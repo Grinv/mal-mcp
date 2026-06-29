@@ -17,8 +17,9 @@ const INSTRUCTIONS = [
   "served via the public Jikan API and need no credentials. Personal-list tools (get_my_*,",
   "update_my_*, delete_my_*) act on the authenticated user's own MAL list and require a user",
   "token; without one they return an actionable error. Resolve a title to its mal_id with",
-  "search_anime/search_manga before calling id-based tools. NSFW results are NOT filtered by",
-  "default; pass sfw=true to exclude adult entries.",
+  "search_anime/search_manga before calling id-based tools. To filter a search by genre, first",
+  "call get_anime_genres/get_manga_genres to get the numeric IDs the `genres` parameter expects.",
+  "NSFW results are NOT filtered by default; pass sfw=true to exclude adult entries.",
 ].join(" ");
 
 /** Construct a fully-registered MCP server. Shared by start() and tests. */

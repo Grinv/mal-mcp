@@ -56,13 +56,32 @@ jikan("anime details", "/anime/52991/full", hasData);
 jikan("anime characters", "/anime/52991/characters", hasArray);
 jikan("anime recommendations", "/anime/52991/recommendations", hasArray);
 jikan("anime reviews", "/anime/52991/reviews?limit=1", hasArray);
+jikan("anime episodes", "/anime/52991/episodes", hasArray);
+jikan("anime genres", "/genres/anime", hasArray);
 jikan("top anime", "/top/anime?limit=1", hasArray);
 jikan("seasonal (now)", "/seasons/now?limit=1", hasArray);
 jikan("schedule", "/schedules?filter=monday&limit=1", hasArray);
 jikan("manga search", "/manga?q=berserk&limit=1", hasArray);
 jikan("manga details", "/manga/2/full", hasData);
+jikan("manga characters", "/manga/2/characters", hasArray);
+jikan("manga recommendations", "/manga/2/recommendations", hasArray);
+jikan("manga reviews", "/manga/2/reviews?limit=1", hasArray);
+jikan("manga genres", "/genres/manga", hasArray);
 jikan("user profile", "/users/Xinil/full", hasData);
 jikan("user favorites", "/users/Xinil/favorites", hasData);
+jikan("character details", "/characters/1/full", hasData);
+jikan("character search", "/characters?q=spike&limit=1", hasArray);
+jikan("person details", "/people/1/full", hasData);
+jikan("anime staff", "/anime/52991/staff", hasArray);
+jikan("anime statistics", "/anime/52991/statistics", hasData);
+jikan("random anime", "/random/anime", hasData);
+jikan("upcoming season", "/seasons/upcoming?limit=1", hasArray);
+jikan("producers", "/producers?limit=1", hasArray);
+jikan("top people", "/top/people?limit=1", hasArray);
+jikan("top characters", "/top/characters?limit=1", hasArray);
+jikan("seasons list", "/seasons", hasArray);
+jikan("random character", "/random/characters", hasData);
+jikan("anime news", "/anime/52991/news", hasArray);
 
 checks.push({
   name: "MAL reachability (auth required without token)",

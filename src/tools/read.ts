@@ -1,10 +1,12 @@
-// Read-only tools backed by Jikan (no credentials required). Descriptions and
+// Read-only tools backed by Jikan (no credentials required). Each tool maps a
+// validated input to one JikanClient call; `reply` wraps that call in the shared
+// guard/jsonResult plumbing so the handlers stay one-liners. Descriptions and
 // per-field `.describe()` text are written for the calling model: they explain
-// when to use each tool and the meaning/units of every parameter.
+// when to use a tool and the meaning/units of every parameter.
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { JikanClient } from "../clients/jikan.js";
-import { jsonResult } from "../lib/result.js";
+import { jsonResult, type ToolResult } from "../lib/result.js";
 import { guard } from "./guard.js";
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: true } as const;
@@ -26,6 +28,13 @@ const sfw = z
   .boolean()
   .describe("If true, exclude adult (NSFW) entries. Defaults to false (no filtering).");
 const malId = z.number().int().positive().describe("MyAnimeList numeric ID.");
+const genreFilter = z
+  .enum(["genres", "explicit_genres", "themes", "demographics"])
+  .describe("Restrict to one kind of tag. Omit to list all.");
+
+/** Run a client call and wrap its result (or any failure) as a tool result. */
+const reply = (fn: () => Promise<Record<string, unknown>>): Promise<ToolResult> =>
+  guard(async () => jsonResult(await fn()));
 
 export function registerReadTools(server: McpServer, jikan: JikanClient): void {
   server.registerTool(
@@ -33,9 +42,8 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     {
       title: "Search anime",
       description:
-        "Search MyAnimeList anime by keyword. Use this to find an anime and its mal_id, " +
-        "which other tools (get_anime, get_anime_characters, ...) require. Returns compact " +
-        "summaries plus pagination info.",
+        "Search MyAnimeList anime by keyword; returns compact summaries (with the mal_id that " +
+        "other anime tools require) plus pagination info.",
       inputSchema: {
         q: z.string().min(1).describe("Search query, e.g. an anime title."),
         type: animeType.optional(),
@@ -61,7 +69,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       },
       annotations: READ_ONLY,
     },
-    (args) => guard(async () => jsonResult(await jikan.searchAnime(args))),
+    (args) => reply(() => jikan.searchAnime(args)),
   );
 
   server.registerTool(
@@ -69,8 +77,8 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     {
       title: "Search manga",
       description:
-        "Search MyAnimeList manga by keyword. Returns compact summaries and the mal_id needed " +
-        "by get_manga. Covers manga, light novels, manhwa/manhua, etc.",
+        "Search MyAnimeList manga by keyword (also light novels, manhwa/manhua); returns compact " +
+        "summaries with the mal_id that other manga tools require.",
       inputSchema: {
         q: z.string().min(1).describe("Search query, e.g. a manga title."),
         type: mangaType.optional(),
@@ -97,7 +105,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       },
       annotations: READ_ONLY,
     },
-    (args) => guard(async () => jsonResult(await jikan.searchManga(args))),
+    (args) => reply(() => jikan.searchManga(args)),
   );
 
   server.registerTool(
@@ -110,7 +118,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: { id: malId },
       annotations: READ_ONLY,
     },
-    ({ id }) => guard(async () => jsonResult(await jikan.getAnime(id))),
+    ({ id }) => reply(() => jikan.getAnime(id)),
   );
 
   server.registerTool(
@@ -122,7 +130,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: { id: malId },
       annotations: READ_ONLY,
     },
-    ({ id }) => guard(async () => jsonResult(await jikan.getManga(id))),
+    ({ id }) => reply(() => jikan.getManga(id)),
   );
 
   server.registerTool(
@@ -130,11 +138,37 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     {
       title: "Get anime characters",
       description:
-        "List the characters of an anime (by mal_id) with their roles and Japanese voice actors.",
+        "List the characters of an anime (by mal_id) with their roles and Japanese voice actors. " +
+        "Get the mal_id from search_anime.",
       inputSchema: { id: malId },
       annotations: READ_ONLY,
     },
-    ({ id }) => guard(async () => jsonResult(await jikan.getAnimeCharacters(id))),
+    ({ id }) => reply(() => jikan.getAnimeCharacters(id)),
+  );
+
+  server.registerTool(
+    "get_manga_characters",
+    {
+      title: "Get manga characters",
+      description:
+        "List the characters of a manga (by mal_id) with their roles. Get the mal_id from search_manga.",
+      inputSchema: { id: malId },
+      annotations: READ_ONLY,
+    },
+    ({ id }) => reply(() => jikan.getMangaCharacters(id)),
+  );
+
+  server.registerTool(
+    "get_anime_episodes",
+    {
+      title: "Get anime episodes",
+      description:
+        "List an anime's episodes (by mal_id) with titles, air dates and filler/recap flags. " +
+        "Paginated (~100 per page); use `page` for long-running series. Get the mal_id from search_anime.",
+      inputSchema: { id: malId, page: page.optional() },
+      annotations: READ_ONLY,
+    },
+    ({ id, page: pg }) => reply(() => jikan.getAnimeEpisodes(id, pg)),
   );
 
   server.registerTool(
@@ -142,23 +176,51 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     {
       title: "Get anime recommendations",
       description:
-        "Get community recommendations for anime similar to the given mal_id, ordered by votes.",
+        "Get community recommendations for anime similar to the given mal_id, ordered by votes. " +
+        "Get the mal_id from search_anime.",
       inputSchema: { id: malId },
       annotations: READ_ONLY,
     },
-    ({ id }) => guard(async () => jsonResult(await jikan.getAnimeRecommendations(id))),
+    ({ id }) => reply(() => jikan.getAnimeRecommendations(id)),
   );
 
   server.registerTool(
     "get_anime_reviews",
     {
       title: "Get anime reviews",
-      description: "Get user reviews for an anime (by mal_id), including score and review text.",
+      description:
+        "Get user reviews for one anime (by mal_id), including score and review text. " +
+        "Get the mal_id from search_anime. (For a cross-title feed, use get_top_reviews.)",
       inputSchema: { id: malId, limit: limit.optional() },
       annotations: READ_ONLY,
     },
-    ({ id, limit: lim }) =>
-      guard(async () => jsonResult(await jikan.getAnimeReviews(id, lim ?? 5))),
+    ({ id, limit: lim }) => reply(() => jikan.getAnimeReviews(id, lim ?? 5)),
+  );
+
+  server.registerTool(
+    "get_manga_recommendations",
+    {
+      title: "Get manga recommendations",
+      description:
+        "Get community recommendations for manga similar to the given mal_id, ordered by votes. " +
+        "Get the mal_id from search_manga.",
+      inputSchema: { id: malId },
+      annotations: READ_ONLY,
+    },
+    ({ id }) => reply(() => jikan.getMangaRecommendations(id)),
+  );
+
+  server.registerTool(
+    "get_manga_reviews",
+    {
+      title: "Get manga reviews",
+      description:
+        "Get user reviews for one manga (by mal_id), including score and review text. " +
+        "Get the mal_id from search_manga.",
+      inputSchema: { id: malId, limit: limit.optional() },
+      annotations: READ_ONLY,
+    },
+    ({ id, limit: lim }) => reply(() => jikan.getMangaReviews(id, lim ?? 5)),
   );
 
   server.registerTool(
@@ -181,7 +243,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       },
       annotations: READ_ONLY,
     },
-    (args) => guard(async () => jsonResult(await jikan.getTopAnime(args))),
+    (args) => reply(() => jikan.getTopAnime(args)),
   );
 
   server.registerTool(
@@ -201,7 +263,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       },
       annotations: READ_ONLY,
     },
-    (args) => guard(async () => jsonResult(await jikan.getTopManga(args))),
+    (args) => reply(() => jikan.getTopManga(args)),
   );
 
   server.registerTool(
@@ -225,7 +287,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       },
       annotations: READ_ONLY,
     },
-    (args) => guard(async () => jsonResult(await jikan.getSeason(args))),
+    (args) => reply(() => jikan.getSeason(args)),
   );
 
   server.registerTool(
@@ -242,7 +304,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       },
       annotations: READ_ONLY,
     },
-    ({ day, limit: lim }) => guard(async () => jsonResult(await jikan.getSchedule(day, lim ?? 25))),
+    ({ day, limit: lim }) => reply(() => jikan.getSchedule(day, lim ?? 25)),
   );
 
   server.registerTool(
@@ -253,7 +315,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: { username: z.string().min(1).describe("MyAnimeList username.") },
       annotations: READ_ONLY,
     },
-    ({ username }) => guard(async () => jsonResult(await jikan.getUserProfile(username))),
+    ({ username }) => reply(() => jikan.getUserProfile(username)),
   );
 
   server.registerTool(
@@ -265,6 +327,273 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: { username: z.string().min(1).describe("MyAnimeList username.") },
       annotations: READ_ONLY,
     },
-    ({ username }) => guard(async () => jsonResult(await jikan.getUserFavorites(username))),
+    ({ username }) => reply(() => jikan.getUserFavorites(username)),
+  );
+
+  server.registerTool(
+    "get_anime_genres",
+    {
+      title: "Get anime genres",
+      description:
+        "List anime genres/themes/demographics with their Jikan IDs. Use this to discover the " +
+        "numeric IDs that the `genres` parameter of search_anime expects.",
+      inputSchema: { filter: genreFilter.optional() },
+      annotations: READ_ONLY,
+    },
+    ({ filter }) => reply(() => jikan.getAnimeGenres(filter)),
+  );
+
+  server.registerTool(
+    "get_manga_genres",
+    {
+      title: "Get manga genres",
+      description:
+        "List manga genres/themes/demographics with their Jikan IDs. Use this to discover the " +
+        "numeric IDs that the `genres` parameter of search_manga expects.",
+      inputSchema: { filter: genreFilter.optional() },
+      annotations: READ_ONLY,
+    },
+    ({ filter }) => reply(() => jikan.getMangaGenres(filter)),
+  );
+
+  // ---- characters & people (Tier 1) ----------------------------------------
+
+  server.registerTool(
+    "search_characters",
+    {
+      title: "Search characters",
+      description:
+        "Search MyAnimeList characters by name. Returns compact summaries and the mal_id needed " +
+        "by get_character.",
+      inputSchema: {
+        q: z.string().min(1).describe("Character name."),
+        order_by: z.enum(["mal_id", "name", "favorites"]).describe("Field to order by.").optional(),
+        sort: sortDir.optional(),
+        limit: limit.optional(),
+        page: page.optional(),
+      },
+      annotations: READ_ONLY,
+    },
+    (args) => reply(() => jikan.searchCharacters(args)),
+  );
+
+  server.registerTool(
+    "get_character",
+    {
+      title: "Get character details",
+      description:
+        "Get full details for one character by mal_id: bio, the anime/manga they appear in, and " +
+        "their voice actors. Obtain the mal_id from search_characters or get_anime_characters.",
+      inputSchema: { id: malId },
+      annotations: READ_ONLY,
+    },
+    ({ id }) => reply(() => jikan.getCharacter(id)),
+  );
+
+  server.registerTool(
+    "search_people",
+    {
+      title: "Search people",
+      description:
+        "Search MyAnimeList people (voice actors, directors, authors) by name. Returns the mal_id " +
+        "needed by get_person.",
+      inputSchema: {
+        q: z.string().min(1).describe("Person name."),
+        order_by: z
+          .enum(["mal_id", "name", "birthday", "favorites"])
+          .describe("Field to order by.")
+          .optional(),
+        sort: sortDir.optional(),
+        limit: limit.optional(),
+        page: page.optional(),
+      },
+      annotations: READ_ONLY,
+    },
+    (args) => reply(() => jikan.searchPeople(args)),
+  );
+
+  server.registerTool(
+    "get_person",
+    {
+      title: "Get person details",
+      description:
+        "Get full details for one person by mal_id: bio, their anime/manga staff positions and " +
+        "voiced roles. Obtain the mal_id from search_people or a character's voice_actors.",
+      inputSchema: { id: malId },
+      annotations: READ_ONLY,
+    },
+    ({ id }) => reply(() => jikan.getPerson(id)),
+  );
+
+  server.registerTool(
+    "get_anime_staff",
+    {
+      title: "Get anime staff",
+      description:
+        "List the production staff of an anime (by mal_id) — director, composer, etc. — with their " +
+        "roles. Complements get_anime_characters (which covers voice actors). " +
+        "Get the mal_id from search_anime.",
+      inputSchema: { id: malId },
+      annotations: READ_ONLY,
+    },
+    ({ id }) => reply(() => jikan.getAnimeStaff(id)),
+  );
+
+  // ---- discovery & statistics (Tier 2) -------------------------------------
+
+  server.registerTool(
+    "get_random_anime",
+    {
+      title: "Get a random anime",
+      description: "Return one random anime (full details). Good for discovery / suggestions.",
+      inputSchema: {},
+      annotations: READ_ONLY,
+    },
+    () => reply(() => jikan.getRandomAnime()),
+  );
+
+  server.registerTool(
+    "get_random_manga",
+    {
+      title: "Get a random manga",
+      description: "Return one random manga (full details). Good for discovery / suggestions.",
+      inputSchema: {},
+      annotations: READ_ONLY,
+    },
+    () => reply(() => jikan.getRandomManga()),
+  );
+
+  server.registerTool(
+    "get_upcoming_season",
+    {
+      title: "Get upcoming season anime",
+      description:
+        "List anime scheduled for the upcoming season. Use get_seasonal_anime for the current or a " +
+        "specific past season.",
+      inputSchema: { sfw: sfw.optional(), limit: limit.optional(), page: page.optional() },
+      annotations: READ_ONLY,
+    },
+    (args) => reply(() => jikan.getUpcomingSeason(args)),
+  );
+
+  server.registerTool(
+    "get_anime_statistics",
+    {
+      title: "Get anime statistics",
+      description:
+        "Get watch-status counts (watching/completed/…) and the score distribution for an anime by mal_id. " +
+        "Get the mal_id from search_anime.",
+      inputSchema: { id: malId },
+      annotations: READ_ONLY,
+    },
+    ({ id }) => reply(() => jikan.getAnimeStatistics(id)),
+  );
+
+  server.registerTool(
+    "get_manga_statistics",
+    {
+      title: "Get manga statistics",
+      description:
+        "Get read-status counts (reading/completed/…) and the score distribution for a manga by mal_id. " +
+        "Get the mal_id from search_manga.",
+      inputSchema: { id: malId },
+      annotations: READ_ONLY,
+    },
+    ({ id }) => reply(() => jikan.getMangaStatistics(id)),
+  );
+
+  // ---- broader surface (Tier 3) --------------------------------------------
+
+  server.registerTool(
+    "get_producers",
+    {
+      title: "Get producers/studios",
+      description:
+        "List or search anime producers and studios with their Jikan IDs and counts. Use `q` to search by name.",
+      inputSchema: {
+        q: z.string().describe("Filter by name.").optional(),
+        order_by: z
+          .enum(["mal_id", "count", "favorites", "established"])
+          .describe("Field to order by.")
+          .optional(),
+        sort: sortDir.optional(),
+        limit: limit.optional(),
+        page: page.optional(),
+      },
+      annotations: READ_ONLY,
+    },
+    (args) => reply(() => jikan.getProducers(args)),
+  );
+
+  server.registerTool(
+    "get_top_people",
+    {
+      title: "Get top people",
+      description: "Get the most popular/favorited people (voice actors, staff, authors).",
+      inputSchema: { limit: limit.optional(), page: page.optional() },
+      annotations: READ_ONLY,
+    },
+    (args) => reply(() => jikan.getTopPeople(args)),
+  );
+
+  server.registerTool(
+    "get_top_characters",
+    {
+      title: "Get top characters",
+      description: "Get the most popular/favorited characters.",
+      inputSchema: { limit: limit.optional(), page: page.optional() },
+      annotations: READ_ONLY,
+    },
+    (args) => reply(() => jikan.getTopCharacters(args)),
+  );
+
+  // ---- curated extras ------------------------------------------------------
+
+  server.registerTool(
+    "get_seasons_list",
+    {
+      title: "List available seasons",
+      description:
+        "List the years and seasons that have anime data, so you can pick valid arguments for " +
+        "get_seasonal_anime.",
+      inputSchema: {},
+      annotations: READ_ONLY,
+    },
+    () => reply(() => jikan.getSeasonsList()),
+  );
+
+  server.registerTool(
+    "get_random_character",
+    {
+      title: "Get a random character",
+      description: "Return one random character (full details). Good for discovery / trivia.",
+      inputSchema: {},
+      annotations: READ_ONLY,
+    },
+    () => reply(() => jikan.getRandomCharacter()),
+  );
+
+  server.registerTool(
+    "get_random_person",
+    {
+      title: "Get a random person",
+      description: "Return one random person — voice actor, director, author (full details).",
+      inputSchema: {},
+      annotations: READ_ONLY,
+    },
+    () => reply(() => jikan.getRandomPerson()),
+  );
+
+  server.registerTool(
+    "get_anime_news",
+    {
+      title: "Get anime news",
+      description:
+        "List recent news articles about an anime (by mal_id): headline, date, author and excerpt. " +
+        "Useful for 'what's new / any announcements' questions. Get the mal_id from search_anime.",
+      inputSchema: { id: malId, page: page.optional() },
+      annotations: READ_ONLY,
+    },
+    ({ id, page: pg }) => reply(() => jikan.getAnimeNews(id, pg)),
   );
 }

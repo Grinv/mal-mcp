@@ -1,6 +1,25 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { summarizeAnime, summarizeManga, pageInfo, type JikanMedia } from "../lib/format.js";
+import {
+  summarizeAnime,
+  summarizeManga,
+  summarizeCharacters,
+  summarizeRecommendations,
+  summarizeReviews,
+  summarizeEpisodes,
+  summarizeGenres,
+  summarizeUser,
+  summarizeFavorites,
+  summarizeCharacter,
+  summarizePerson,
+  summarizeStaff,
+  summarizeStatistics,
+  summarizeProducer,
+  summarizeSeasonsList,
+  summarizeNewsItem,
+  pageInfo,
+  type JikanMedia,
+} from "../lib/format.js";
 
 const longSynopsis = "x".repeat(500);
 
@@ -36,6 +55,13 @@ test("summarizeAnime keeps the full synopsis in detailed mode", () => {
   assert.equal(s["synopsis"], longSynopsis);
 });
 
+test("summarizeAnime treats a score of 0 as absent", () => {
+  const s = summarizeAnime({ ...anime, score: 0 });
+  assert.ok(!("score" in s));
+  // A real score is preserved.
+  assert.equal(summarizeAnime({ ...anime, score: 8.75 })["score"], 8.75);
+});
+
 test("summarizeManga maps manga-specific fields", () => {
   const manga: JikanMedia = {
     mal_id: 2,
@@ -49,6 +75,140 @@ test("summarizeManga maps manga-specific fields", () => {
   assert.equal(s["volumes"], 41);
   assert.deepEqual(s["authors"], ["Miura, Kentarou"]);
   assert.ok(!("chapters" in s)); // null dropped
+});
+
+test("summarizeCharacters keeps Japanese VAs for anime and omits them for manga", () => {
+  const raw = [
+    {
+      character: { mal_id: 5, name: "Spike", url: "u" },
+      role: "Main",
+      voice_actors: [
+        { language: "Japanese", person: { name: "Yamadera" } },
+        { language: "English", person: { name: "Blum" } },
+      ],
+    },
+  ];
+  const anime = summarizeCharacters(raw, true) as { characters: { voice_actors: string[] }[] };
+  assert.deepEqual(anime.characters[0]!.voice_actors, ["Yamadera"]);
+
+  const manga = summarizeCharacters(raw, false) as { characters: Record<string, unknown>[] };
+  assert.ok(!("voice_actors" in manga.characters[0]!));
+  assert.equal(manga.characters[0]!["name"], "Spike");
+});
+
+test("summarizeRecommendations caps at 25 and maps the entry", () => {
+  const raw = Array.from({ length: 30 }, (_v, i) => ({
+    entry: { mal_id: i, title: `T${i}`, url: "u" },
+    votes: i,
+  }));
+  const r = summarizeRecommendations(raw) as { recommendations: unknown[] };
+  assert.equal(r.recommendations.length, 25);
+});
+
+test("summarizeReviews truncates long review text", () => {
+  const r = summarizeReviews([
+    { user: { username: "bob" }, score: 8, review: "x".repeat(2000), date: "2024" },
+  ]) as { reviews: { review: string; tags: string[] }[] };
+  assert.equal(r.reviews[0]!.review.length, 1200);
+  assert.deepEqual(r.reviews[0]!.tags, []); // missing tags default to []
+});
+
+test("summarizeEpisodes maps fields and attaches pagination", () => {
+  const r = summarizeEpisodes(
+    [{ mal_id: 1, title: "Asteroid Blues", aired: "1998", filler: false, recap: false }],
+    { has_next_page: true },
+  ) as { episodes: Record<string, unknown>[]; page: Record<string, unknown> };
+  assert.equal(r.episodes[0]!["title"], "Asteroid Blues");
+  assert.equal(r.page["has_next_page"], true);
+});
+
+test("summarizeGenres maps id/name/count", () => {
+  const r = summarizeGenres([{ mal_id: 1, name: "Action", count: 100, url: "u" }]) as {
+    genres: Record<string, unknown>[];
+  };
+  assert.deepEqual(r.genres[0], { mal_id: 1, name: "Action", count: 100, url: "u" });
+});
+
+test("summarizeUser truncates the about text", () => {
+  const u = summarizeUser({ username: "bob", about: "y".repeat(900) }) as { about: string };
+  assert.equal(u.about.length, 600);
+});
+
+test("summarizeFavorites falls back to name when title is absent", () => {
+  const f = summarizeFavorites({
+    anime: [{ mal_id: 1, title: "Fav" }],
+    characters: [{ mal_id: 2, name: "Char" }],
+  }) as { anime: Record<string, unknown>[]; characters: Record<string, unknown>[]; manga: [] };
+  assert.equal(f.anime[0]!["title"], "Fav");
+  assert.equal(f.characters[0]!["title"], "Char");
+  assert.deepEqual(f.manga, []);
+});
+
+test("summarizeCharacter is compact in list mode and expands when detailed", () => {
+  const raw = {
+    mal_id: 1,
+    name: "Spike",
+    about: "x".repeat(500),
+    anime: [{ role: "Main", anime: { mal_id: 1, title: "Bebop" } }],
+    voices: [{ language: "Japanese", person: { mal_id: 9, name: "Yamadera" } }],
+  };
+  const list = summarizeCharacter(raw);
+  assert.ok(!("anime" in list)); // relations only in detailed mode
+  assert.ok((list["about"] as string).length < 500);
+
+  const full = summarizeCharacter(raw, true) as { anime: unknown[]; voice_actors: unknown[] };
+  assert.equal(full.anime.length, 1);
+  assert.equal(full.voice_actors.length, 1);
+});
+
+test("summarizePerson maps names and caps voiced roles", () => {
+  const voices = Array.from({ length: 80 }, (_v, i) => ({
+    role: "Main",
+    character: { name: `C${i}` },
+    anime: { title: `A${i}` },
+  }));
+  const full = summarizePerson({ mal_id: 1, name: "Ito", voices }, true) as {
+    voice_roles: unknown[];
+  };
+  assert.equal(full.voice_roles.length, 50);
+});
+
+test("summarizeStaff and summarizeProducer extract the key fields", () => {
+  const staff = summarizeStaff([
+    { person: { mal_id: 1, name: "Watanabe" }, positions: ["Director"] },
+  ]) as {
+    staff: Record<string, unknown>[];
+  };
+  assert.equal(staff.staff[0]!["name"], "Watanabe");
+  const prod = summarizeProducer({
+    mal_id: 14,
+    titles: [{ type: "Default", title: "Sunrise" }],
+    count: 100,
+  });
+  assert.equal(prod["name"], "Sunrise");
+});
+
+test("summarizeStatistics keeps only the relevant status keys", () => {
+  const anime = summarizeStatistics({ watching: 5, completed: 10, total: 15 });
+  assert.equal(anime["watching"], 5);
+  assert.ok(!("reading" in anime)); // undefined manga key dropped
+});
+
+test("summarizeSeasonsList and summarizeNewsItem map their fields", () => {
+  const seasons = summarizeSeasonsList([{ year: 2024, seasons: ["winter", "spring"] }]) as {
+    seasons: Record<string, unknown>[];
+  };
+  assert.deepEqual(seasons.seasons[0], { year: 2024, seasons: ["winter", "spring"] });
+
+  const news = summarizeNewsItem({
+    mal_id: 1,
+    title: "New season announced",
+    author_username: "mod",
+    excerpt: "z".repeat(500),
+    date: "2024",
+  });
+  assert.equal(news["author"], "mod");
+  assert.ok((news["excerpt"] as string).length < 500);
 });
 
 test("pageInfo extracts pagination fields", () => {
