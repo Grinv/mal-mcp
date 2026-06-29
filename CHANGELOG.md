@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-30
+
 ### Changed
 
 - Tool results now serialize their text mirror as compact JSON (no pretty-print
