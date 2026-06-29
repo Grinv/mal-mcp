@@ -42,6 +42,27 @@ test("does not retry a 404 and maps it to not_found", async () => {
   }
 });
 
+test("surfaces Jikan's structured error message and report_url", async () => {
+  const mock = mockFetch(() =>
+    jsonResponse(
+      { status: 500, type: "InternalException", message: "boom", report_url: "https://gh/issue" },
+      { status: 500 },
+    ),
+  );
+  const restore = installFetch(mock);
+  try {
+    await assert.rejects(
+      () => client({ retries: 0 }).getJson("oops"),
+      (err: unknown) =>
+        err instanceof ApiError &&
+        /boom/.test(err.message) &&
+        /report: https:\/\/gh/.test(err.message),
+    );
+  } finally {
+    restore();
+  }
+});
+
 test("retries a 5xx then succeeds", async () => {
   let n = 0;
   const mock = mockFetch(() => {

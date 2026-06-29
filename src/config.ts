@@ -18,6 +18,9 @@ const EnvSchema = z.object({
 
   HTTP_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
   HTTP_RETRIES: z.coerce.number().int().nonnegative().default(2),
+  // Minimum spacing between Jikan calls. On top of this, the client enforces
+  // Jikan's documented sliding-window limits (3/s and 60/min). Set to 0 to
+  // disable all client-side throttling.
   JIKAN_MIN_INTERVAL_MS: z.coerce.number().int().nonnegative().default(400),
   CACHE_TTL_MS: z.coerce.number().int().nonnegative().default(300_000),
 

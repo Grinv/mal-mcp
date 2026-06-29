@@ -128,23 +128,47 @@ export class HttpClient {
   }
 }
 
+// Jikan's documented JSON error body: { status, type, message, error, report_url }.
+interface JikanErrorBody {
+  message?: string;
+  report_url?: string;
+}
+
 async function toHttpError(res: Response): Promise<ApiError> {
   const { code, retryable } = classifyStatus(res.status);
-  let detail = "";
+  let raw = "";
   try {
-    const body = await res.text();
-    detail = body.slice(0, 500);
+    raw = await res.text();
   } catch {
     /* ignore body read errors */
   }
+  // Prefer the structured `message`; fall back to the raw body for non-JSON.
+  const parsed = parseErrorBody(raw);
+  const detail = parsed?.message ?? raw.slice(0, 500);
+  const report = parsed?.report_url ? ` (report: ${parsed.report_url})` : "";
   const retryAfter = parseRetryAfter(res.headers.get("retry-after"));
   return new ApiError({
     code,
     status: res.status,
     retryable,
-    message: `HTTP ${res.status} ${res.statusText}${detail ? `: ${detail}` : ""}`,
+    message: `HTTP ${res.status} ${res.statusText}${detail ? `: ${detail}` : ""}${report}`,
     ...(retryAfter === undefined ? {} : { cause: { retryAfterMs: retryAfter } }),
   });
+}
+
+function parseErrorBody(raw: string): JikanErrorBody | undefined {
+  if (!raw) return undefined;
+  try {
+    const obj: unknown = JSON.parse(raw);
+    if (obj === null || typeof obj !== "object") return undefined;
+    const rec = obj as Record<string, unknown>;
+    return {
+      message: typeof rec.message === "string" ? rec.message : undefined,
+      report_url: typeof rec.report_url === "string" ? rec.report_url : undefined,
+    };
+  } catch {
+    return undefined; // not JSON — caller falls back to the raw body
+  }
 }
 
 function toNetworkError(err: unknown): ApiError {
