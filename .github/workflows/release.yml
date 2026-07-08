@@ -31,9 +31,12 @@ jobs:
         with:
           files: mal-mcp.mcpb
           generate_release_notes: true
-      # Trusted Publishing (OIDC): no token. Requires npm >= 11.5.1.
-      - name: Upgrade npm for trusted publishing
-        run: npm install -g npm@latest
+      # Trusted Publishing (OIDC): no token. Requires npm >= 11.5.1. Pin a known
+      # -good version rather than `@latest`: npm 12.0.0 ships a broken provenance
+      # path ("Cannot find module 'sigstore'"), which fails `--provenance`. 11.18.0
+      # is the version that published v0.2.0 successfully and has working provenance.
+      - name: Install npm for trusted publishing
+        run: npm install -g npm@11.18.0
       - name: Publish to npm (trusted publishing + provenance)
         run: npm publish --provenance --access public
 
