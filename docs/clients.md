@@ -20,9 +20,7 @@ If you built from source instead, use `command: "node"`, `args: ["/abs/path/mal-
       "command": "npx",
       "args": ["-y", "mal-mcp"],
       "env": {
-        "MAL_CLIENT_ID": "...",
-        "MAL_CLIENT_SECRET": "...",
-        "MAL_REFRESH_TOKEN": "..."
+        "MAL_CLIENT_ID": "..."
       }
     }
   }
@@ -62,6 +60,7 @@ Use the same pattern — a stdio server with:
 
 - command: `npx`
 - args: `["-y", "mal-mcp"]`
-- env (optional): `MAL_ACCESS_TOKEN` or the `MAL_CLIENT_ID`/`MAL_CLIENT_SECRET`/`MAL_REFRESH_TOKEN` trio.
+- env (optional): `MAL_CLIENT_ID` (then run the `login_mal` tool). Advanced: pre-supply
+  `MAL_REFRESH_TOKEN` or a standalone `MAL_ACCESS_TOKEN`.
 
-See [auth.md](auth.md) for obtaining the token values.
+See [auth.md](auth.md) for the login walkthrough.

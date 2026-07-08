@@ -7,7 +7,6 @@ import type { LogLevel } from "./lib/logger.js";
 const EnvSchema = z.object({
   MAL_ACCESS_TOKEN: z.string().min(1).optional(),
   MAL_CLIENT_ID: z.string().min(1).optional(),
-  MAL_CLIENT_SECRET: z.string().min(1).optional(),
   MAL_REFRESH_TOKEN: z.string().min(1).optional(),
   /** Override the on-disk token store path (defaults under the OS config dir). */
   MAL_TOKEN_STORE: z.string().min(1).optional(),
@@ -23,6 +22,9 @@ const EnvSchema = z.object({
   // disable all client-side throttling.
   JIKAN_MIN_INTERVAL_MS: z.coerce.number().int().nonnegative().default(400),
   CACHE_TTL_MS: z.coerce.number().int().nonnegative().default(300_000),
+  // Localhost port for the `login_mal` OAuth callback. Must match the port in
+  // the Redirect URI registered for the MAL app (http://localhost:<port>/callback).
+  MAL_OAUTH_PORT: z.coerce.number().int().positive().default(8080),
 
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error", "silent"]).default("info"),
 });
@@ -30,10 +32,12 @@ const EnvSchema = z.object({
 export interface MalAuth {
   accessToken: string | undefined;
   clientId: string | undefined;
-  clientSecret: string | undefined;
   refreshToken: string | undefined;
   tokenStorePath: string | undefined;
-  /** Has client credentials + a refresh token → can silently refresh. */
+  /** Has a client id + a refresh token → can silently refresh. mal-mcp is a
+   *  public (secret-less) PKCE client, so there is no client secret. This is a
+   *  startup snapshot from env — MalClient recomputes it live once a token store
+   *  is loaded (see there). */
   canRefresh: boolean;
   /** Has an access token or can refresh → personal-list tools are usable. */
   configured: boolean;
@@ -48,21 +52,31 @@ export interface Config {
   jikanMinIntervalMs: number;
   cacheTtlMs: number;
   logLevel: LogLevel;
+  /** Localhost port for the login_mal OAuth callback (matches the app's Redirect URI). */
+  oauthPort: number;
   auth: MalAuth;
 }
 
+// An optional .mcpb user_config field left blank arrives not as "" but as the
+// literal, unsubstituted placeholder "${user_config.<name>}". Taken as a real
+// value it would make the server think it holds a MAL token/client id and try
+// to authenticate with garbage; treat it as unset, like "".
+const UNSUBSTITUTED_PLACEHOLDER = /^\$\{[^}]*\}$/;
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  // Drop empty-string values so defaults apply and optional secrets stay unset.
-  // .mcpb passes unconfigured user_config fields as "", which would otherwise
-  // fail the min(1) validation and crash startup.
+  // Drop empty-string values and unsubstituted ${...} placeholders so defaults
+  // apply and optional secrets stay unset. .mcpb passes unconfigured
+  // user_config fields as "" (or the raw placeholder), which would otherwise
+  // fail the min(1) validation and crash startup, or be mistaken for a secret.
   const cleaned = Object.fromEntries(
-    Object.entries(env).filter(([, v]) => v !== undefined && v !== ""),
+    Object.entries(env).filter(
+      ([, v]) => v !== undefined && v !== "" && !UNSUBSTITUTED_PLACEHOLDER.test(v),
+    ),
   );
   const parsed = EnvSchema.parse(cleaned);
 
-  const canRefresh = Boolean(
-    parsed.MAL_CLIENT_ID && parsed.MAL_CLIENT_SECRET && parsed.MAL_REFRESH_TOKEN,
-  );
+  // Public (secret-less) PKCE client: refresh needs just client_id + refresh_token.
+  const canRefresh = Boolean(parsed.MAL_CLIENT_ID && parsed.MAL_REFRESH_TOKEN);
   const configured = canRefresh || Boolean(parsed.MAL_ACCESS_TOKEN);
 
   return {
@@ -74,10 +88,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     jikanMinIntervalMs: parsed.JIKAN_MIN_INTERVAL_MS,
     cacheTtlMs: parsed.CACHE_TTL_MS,
     logLevel: parsed.LOG_LEVEL,
+    oauthPort: parsed.MAL_OAUTH_PORT,
     auth: {
       accessToken: parsed.MAL_ACCESS_TOKEN,
       clientId: parsed.MAL_CLIENT_ID,
-      clientSecret: parsed.MAL_CLIENT_SECRET,
       refreshToken: parsed.MAL_REFRESH_TOKEN,
       tokenStorePath: parsed.MAL_TOKEN_STORE,
       canRefresh,

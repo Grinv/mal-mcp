@@ -28,12 +28,12 @@ src/
   index.ts        # bin entry — calls start()
   server.ts       # buildServer() + start(); registers everything
   config.ts       # env → validated Config (zod)
-  lib/            # http, rateLimit, cache, tokenStore, errors, logger, result, format
-  clients/        # jikan.ts (reads), mal.ts (personal list + token refresh)
-  tools/          # read.ts, mylist.ts, guard.ts
+  lib/            # http, rateLimit, cache, tokenStore, oauthLogin, errors, logger, result, format
+  clients/        # jikan.ts (reads), mal.ts (personal list + token refresh + login)
+  tools/          # read.ts, mylist.ts, login.ts (login_mal), guard.ts
   prompts.ts
   __tests__/      # node:test (*.test.ts) + helpers.ts
-scripts/          # build-tests.mjs, run-tests.mjs, check-api.mjs
+scripts/          # build-tests.mjs, run-tests.mjs, check-api.mjs, sync-version.mjs
 ```
 
 ## Commands
@@ -60,7 +60,10 @@ npm run check:api      # live upstream health-check (network)
 - Write tool `description`s and per-field `.describe()` text for the calling
   model: explain when to use a tool and what each parameter means.
 - Keep dependencies minimal. New deps need a clear justification (supply-chain).
-- **Never commit secrets.** Tokens come from env vars / OS keychain only.
+- **Never commit secrets.** Credentials come from env vars, the `login_mal`
+  OAuth flow, or the on-disk token store (`tokenStore.ts`, `0600`) — never
+  hardcoded or committed. mal-mcp is a public PKCE client: there is **no client
+  secret** (see the OAuth note in [docs/api-references.md](docs/api-references.md)).
 - Cross-platform: macOS, Linux and Windows. Avoid POSIX-only shell in npm
   scripts (use the Node helper scripts).
 - **Commits:** author/committer `Grinv <4070730+Grinv@users.noreply.github.com>`;
@@ -70,6 +73,55 @@ npm run check:api      # live upstream health-check (network)
 
 Run `npm run build && npm test && npm run lint && npm run format:check`.
 Update `CHANGELOG.md` (Unreleased section).
+
+## Releasing
+
+`package.json` is the **single source of truth** for the version. The npm
+`version` lifecycle hook runs `scripts/sync-version.mjs`, which propagates it to
+`src/version.ts`, `manifest.json` and `server.json` (incl. the `.mcpb` release-asset
+URL); `version.test.ts` guards that they never drift. So a release is:
+
+```sh
+# 1. land your changes; move CHANGELOG.md's [Unreleased] notes under a new
+#    [X.Y.Z] - YYYY-MM-DD heading and commit.
+npm version <patch|minor|major>   # bumps + syncs every file + commits "release: vX.Y.Z" + tags vX.Y.Z
+git push --follow-tags            # pushing the tag triggers .github/workflows/release.yml
+```
+
+The tag push (`v*`) runs the **Release** workflow: `check:api` gate → build → test
+→ pack `.mcpb` → GitHub Release → `npm publish` (OIDC trusted publishing, with
+provenance — no token) → **publish to the official MCP Registry** (`mcp-publisher`,
+GitHub OIDC). Never hand-edit the version in the derived files; bump `package.json`
+via `npm version` and let the hook sync the rest.
+
+### MCP Registry
+
+The server is listed at `registry.modelcontextprotocol.io` as
+`io.github.Grinv/mal-mcp` (`server.json`), exposing **both** packages: the npm
+package (`mal-mcp`, run via `npx`) and the `.mcpb` GitHub-release bundle.
+Ownership is verified per package type:
+
+- **npm** → the `mcpName` field in `package.json` must equal `server.json`'s `name`
+  (guarded by `version.test.ts`). It ships in the published package, so it is
+  set once and every release just works.
+- **mcpb** → `server.json` needs the artifact's `fileSha256`. Because `.mcpb`
+  (a zip) isn't byte-reproducible, the release workflow recomputes it from the
+  just-packed bundle and injects it before `mcp-publisher publish` — no committed
+  value is kept. The asset URL must contain "mcp" (it does).
+
+The namespace `io.github.Grinv/*` is authorized by GitHub OIDC from this repo, so
+no registry token/secret is needed. To publish manually instead:
+`mcp-publisher login github && mcp-publisher publish`.
+
+**Keep config in three places in sync.** A user-facing env var is declared in
+`config.ts` (the source of truth), `manifest.json` `user_config` (the `.mcpb`
+install form), and `server.json` `packages[].environmentVariables` (the registry
+entry). When you add/rename/remove one in `config.ts`, update the other two —
+`version.test.ts` guards that `manifest.json` and `server.json` agree, but it
+can't see `config.ts`, so the `config.ts` → descriptors step is on you. Keep
+`server.json` descriptions ≤ 100 chars (registry schema cap). Purely internal
+tunables (timeouts, cache, rate limits, `LOG_LEVEL`) stay env-only — they don't
+belong in the install form or registry entry.
 
 ## Reuse / shared architecture
 

@@ -46,13 +46,24 @@ export interface JikanMedia {
   aired?: DateRange;
   season?: string | null;
   year?: number | null;
+  duration?: string | null;
+  broadcast?: {
+    day?: string | null;
+    time?: string | null;
+    timezone?: string | null;
+    string?: string | null;
+  };
+  trailer?: { youtube_id?: string | null; url?: string | null; embed_url?: string | null };
+  theme?: { openings?: string[] | null; endings?: string[] | null };
   studios?: NamedRef[];
   producers?: NamedRef[];
+  licensors?: NamedRef[];
   streaming?: NamedRef[];
   relations?: { relation?: string; entry?: NamedRef[] }[];
   // manga-only
   chapters?: number | null;
   volumes?: number | null;
+  publishing?: boolean;
   published?: DateRange;
   authors?: NamedRef[];
   serializations?: NamedRef[];
@@ -134,11 +145,22 @@ export function summarizeAnime(a: JikanMedia, detailed = false): Record<string, 
     ...base,
     title_japanese: a.title_japanese ?? undefined,
     source: a.source ?? undefined,
+    duration: a.duration ?? undefined,
+    // Broadcast slot for currently-airing shows; `.string` is the human form
+    // (e.g. "Fridays at 23:00 (JST)"). Only present/meaningful while airing.
+    broadcast: a.broadcast?.string ?? undefined,
     scored_by: a.scored_by ?? undefined,
     favorites: a.favorites ?? undefined,
     background: a.background ?? undefined,
     producers: names(a.producers),
+    licensors: names(a.licensors),
     streaming: (a.streaming ?? []).map((s) => clean({ name: s.name, url: s.url })),
+    // Opening/ending theme songs (already-formatted strings, e.g.
+    // `1: "Yuusha" by YOASOBI (eps 1-16)`). Empty arrays are dropped by clean().
+    opening_themes: a.theme?.openings ?? undefined,
+    ending_themes: a.theme?.endings ?? undefined,
+    // Trailer: prefer the watch URL, fall back to the embed URL; both nullable.
+    trailer: a.trailer?.url ?? a.trailer?.embed_url ?? undefined,
     relations: (a.relations ?? []).map((r) =>
       clean({ relation: r.relation, entries: names(r.entry) }),
     ),
@@ -171,6 +193,8 @@ export function summarizeManga(m: JikanMedia, detailed = false): Record<string, 
   return clean({
     ...base,
     title_japanese: m.title_japanese ?? undefined,
+    // Whether the manga is still being published (analogous to anime `airing`).
+    publishing: m.publishing,
     scored_by: m.scored_by ?? undefined,
     favorites: m.favorites ?? undefined,
     background: m.background ?? undefined,

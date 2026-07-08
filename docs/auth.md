@@ -1,83 +1,84 @@
-# Getting a MyAnimeList token
+# Logging in to MyAnimeList
 
 The read tools need no credentials. The **personal-list tools** (`get_my_*`,
-`update_my_*`, `delete_my_*`) act on your own MAL account and require an OAuth
-access token. This is a one-time manual step.
+`update_my_*`, `delete_my_*`) act on your own MAL account and need a one-time
+authorization. The `login_mal` tool does the whole OAuth dance for you and stores
+the token; afterwards it refreshes silently, so this is a one-time step.
 
-> The server never performs an interactive browser login. You obtain the token
-> once, then provide it via configuration. With the client credentials + refresh
-> token set, the server refreshes the access token silently afterwards.
+> mal-mcp is a **public OAuth client** — it runs on your machine and is
+> distributed to everyone, so it has **no client secret** (a secret shipped in a
+> public package wouldn't be secret). It uses PKCE instead. You only need a
+> **Client ID**.
 
-> **Where each value comes from:** the **Client ID** and **Client Secret** are
-> shown on the apiconfig page (step 1). The **access token** and **refresh token**
-> are _not_ on the website — they are produced by the one-time authorization in
-> step 2 (you exchange the `code` from the redirect for them).
-
-## 1. Register an API application
+## 1. Register an API application (one minute)
 
 1. Go to <https://myanimelist.net/apiconfig> → **Create ID**.
-2. App Type: `web`. Set a **Redirect URI**, e.g. `http://localhost:8080/callback`
-   (nothing needs to listen there — it is only where MAL redirects with the code).
-3. Note your **Client ID** and **Client Secret**.
+2. **App Type: `other`.** (This is the public-client type — no secret. Do _not_
+   pick `web`, which forces a client secret this server doesn't use.)
+3. **App Redirect URL:** `http://localhost:8080/callback`
+   - It must match exactly. If port 8080 is taken on your machine, pick another
+     port here and set `MAL_OAUTH_PORT` to the same value in the server env.
+   - Nothing needs to be reachable there for remote setups — see step 3b.
+4. Fill the other required fields however you like, agree, and save.
+5. Copy the **Client ID**.
 
-## 2. Authorize and exchange for tokens
+## 2. Configure the Client ID
 
-MAL uses OAuth2 with PKCE (the `plain` method — `code_challenge` equals the
-`code_verifier`).
+Set `MAL_CLIENT_ID` in your MCP client config's `env` block (see
+[clients.md](clients.md)), or the `.mcpb` install form in Claude Desktop. The
+server does **not** read a `.env` file.
+
+```json
+"env": { "MAL_CLIENT_ID": "..." }
+```
+
+## 3. Run `login_mal`
+
+Ask your assistant to run the **`login_mal`** tool (or just "log in to
+MyAnimeList"). It returns an authorization URL. Open it, log in, click **Allow**.
+
+**a. Local (server and browser on the same machine — Claude Desktop, local
+Claude Code):** login completes automatically — the server catches the redirect
+on `http://localhost:8080/callback`. Then call any personal-list tool (e.g.
+`get_my_user_info`) to confirm.
+
+**b. Remote/headless (server over SSH, in a container, or on another host):**
+`localhost:8080` on the server isn't reachable from your browser, so after
+clicking Allow you'll land on a page that fails to load. **Copy the full URL from
+your browser's address bar** (it contains `?code=...`) and pass it to the
+**`submit_mal_redirect`** tool. That completes the login.
+
+The token is stored at `~/.config/mal-mcp/tokens.json`
+(`%APPDATA%\mal-mcp\tokens.json` on Windows; override with `MAL_TOKEN_STORE`),
+with `0600` permissions, and refreshed automatically from then on. MAL rotates the
+refresh token on each refresh; the rotated one is written back.
+
+## Advanced: skip `login_mal`
+
+You can pre-supply tokens instead of running `login_mal`:
+
+- **`MAL_REFRESH_TOKEN`** (+ `MAL_CLIENT_ID`) — enables the same silent
+  auto-refresh without the interactive step.
+- **`MAL_ACCESS_TOKEN`** — a standalone access token; works ~30 days with no
+  refresh. Only useful for a quick throwaway test.
+
+To obtain these by hand (PKCE `plain`, no secret):
 
 ```sh
 CLIENT_ID="<your client id>"
-CLIENT_SECRET="<your client secret>"
 REDIRECT_URI="http://localhost:8080/callback"
-
-# 1. Generate a PKCE code verifier (43-128 chars).
 VERIFIER="$(node -e "console.log(require('crypto').randomBytes(64).toString('base64url'))")"
 
-# 2. Open this URL, click "Allow", then copy the `code` query param from the
-#    redirected URL in your browser's address bar.
-echo "https://myanimelist.net/v1/oauth2/authorize?response_type=code&client_id=${CLIENT_ID}&code_challenge=${VERIFIER}&redirect_uri=${REDIRECT_URI}"
+# Open this, click Allow, then copy the `code` from the redirected URL:
+echo "https://myanimelist.net/v1/oauth2/authorize?response_type=code&client_id=${CLIENT_ID}&code_challenge=${VERIFIER}&code_challenge_method=plain&redirect_uri=${REDIRECT_URI}"
 
-# 3. Exchange the code for tokens.
 CODE="<code from the redirect>"
 curl -s -X POST https://myanimelist.net/v1/oauth2/token \
   -d "client_id=${CLIENT_ID}" \
-  -d "client_secret=${CLIENT_SECRET}" \
   -d "grant_type=authorization_code" \
   -d "code=${CODE}" \
   -d "code_verifier=${VERIFIER}" \
   -d "redirect_uri=${REDIRECT_URI}"
 ```
 
-The response contains `access_token` (valid ~30 days) and `refresh_token`.
-
-## 3. Configure the server
-
-You now have three values to give the server — two from step 1, one from step 2:
-
-| Value               | From                      |
-| ------------------- | ------------------------- |
-| `MAL_CLIENT_ID`     | step 1 (app registration) |
-| `MAL_CLIENT_SECRET` | step 1 (app registration) |
-| `MAL_REFRESH_TOKEN` | step 2 (OAuth exchange)   |
-
-Put these three in your **MCP client config's `env` block** (see
-[clients.md](clients.md)) — the server does **not** read a `.env` file:
-
-```json
-"env": {
-  "MAL_CLIENT_ID": "...",
-  "MAL_CLIENT_SECRET": "...",
-  "MAL_REFRESH_TOKEN": "..."
-}
-```
-
-That's it — the server fetches and silently refreshes the access token itself, so
-you do this once. You do **not** need to set `MAL_ACCESS_TOKEN`.
-
-> **Advanced:** you may instead set just `MAL_ACCESS_TOKEN` (the access token from
-> step 2). It works without the trio but expires in ~30 days with no auto-refresh,
-> so it's only useful for a quick throwaway test.
-
-The rotated refresh token is cached at `~/.config/mal-mcp/tokens.json`
-(`%APPDATA%\mal-mcp\tokens.json` on Windows). Delete that file to reset, or set
-`MAL_TOKEN_STORE` to change its location.
+The response contains `access_token` and `refresh_token`.

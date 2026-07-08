@@ -1,8 +1,7 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.Grinv/mal-mcp",
   "description": "MyAnimeList MCP server: Jikan-powered reads plus official MAL personal-list management.",
-  "status": "active",
   "version": "0.2.0",
   "repository": {
     "url": "https://github.com/Grinv/mal-mcp",
@@ -10,12 +9,57 @@
   },
   "packages": [
     {
+      "registryType": "npm",
+      "identifier": "mal-mcp",
+      "version": "0.2.0",
+      "runtimeHint": "npx",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        {
+          "name": "MAL_CLIENT_ID",
+          "description": "MAL app Client ID (type 'other', myanimelist.net/apiconfig). Then run login_mal to authorize.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "MAL_REFRESH_TOKEN",
+          "description": "OAuth refresh token (one-time auth, docs/auth.md); enables personal-list tools with auto-refresh.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "MAL_ACCESS_TOKEN",
+          "description": "Advanced: standalone MAL access token. Works ~30 days without refresh; usually leave unset.",
+          "isRequired": false,
+          "isSecret": true
+        }
+      ]
+    },
+    {
       "registryType": "mcpb",
       "identifier": "https://github.com/Grinv/mal-mcp/releases/download/v0.2.0/mal-mcp.mcpb",
       "version": "0.2.0",
-      "transport": {
-        "type": "stdio"
-      }
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        {
+          "name": "MAL_CLIENT_ID",
+          "description": "MAL app Client ID (type 'other', myanimelist.net/apiconfig). Then run login_mal to authorize.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "MAL_REFRESH_TOKEN",
+          "description": "OAuth refresh token (one-time auth, docs/auth.md); enables personal-list tools with auto-refresh.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "MAL_ACCESS_TOKEN",
+          "description": "Advanced: standalone MAL access token. Works ~30 days without refresh; usually leave unset.",
+          "isRequired": false,
+          "isSecret": true
+        }
+      ]
     }
   ]
 }

@@ -19,7 +19,6 @@ test("silent refresh: 401 triggers refresh, retries, and persists the rotated to
   const config = loadConfig({
     MAL_ACCESS_TOKEN: "old",
     MAL_CLIENT_ID: "id",
-    MAL_CLIENT_SECRET: "secret",
     MAL_REFRESH_TOKEN: "refresh0",
   });
   const store = new TokenStore(storePath, silentLogger());
@@ -66,6 +65,64 @@ test("delete returns a confirmation and uses DELETE", async () => {
   }
 });
 
+test("getMyAnimeList requests and round-trips the list_status annotation fields", async () => {
+  const config = loadConfig({ MAL_ACCESS_TOKEN: "tok" });
+  const mock = mockFetch(() =>
+    jsonResponse({
+      data: [
+        {
+          node: { id: 1, title: "Test" },
+          list_status: {
+            status: "watching",
+            score: 8,
+            priority: 1,
+            tags: ["fav"],
+            comments: "note",
+            num_times_rewatched: 2,
+            rewatch_value: 3,
+          },
+        },
+      ],
+      paging: { next: "https://api/next" },
+    }),
+  );
+  const restore = installFetch(mock);
+  try {
+    const client = new MalClient(config, silentLogger());
+    const res = (await client.getMyAnimeList({})) as {
+      items: { list_status: Record<string, unknown> }[];
+      has_next_page: boolean;
+    };
+    // The request must ask MAL for the write-capable annotation fields.
+    const url = mock.calls[0]!.url;
+    for (const f of ["priority", "tags", "comments", "num_times_rewatched", "rewatch_value"])
+      assert.ok(decodeURIComponent(url).includes(f), `list request should request ${f}`);
+    // And trimList must pass them straight through to the caller.
+    const ls = res.items[0]!.list_status;
+    assert.equal(ls["priority"], 1);
+    assert.deepEqual(ls["tags"], ["fav"]);
+    assert.equal(ls["comments"], "note");
+    assert.equal(res.has_next_page, true);
+  } finally {
+    restore();
+  }
+});
+
+test("getMyMangaList requests the manga-specific annotation fields", async () => {
+  const config = loadConfig({ MAL_ACCESS_TOKEN: "tok" });
+  const mock = mockFetch(() => jsonResponse({ data: [], paging: {} }));
+  const restore = installFetch(mock);
+  try {
+    const client = new MalClient(config, silentLogger());
+    await client.getMyMangaList({});
+    const url = decodeURIComponent(mock.calls[0]!.url);
+    for (const f of ["num_times_reread", "reread_value", "priority", "tags", "comments"])
+      assert.ok(url.includes(f), `manga list request should request ${f}`);
+  } finally {
+    restore();
+  }
+});
+
 test("a stored token takes precedence over the env access token", async () => {
   const storePath = tempStorePath("precedence");
   const store = new TokenStore(storePath, silentLogger());
@@ -87,11 +144,57 @@ test("a stored token takes precedence over the env access token", async () => {
   }
 });
 
+test("login: startLogin builds an authorize URL; submitRedirect exchanges the code (no secret) and configures the client", async () => {
+  const config = loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: "8199" });
+  const tokenBodies: string[] = [];
+  const mock = mockFetch((url, init) => {
+    if (url.includes("/oauth2/token")) {
+      tokenBodies.push(String(init?.body ?? ""));
+      return jsonResponse({ access_token: "acc", refresh_token: "ref", expires_in: 2_592_000 });
+    }
+    return jsonResponse({ id: 1, name: "me" });
+  });
+  const restore = installFetch(mock);
+  try {
+    const client = new MalClient(config, silentLogger());
+    assert.equal(client.isConfigured(), false);
+
+    const { authorizeUrl, redirectUri } = await client.startLogin({ open: () => {} });
+    assert.match(authorizeUrl, /\/authorize\?/);
+    assert.match(authorizeUrl, /code_challenge_method=plain/);
+    assert.equal(redirectUri, "http://localhost:8199/callback");
+
+    await client.submitRedirect("http://localhost:8199/callback?code=THECODE&state=login_mal");
+    assert.equal(client.isConfigured(), true); // token obtained → tools unlock live
+
+    const body = tokenBodies[0] ?? "";
+    assert.match(body, /grant_type=authorization_code/);
+    assert.match(body, /code=THECODE/);
+    assert.match(body, /code_verifier=/);
+    assert.doesNotMatch(body, /client_secret/); // public client — no secret sent
+
+    // A personal-list call now works with the freshly obtained token.
+    const info = (await client.getMyUserInfo()) as { name?: string };
+    assert.equal(info.name, "me");
+  } finally {
+    restore();
+  }
+});
+
+test("login: submitRedirect without a started login errors", async () => {
+  const client = new MalClient(loadConfig({ MAL_CLIENT_ID: "cid" }), silentLogger());
+  await assert.rejects(() => client.submitRedirect("http://x/cb?code=Y"), /no login in progress/i);
+});
+
+test("login: startLogin requires a client id", async () => {
+  const client = new MalClient(loadConfig({}), silentLogger());
+  await assert.rejects(() => client.startLogin({ open: () => {} }), /MAL_CLIENT_ID/);
+});
+
 test("concurrent 401s trigger a single (deduped) token refresh", async () => {
   const config = loadConfig({
     MAL_ACCESS_TOKEN: "old",
     MAL_CLIENT_ID: "id",
-    MAL_CLIENT_SECRET: "secret",
     MAL_REFRESH_TOKEN: "refresh0",
   });
   let refreshCalls = 0;

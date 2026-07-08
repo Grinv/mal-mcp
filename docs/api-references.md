@@ -27,9 +27,18 @@ JavaScript, so a plain HTTP fetch returns only the title — open them in a brow
 - **Authorization** (OAuth2 PKCE, token exchange, refresh, lifetimes) —
   <https://myanimelist.net/apiconfig/references/authorization>
   - PKCE uses the **`plain`** method (`code_challenge` == `code_verifier`).
-  - Refresh: `grant_type=refresh_token` with client credentials in the body
-    (Scheme 2). Refresh tokens rotate and last ~1 month; access tokens ~1 month in
-    practice (the docs table says "1 hour", but the example `expires_in` is ~28d).
+  - We register the app as type **`other`** → a **public (secret-less) client**.
+    MAL allows this (docs: "if your client doesn't have a client secret,
+    `client_secret` will be empty"), so we send **no `client_secret`** in the
+    authorization-code exchange or refresh — verified live 2026-07-09. `web`-type
+    apps are confidential and would require the secret; we deliberately don't use
+    that model (see [AGENTS.md](../AGENTS.md)).
+  - `http://localhost:<port>/callback` is accepted as a Redirect URI (verified
+    live), which is what the `login_mal` local callback relies on.
+  - Refresh: `grant_type=refresh_token` with `client_id` + `refresh_token` in the
+    body (no secret). Refresh tokens rotate and last ~1 month; access tokens ~1
+    month in practice (the docs table says "1 hour", but the example `expires_in`
+    is ~28d).
 - **Forum — getting started / capabilities** — <https://myanimelist.net/forum/?topicid=1973141>
   - The character & people endpoints are **undocumented and off-limits** ("don't
     use them") — that data comes from Jikan instead.

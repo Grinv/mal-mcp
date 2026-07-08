@@ -55,6 +55,39 @@ test("summarizeAnime keeps the full synopsis in detailed mode", () => {
   assert.equal(s["synopsis"], longSynopsis);
 });
 
+test("summarizeAnime surfaces detailed /full fields (duration, broadcast, trailer, themes, licensors)", () => {
+  const full: JikanMedia = {
+    ...anime,
+    duration: "24 min per ep",
+    broadcast: {
+      day: "Fridays",
+      time: "23:00",
+      timezone: "Asia/Tokyo",
+      string: "Fridays at 23:00 (JST)",
+    },
+    trailer: {
+      youtube_id: null,
+      url: null,
+      embed_url: "https://youtube-nocookie.com/embed/ZEkwCGJ3o7M",
+    },
+    theme: { openings: ['1: "Tank!" by Seatbelts'], endings: [] },
+    licensors: [{ name: "Crunchyroll" }],
+  };
+  const s = summarizeAnime(full, true);
+  assert.equal(s["duration"], "24 min per ep");
+  assert.equal(s["broadcast"], "Fridays at 23:00 (JST)");
+  assert.equal(s["trailer"], "https://youtube-nocookie.com/embed/ZEkwCGJ3o7M"); // falls back to embed_url
+  assert.deepEqual(s["opening_themes"], ['1: "Tank!" by Seatbelts']);
+  assert.ok(!("ending_themes" in s)); // empty array dropped
+  assert.deepEqual(s["licensors"], ["Crunchyroll"]);
+});
+
+test("summarizeAnime omits the detailed /full fields in list mode", () => {
+  const s = summarizeAnime({ ...anime, duration: "24 min per ep", publishing: undefined });
+  for (const k of ["duration", "broadcast", "trailer", "opening_themes", "licensors"])
+    assert.ok(!(k in s), `${k} should not appear in list mode`);
+});
+
 test("summarizeAnime treats a score of 0 as absent", () => {
   const s = summarizeAnime({ ...anime, score: 0 });
   assert.ok(!("score" in s));
@@ -75,6 +108,14 @@ test("summarizeManga maps manga-specific fields", () => {
   assert.equal(s["volumes"], 41);
   assert.deepEqual(s["authors"], ["Miura, Kentarou"]);
   assert.ok(!("chapters" in s)); // null dropped
+});
+
+test("summarizeManga surfaces the publishing flag only in detailed mode", () => {
+  const manga: JikanMedia = { mal_id: 2, title: "Berserk", publishing: true };
+  assert.ok(!("publishing" in summarizeManga(manga))); // list mode omits it
+  assert.equal(summarizeManga(manga, true)["publishing"], true);
+  // A finished manga keeps the explicit false (not dropped as nullish).
+  assert.equal(summarizeManga({ ...manga, publishing: false }, true)["publishing"], false);
 });
 
 test("summarizeCharacters keeps Japanese VAs for anime and omits them for manga", () => {

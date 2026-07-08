@@ -29,7 +29,6 @@
       "env": {
         "MAL_ACCESS_TOKEN": "${user_config.mal_access_token}",
         "MAL_CLIENT_ID": "${user_config.mal_client_id}",
-        "MAL_CLIENT_SECRET": "${user_config.mal_client_secret}",
         "MAL_REFRESH_TOKEN": "${user_config.mal_refresh_token}"
       }
     }
@@ -115,6 +114,14 @@
     {
       "name": "delete_my_manga_list_item",
       "description": "Remove a manga from your list (requires token)."
+    },
+    {
+      "name": "login_mal",
+      "description": "Authorize the personal-list tools with your MyAnimeList account (one-time)."
+    },
+    {
+      "name": "submit_mal_redirect",
+      "description": "Finish a login_mal authorization on a remote/headless host."
     }
   ],
   "prompts_generated": true,
@@ -122,28 +129,21 @@
     "mal_client_id": {
       "type": "string",
       "title": "MyAnimeList Client ID",
-      "description": "For personal-list tools. From your app at myanimelist.net/apiconfig. See docs/auth.md.",
-      "required": false,
-      "sensitive": true
-    },
-    "mal_client_secret": {
-      "type": "string",
-      "title": "MyAnimeList Client Secret",
-      "description": "For personal-list tools. From your app at myanimelist.net/apiconfig. See docs/auth.md.",
+      "description": "For personal-list tools. Register an app of type 'other' at myanimelist.net/apiconfig, then run the login_mal tool. See docs/auth.md.",
       "required": false,
       "sensitive": true
     },
     "mal_refresh_token": {
       "type": "string",
-      "title": "MyAnimeList Refresh Token",
-      "description": "For personal-list tools. From the one-time OAuth in docs/auth.md. Enables silent auto-refresh.",
+      "title": "MyAnimeList Refresh Token (advanced)",
+      "description": "Optional. Pre-supply a refresh token instead of running login_mal; enables silent auto-refresh. From the OAuth in docs/auth.md.",
       "required": false,
       "sensitive": true
     },
     "mal_access_token": {
       "type": "string",
       "title": "MyAnimeList Access Token (advanced)",
-      "description": "Optional. Standalone token; works ~30 days with no refresh. Usually leave blank and set the three above.",
+      "description": "Optional. Standalone token; works ~30 days with no refresh. Usually leave blank and use login_mal instead.",
       "required": false,
       "sensitive": true
     }

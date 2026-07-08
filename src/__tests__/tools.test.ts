@@ -149,7 +149,9 @@ test("the server advertises all expected tools", async () => {
     assert.ok(names.includes("get_producers"));
     assert.ok(names.includes("get_seasons_list"));
     assert.ok(names.includes("get_anime_news"));
-    assert.equal(names.length, 43);
+    assert.ok(names.includes("login_mal"));
+    assert.ok(names.includes("submit_mal_redirect"));
+    assert.equal(names.length, 45);
     // Destructive hint is set on deletions.
     const del = tools.find((t) => t.name === "delete_my_anime_list_item");
     assert.equal(del?.annotations?.destructiveHint, true);

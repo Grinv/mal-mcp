@@ -37,8 +37,8 @@ function messageFor(err: ApiError): string {
     case "unauthorized":
       return (
         "MyAnimeList rejected the access token (401). It may be missing or expired. " +
-        "Re-authenticate following docs/auth.md, or set MAL_CLIENT_ID, MAL_CLIENT_SECRET " +
-        "and MAL_REFRESH_TOKEN to enable automatic token refresh."
+        "Run the login_mal tool to (re)authorize, or set MAL_CLIENT_ID + MAL_REFRESH_TOKEN " +
+        "to enable automatic token refresh. See docs/auth.md."
       );
     case "forbidden":
       return "MyAnimeList denied access (403). The token may lack the required permissions.";

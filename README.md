@@ -1,5 +1,9 @@
 # mal-mcp
 
+[![npm version](https://img.shields.io/npm/v/mal-mcp.svg)](https://www.npmjs.com/package/mal-mcp)
+[![CI](https://github.com/Grinv/mal-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Grinv/mal-mcp/actions/workflows/ci.yml)
+[![license: MIT](https://img.shields.io/npm/l/mal-mcp.svg)](LICENSE)
+
 An [MCP](https://modelcontextprotocol.io) server for **MyAnimeList**. It works with
 any MCP-compatible client or agent (Claude Desktop/Code, Cursor, VS Code, Cline,
 Continue, and others) — the server speaks the standard MCP stdio protocol.
@@ -41,16 +45,20 @@ error and everything else keeps working.
 | `get_my_user_info`, `get_my_anime_list`, `get_my_manga_list`                          | MAL     | token |
 | `update_my_anime_status`, `update_my_manga_status`                                    | MAL     | token |
 | `delete_my_anime_list_item`, `delete_my_manga_list_item`                              | MAL     | token |
+| `login_mal`, `submit_mal_redirect`                                                    | MAL     | login |
 
-Prompts: `recommend_similar`, `seasonal_overview`.
+`token` = needs a MyAnimeList login (run `login_mal` once). Prompts:
+`recommend_similar`, `seasonal_overview`.
 
 ## Install
 
 ### As an `.mcpb` bundle (one-click, e.g. Claude Desktop)
 
 Download `mal-mcp.mcpb` from the [latest release](https://github.com/Grinv/mal-mcp/releases)
-and open it with your MCP client. The client will prompt for the optional token
-fields.
+and open it with your MCP client. It prompts for an optional MyAnimeList **Client
+ID** — set it and run the `login_mal` tool to enable the personal-list tools (see
+[Connect your MyAnimeList account](#connect-your-myanimelist-account-for-the-personal-list-tools)).
+Leave it blank to use just the credential-free read tools.
 
 ### From source
 
@@ -75,9 +83,7 @@ Cline, …). The simplest option is `npx` — no clone, no build:
       "command": "npx",
       "args": ["-y", "mal-mcp"],
       "env": {
-        "MAL_CLIENT_ID": "...",
-        "MAL_CLIENT_SECRET": "...",
-        "MAL_REFRESH_TOKEN": "..."
+        "MAL_CLIENT_ID": "..."
       }
     }
   }
@@ -87,9 +93,7 @@ Cline, …). The simplest option is `npx` — no clone, no build:
 Or with the Claude Code CLI:
 
 ```sh
-claude mcp add mal \
-  -e MAL_CLIENT_ID=... -e MAL_CLIENT_SECRET=... -e MAL_REFRESH_TOKEN=... \
-  -- npx -y mal-mcp
+claude mcp add mal -e MAL_CLIENT_ID=... -- npx -y mal-mcp
 ```
 
 If you built from source instead, replace `"command": "npx", "args": ["-y", "mal-mcp"]`
@@ -97,23 +101,82 @@ with `"command": "node", "args": ["/absolute/path/to/mal-mcp/dist/index.js"]`.
 
 The `env` block is **optional** — omit it to use only the credential-free read
 tools (search, details, rankings, …); the personal-list tools will return a clear
-error until a token is configured. The server does not read a `.env` file, so pass
-credentials via this `env` block (or your shell environment). See
-[docs/auth.md](docs/auth.md) for obtaining the token values and
+error until you log in. To enable them, set `MAL_CLIENT_ID` and run the
+**`login_mal`** tool once (a one-time browser authorization; the token is then
+stored and refreshed automatically). The server does not read a `.env` file, so
+pass config via this `env` block (or your shell environment). See
+[docs/auth.md](docs/auth.md) for the full login walkthrough and
 [docs/clients.md](docs/clients.md) for more clients.
+
+## Connect your MyAnimeList account (for the personal-list tools)
+
+The search/browse tools work with **no setup**. To use the personal-list tools
+(`get_my_*`, `update_my_*`, `delete_my_*`), authorize your account once. It takes
+about two minutes. There is **no client secret** — mal-mcp uses the modern
+public-client flow (PKCE), so you only need a Client ID.
+
+**Step 1 — Register a MyAnimeList app (one minute).**
+
+1. Go to <https://myanimelist.net/apiconfig> and click **Create ID**.
+2. **App Type:** choose **`other`**. _(Not `web` — that type forces a client
+   secret this server doesn't use.)_
+3. **App Redirect URL:** enter exactly
+   ```
+   http://localhost:8080/callback
+   ```
+   _(If port 8080 is already used on your machine, pick another port here and set
+   `MAL_OAUTH_PORT` to the same number — see [Configuration](#configuration).)_
+4. Fill the remaining required fields with anything reasonable, accept the terms,
+   and **Submit**.
+5. Open your new app and copy its **Client ID**.
+
+**Step 2 — Give the Client ID to the server.**
+
+Add it to your MCP client config (or paste it into the Claude Desktop install
+form). Nothing else is needed here:
+
+```json
+"env": { "MAL_CLIENT_ID": "paste-your-client-id-here" }
+```
+
+Restart the server/client so it picks up the value.
+
+**Step 3 — Log in (one click).**
+
+In your assistant, run the **`login_mal`** tool (or just say _"log in to
+MyAnimeList"_). It replies with a link. Open the link, sign in to MAL, and click
+**Allow**.
+
+- **Running locally** (Claude Desktop, or Claude Code on your own machine):
+  login finishes **automatically** the moment you click Allow. Confirm with
+  _"show my MAL profile"_ (`get_my_user_info`).
+- **Running on a remote/SSH/headless host:** after clicking Allow your browser
+  lands on a page that won't load — that's expected. **Copy the full address
+  from the browser's address bar** (it contains `?code=…`) and give it to the
+  **`submit_mal_redirect`** tool to finish.
+
+That's it. The token is saved locally (`~/.config/mal-mcp/tokens.json`, `0600`)
+and refreshed automatically from now on — you won't need to log in again.
+
+> **Prefer no interactive step?** You can instead pre-set `MAL_REFRESH_TOKEN`
+> (with `MAL_CLIENT_ID`) or a standalone `MAL_ACCESS_TOKEN`. See
+> [docs/auth.md](docs/auth.md) for how to obtain them by hand.
 
 ## Configuration
 
 All configuration is via environment variables, all optional — without credentials
-the read tools still work. For the personal-list tools, set the **three credentials**
-below; the access token is then fetched and refreshed automatically.
+the read tools still work. For the personal-list tools, set `MAL_CLIENT_ID` and run
+the `login_mal` tool once; the access token is then fetched and refreshed
+automatically. (mal-mcp is a public PKCE client — there is **no client secret**.)
 
-| Variable                                                  | Purpose                                                                          |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `MAL_CLIENT_ID`, `MAL_CLIENT_SECRET`, `MAL_REFRESH_TOKEN` | Personal-list credentials (with auto-refresh). See [docs/auth.md](docs/auth.md). |
-| `MAL_ACCESS_TOKEN`                                        | _Advanced/optional._ A standalone token; works ~30 days, no refresh.             |
-| `MAL_TOKEN_STORE`                                         | Override the token cache path (default: OS config dir).                          |
-| `LOG_LEVEL`                                               | `debug` \| `info` \| `warn` \| `error` \| `silent` (default `info`).             |
+| Variable            | Purpose                                                                                           |
+| ------------------- | ------------------------------------------------------------------------------------------------- |
+| `MAL_CLIENT_ID`     | Your MAL app (type `other`) Client ID. Then run `login_mal`. See [docs/auth.md](docs/auth.md).    |
+| `MAL_REFRESH_TOKEN` | _Advanced/optional._ Pre-supply a refresh token instead of running `login_mal`.                   |
+| `MAL_ACCESS_TOKEN`  | _Advanced/optional._ A standalone token; works ~30 days, no refresh.                              |
+| `MAL_TOKEN_STORE`   | Override the token cache path (default: OS config dir).                                           |
+| `MAL_OAUTH_PORT`    | Localhost port for the `login_mal` callback (default `8080`); must match your app's Redirect URI. |
+| `LOG_LEVEL`         | `debug` \| `info` \| `warn` \| `error` \| `silent` (default `info`).                              |
 
 ### Tuning (rarely needed)
 

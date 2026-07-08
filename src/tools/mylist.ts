@@ -4,16 +4,16 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { MalClient } from "../clients/mal.js";
-import type { Config } from "../config.js";
 import { errorResult, jsonResult, type ToolResult } from "../lib/result.js";
 import { guard } from "./guard.js";
 
 const NEEDS_TOKEN =
-  "This tool needs MyAnimeList credentials, which are not configured. Set " +
-  "MAL_CLIENT_ID, MAL_CLIENT_SECRET and MAL_REFRESH_TOKEN in your MCP client config " +
-  "(the server's `env` block — it does not read a .env file). Get them via the " +
-  "one-time OAuth described in docs/auth.md; the access token is then managed " +
-  "automatically. (Advanced: a standalone MAL_ACCESS_TOKEN also works but expires in ~30 days.)";
+  "This tool needs a MyAnimeList login, which isn't set up yet. Register a MAL API " +
+  "app (type 'other') at https://myanimelist.net/apiconfig, set MAL_CLIENT_ID in your " +
+  "MCP client config, then run the `login_mal` tool once to authorize — it stores the " +
+  "token and refreshes it automatically afterwards. See docs/auth.md. (Alternatives: " +
+  "pre-supply the MAL_CLIENT_ID + MAL_REFRESH_TOKEN pair, or a standalone MAL_ACCESS_TOKEN " +
+  "that expires in ~30 days.)";
 
 const animeListStatus = z
   .enum(["watching", "completed", "on_hold", "dropped", "plan_to_watch"])
@@ -43,11 +43,13 @@ const date = z
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .describe("Date as YYYY-MM-DD.");
 
-export function registerMyListTools(server: McpServer, mal: MalClient, config: Config): void {
-  // Run a personal-list operation only when a token is configured; otherwise
-  // return an actionable error instead of failing.
+export function registerMyListTools(server: McpServer, mal: MalClient): void {
+  // Run a personal-list operation only when authenticated; otherwise return an
+  // actionable error instead of failing. Checked live (not the startup config
+  // snapshot) so a token obtained via login_mal this session unlocks the tools
+  // immediately.
   const requireToken = (fn: () => Promise<ToolResult>): Promise<ToolResult> =>
-    config.auth.configured ? guard(fn) : Promise.resolve(errorResult(NEEDS_TOKEN));
+    mal.isConfigured() ? guard(fn) : Promise.resolve(errorResult(NEEDS_TOKEN));
 
   server.registerTool(
     "get_my_user_info",
