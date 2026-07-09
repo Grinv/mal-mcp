@@ -22,6 +22,38 @@ It uses a hybrid backend:
 If no token is configured, the personal-list tools return a clear, actionable
 error and everything else keeps working.
 
+## Example queries
+
+Once it's connected, just ask your agent in natural language.
+
+**No credentials needed** (search, details, rankings, seasons, characters, …):
+
+```
+"Search for the anime Frieren and show its score, studio and synopsis."
+"What are the top 10 anime of all time?"
+"What's airing this season? Sort by popularity."
+"Recommend anime similar to Steins;Gate."
+"What are people saying in reviews of Chainsaw Man?"
+"Show the main characters and Japanese voice actors of Cowboy Bebop."
+"When does the next episode of One Piece air?"
+"Give me the top manga in the Romance genre."
+"What's on the upcoming season's schedule?"
+"Show the public profile and favorites of user Xinil."
+"Pick a random highly-rated anime for me."
+```
+
+**With your MyAnimeList account** (after a one-time `login_mal`; see
+[Connect your MyAnimeList account](#connect-your-myanimelist-account-for-the-personal-list-tools)):
+
+```
+"Show my MAL profile and watching stats."
+"What's on my anime list that I marked as watching?"
+"Add Frieren to my plan-to-watch list."
+"Set Cowboy Bebop to completed with a score of 9."
+"Bump my episode count for One Piece to 1095."
+"Remove Bleach from my manga list."
+```
+
 ## Tools
 
 | Tool                                                                                  | Backend | Auth  |
