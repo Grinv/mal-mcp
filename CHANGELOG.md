@@ -12,7 +12,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- Fix `RateLimiter` assuming `Date.now()` is always far from the `0` epoch, which could misfire near epoch ([45b8954](https://github.com/Grinv/mal-mcp/commit/45b8954)).
+- Prevent `RateLimiter` from assuming `Date.now()` is always far from the `0` epoch, which could misfire near epoch ([45b8954](https://github.com/Grinv/mal-mcp/commit/45b8954)).
 
 ## [0.3.0] - 2026-07-09
 
@@ -35,8 +35,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- Fix `dist/index.js` crashing standalone (`ERR_MODULE_NOT_FOUND`) — runtime deps are now inlined instead of left external ([3fd2bbf](https://github.com/Grinv/mal-mcp/commit/3fd2bbf)).
-- Fix blank optional `.mcpb` fields leaking as the literal `${user_config.x}` string instead of empty ([3fd2bbf](https://github.com/Grinv/mal-mcp/commit/3fd2bbf)).
+- Prevent `dist/index.js` from crashing standalone (`ERR_MODULE_NOT_FOUND`) by inlining runtime deps instead of leaving them external ([3fd2bbf](https://github.com/Grinv/mal-mcp/commit/3fd2bbf)).
+- Prevent blank optional `.mcpb` fields from leaking as the literal `${user_config.x}` string instead of empty ([3fd2bbf](https://github.com/Grinv/mal-mcp/commit/3fd2bbf)).
 
 ## [0.2.0] - 2026-06-30
 
@@ -61,7 +61,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- Add `repository` to `package.json` so npm provenance validates — 0.1.1's npm publish had failed on this (`E422`) ([73b4214](https://github.com/Grinv/mal-mcp/commit/73b4214)).
+- Fix 0.1.1's failed npm publish (`E422`) by adding `repository` to `package.json`, which npm provenance requires ([73b4214](https://github.com/Grinv/mal-mcp/commit/73b4214)).
 
 ## [0.1.1] - 2026-06-28
 
