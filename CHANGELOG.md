@@ -10,12 +10,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- `search_anime`/`search_manga`/`get_top_anime`/`get_top_manga`/`get_seasonal_anime`/`get_upcoming_season` fall back to the official MAL API (via `MAL_CLIENT_ID`, no OAuth needed) when Jikan's live pass-through fails, honoring `sfw` exclusion during the fallback; unchanged with no Client ID configured.
+- `search_anime`/`search_manga`/`get_top_anime`/`get_top_manga`/`get_seasonal_anime`/`get_upcoming_season` fall back to the official MAL API (via `MAL_CLIENT_ID`, no OAuth needed) when Jikan's live pass-through fails, honoring `sfw` exclusion during the fallback; unchanged with no Client ID configured ([75af91f](https://github.com/Grinv/mal-mcp/commit/75af91f)).
 
 ### Changed
 
-- Raise runtime floor to Node ≥ 20.3 (was ≥ 18) ([45b8954](https://github.com/Grinv/mal-mcp/commit/45b8954)).
-- Surface the redacted upstream error detail (and, for the six fallback-eligible tools, a tip to set `MAL_CLIENT_ID`) in 5xx/network/timeout tool errors instead of a generic message.
+- Raise runtime floor to Node ≥ 20.3 (was ≥ 18) ([45b8954](https://github.com/Grinv/mal-mcp/commit/45b8954), [75af91f](https://github.com/Grinv/mal-mcp/commit/75af91f)).
+- Surface the redacted upstream error detail (and, for the six fallback-eligible tools, a tip to set `MAL_CLIENT_ID`) in 5xx/network/timeout tool errors instead of a generic message ([75af91f](https://github.com/Grinv/mal-mcp/commit/75af91f)).
 
 ### Fixed
 
