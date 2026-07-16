@@ -1,9 +1,18 @@
 # Logging in to MyAnimeList
 
-The read tools need no credentials. The **personal-list tools** (`get_my_*`,
-`update_my_*`, `delete_my_*`) act on your own MAL account and need a one-time
-authorization. The `login_mal` tool does the whole OAuth dance for you and stores
-the token; afterwards it refreshes silently, so this is a one-time step.
+mal-mcp has three credential tiers, each unlocking more than the last:
+
+| Tier                        | What you set                                                                                    | What it unlocks                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Nothing                  | —                                                                                               | All read tools (search, details, rankings, seasons, characters, reviews, profiles, …) via Jikan. Personal-list tools return an actionable "log in first" error.                                                                                                                                                                                                                                                                                            |
+| 2. Client ID only           | `MAL_CLIENT_ID`                                                                                 | Everything in tier 1, **plus**: six read tools (`search_anime`, `search_manga`, `get_top_anime`, `get_top_manga`, `get_seasonal_anime`, `get_upcoming_season`) get more resilient — they automatically retry via the official MAL API (still no OAuth, just the Client ID) if Jikan's own live call to MAL fails. No login step needed for this. See [api-references.md](api-references.md) for why only these six. Personal-list tools still need tier 3. |
+| 3. Client ID + a user token | `MAL_CLIENT_ID` + running `login_mal` (or pre-supplying `MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`) | Everything above, **plus** the personal-list tools (`get_my_*`, `update_my_*`, `delete_my_*`) — these act on your own MAL account.                                                                                                                                                                                                                                                                                                                         |
+
+So: setting just `MAL_CLIENT_ID` is worth doing even if you never plan to use
+the personal-list tools — it's a free reliability upgrade for six read tools,
+no login required. The rest of this doc covers reaching **tier 3** (the
+one-time OAuth login) — steps 1-2 below also happen to be all that's needed
+for tier 2, since both start with registering an app and setting the Client ID.
 
 > mal-mcp is a **public OAuth client** — it runs on your machine and is
 > distributed to everyone, so it has **no client secret** (a secret shipped in a
@@ -31,6 +40,10 @@ server does **not** read a `.env` file.
 ```json
 "env": { "MAL_CLIENT_ID": "..." }
 ```
+
+At this point you're at **tier 2** — restart the server/client and the six
+resilience-fallback read tools are already active, no further steps needed.
+Continue below only if you also want the personal-list tools (tier 3).
 
 ## 3. Run `login_mal`
 

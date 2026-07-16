@@ -16,11 +16,23 @@ It uses a hybrid backend:
   rankings, seasons, characters, recommendations, reviews and public profiles.
   No credentials required.
 - **Your personal list → official [MyAnimeList API](https://myanimelist.net/apiconfig/references/api/v2).**
-  Read, update and delete entries on your own anime/manga list. Requires a user
-  token (see [docs/auth.md](docs/auth.md)).
+  Read, update and delete entries on your own anime/manga list. Requires a
+  one-time login (see below).
 
-If no token is configured, the personal-list tools return a clear, actionable
-error and everything else keeps working.
+## What you need (and what it gets you)
+
+Nothing is required to get started — you can skip straight to
+[Install](#install). Everything below is optional, and each step just adds
+more:
+
+| You set...                                                                                                                                            | You get...                                                                                                                         |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| _(nothing)_                                                                                                                                           | Search, details, rankings, seasons, characters, reviews, public profiles, and more — works immediately, no signup.                 |
+| A MyAnimeList **Client ID** ([2 minutes, free →](#connect-your-myanimelist-account-for-the-personal-list-tools))                                      | Same as above, plus: search/rankings/seasonal results keep working smoothly even during a MyAnimeList hiccup. Still no login step. |
+| The Client ID above, **plus** running the `login_mal` tool once ([same walkthrough →](#connect-your-myanimelist-account-for-the-personal-list-tools)) | Everything above, plus your **own MyAnimeList list**: view it, add/update entries, mark things watched, remove entries.            |
+
+Without a login, the personal-list tools reply with a clear message telling
+you how to get one — everything else keeps working regardless.
 
 ## Example queries
 
@@ -201,14 +213,14 @@ the read tools still work. For the personal-list tools, set `MAL_CLIENT_ID` and 
 the `login_mal` tool once; the access token is then fetched and refreshed
 automatically. (mal-mcp is a public PKCE client — there is **no client secret**.)
 
-| Variable            | Purpose                                                                                           |
-| ------------------- | ------------------------------------------------------------------------------------------------- |
-| `MAL_CLIENT_ID`     | Your MAL app (type `other`) Client ID. Then run `login_mal`. See [docs/auth.md](docs/auth.md).    |
-| `MAL_REFRESH_TOKEN` | _Advanced/optional._ Pre-supply a refresh token instead of running `login_mal`.                   |
-| `MAL_ACCESS_TOKEN`  | _Advanced/optional._ A standalone token; works ~30 days, no refresh.                              |
-| `MAL_TOKEN_STORE`   | Override the token cache path (default: OS config dir).                                           |
-| `MAL_OAUTH_PORT`    | Localhost port for the `login_mal` callback (default `8080`); must match your app's Redirect URI. |
-| `LOG_LEVEL`         | `debug` \| `info` \| `warn` \| `error` \| `silent` (default `info`).                              |
+| Variable            | Purpose                                                                                                                                                                                            |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MAL_CLIENT_ID`     | Your MyAnimeList Client ID — see [Connect your MyAnimeList account](#connect-your-myanimelist-account-for-the-personal-list-tools) for how to get one (it's free, ~2 minutes, no coding involved). |
+| `MAL_REFRESH_TOKEN` | _Advanced, optional._ Skips the interactive `login_mal` step by pre-supplying a token directly. Most people won't need this — see [docs/auth.md](docs/auth.md) if you do.                          |
+| `MAL_ACCESS_TOKEN`  | _Advanced, optional._ A standalone token that works ~30 days without refreshing. See [docs/auth.md](docs/auth.md).                                                                                 |
+| `MAL_TOKEN_STORE`   | Override where the login token is saved on disk (default: your OS's config folder).                                                                                                                |
+| `MAL_OAUTH_PORT`    | Only needed if port `8080` is already in use on your machine — see step 1 of the [account walkthrough](#connect-your-myanimelist-account-for-the-personal-list-tools).                             |
+| `LOG_LEVEL`         | How much the server logs: `debug` \| `info` \| `warn` \| `error` \| `silent` (default `info`).                                                                                                     |
 
 ### Tuning (rarely needed)
 
@@ -245,8 +257,8 @@ npm run check:api    # live health-check of upstream endpoints
 npm run inspector    # run under the MCP Inspector
 ```
 
-Runtime requires Node ≥ 20 (global `fetch`). See [AGENTS.md](AGENTS.md) for
-contributor/agent guidance.
+Runtime requires Node ≥ 20.3 (global `fetch`, `AbortSignal.any`). See
+[AGENTS.md](AGENTS.md) for contributor/agent guidance.
 
 ## Updating
 

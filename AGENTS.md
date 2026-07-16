@@ -8,16 +8,12 @@ this file, not in CLAUDE.md. (For end-user/runtime docs, see [README.md](README.
 
 A TypeScript MCP server. Hybrid backend: read tools call the public Jikan API
 (no auth); personal-list tools call the official MyAnimeList API (user token).
-
-> **Why reads go through Jikan, not the official MAL API.** The official API can
-> serve public data without OAuth via an `X-MAL-CLIENT-ID` header, but that still
-> requires a registered MAL application (a Client ID). Our read tools must work
-> with **zero credentials**, so they use Jikan, which needs none. Don't "upgrade"
-> reads to the official API — it would gate credential-free use behind a Client
-> ID. Also: the official MAL character/people endpoints are explicitly
-> undocumented and off-limits ("don't use them"), which is another reason those
-> reads come from Jikan. The official API is used **only** for personal-list
-> reads/writes that genuinely require a user's OAuth Bearer token.
+Six read tools (search/top/seasonal) additionally fall back to the official
+API via just a Client ID — see `JikanFallback` in `clients/jikanFallback.ts`
+and the rationale/scope in [docs/api-references.md](docs/api-references.md)
+before changing a client. [docs/auth.md](docs/auth.md) lays out what each
+credential tier (none / Client ID / OAuth token) unlocks — read that before
+changing auth-gating logic or docs that describe it.
 
 Upstream API docs (rate limits, endpoints, OAuth, audit notes) are collected in
 [docs/api-references.md](docs/api-references.md) — check there before changing a
@@ -28,8 +24,12 @@ src/
   index.ts        # bin entry — calls start()
   server.ts       # buildServer() + start(); registers everything
   config.ts       # env → validated Config (zod)
-  lib/            # http, rateLimit, cache, tokenStore, oauthLogin, errors, logger, result, format
-  clients/        # jikan.ts (reads), mal.ts (personal list + token refresh + login)
+  lib/            # http, rateLimit, cache, tokenStore, oauthLogin, errors, logger,
+                  # result, format(+formatOfficial for the fallback's response shaping)
+  clients/        # jikan.ts (reads) + jikanFallback.ts (retry policy), mal.ts
+                  # (personal list + token refresh + login), officialReads.ts
+                  # (Client-ID-only public reads, the fallback's data source),
+                  # httpClients.ts (shared HttpClient factory for the official API)
   tools/          # read.ts, mylist.ts, login.ts (login_mal), guard.ts
   prompts.ts
   __tests__/      # node:test (*.test.ts) + helpers.ts
@@ -51,8 +51,9 @@ npm run check:api      # live upstream health-check (network)
 
 - **Docs and in-code text are English** (README, docs, comments, tool
   descriptions, error messages).
-- Runtime floor is **Node ≥ 20** (global `fetch`); tsup targets `node20`. Tests
-  may run on newer Node but must not raise the runtime floor.
+- Runtime floor is **Node ≥ 20.3** (global `fetch`, `AbortSignal.any` in
+  `lib/http.ts`); tsup targets `node20`. Tests may run on newer Node but must
+  not raise the runtime floor.
 - Log to **stderr only** — stdout is the MCP protocol channel. Use the logger;
   it redacts credentials.
 - Tool failures return `{ isError: true }` results (via `guard()` / `result.ts`),

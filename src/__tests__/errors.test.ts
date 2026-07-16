@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classifyStatus, redact } from "../lib/errors.js";
+import { ApiError, classifyStatus, redact } from "../lib/errors.js";
 
 test("classifyStatus maps HTTP codes to error codes and retryability", () => {
   assert.equal(classifyStatus(401).code, "unauthorized");
@@ -19,4 +19,16 @@ test("redact removes bearer tokens and credential params", () => {
   assert.match(redact("grant&refresh_token=SECRET&x=1"), /refresh_token=\*\*\*/);
   assert.ok(!redact("client_secret=zzz999").includes("zzz999"));
   assert.ok(!redact("access_token=TOK").includes("TOK"));
+});
+
+test("ApiError carries an optional hint that defaults to undefined", () => {
+  const plain = new ApiError({ code: "server_error", message: "boom" });
+  assert.equal(plain.hint, undefined);
+
+  const hinted = new ApiError({
+    code: "server_error",
+    message: "boom",
+    hint: "client_id_would_help",
+  });
+  assert.equal(hinted.hint, "client_id_would_help");
 });

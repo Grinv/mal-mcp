@@ -17,7 +17,7 @@
       "environmentVariables": [
         {
           "name": "MAL_CLIENT_ID",
-          "description": "MAL app Client ID (type 'other', myanimelist.net/apiconfig). Then run login_mal to authorize.",
+          "description": "MAL app Client ID (type 'other'). Also enables read-tool resilience with no login. See docs/auth.md.",
           "isRequired": false,
           "isSecret": true
         },
@@ -43,7 +43,7 @@
       "environmentVariables": [
         {
           "name": "MAL_CLIENT_ID",
-          "description": "MAL app Client ID (type 'other', myanimelist.net/apiconfig). Then run login_mal to authorize.",
+          "description": "MAL app Client ID (type 'other'). Also enables read-tool resilience with no login. See docs/auth.md.",
           "isRequired": false,
           "isSecret": true
         },

@@ -14,18 +14,24 @@ export type ApiErrorCode =
   | "bad_request" // 400/405/422 — malformed or unsupported request
   | "unknown";
 
+// A fact a client can attach to an ApiError for result.ts to act on, without the client
+// authoring any user-facing prose itself — messageFor() owns the actual sentence for each hint.
+export type ApiErrorHint = "client_id_would_help";
+
 export interface ApiErrorOptions {
   code: ApiErrorCode;
   message: string;
   status?: number;
   retryable?: boolean;
   cause?: unknown;
+  hint?: ApiErrorHint;
 }
 
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
   readonly status: number | undefined;
   readonly retryable: boolean;
+  readonly hint: ApiErrorHint | undefined;
 
   constructor(opts: ApiErrorOptions) {
     super(opts.message, opts.cause === undefined ? undefined : { cause: opts.cause });
@@ -33,6 +39,7 @@ export class ApiError extends Error {
     this.code = opts.code;
     this.status = opts.status;
     this.retryable = opts.retryable ?? false;
+    this.hint = opts.hint;
   }
 }
 

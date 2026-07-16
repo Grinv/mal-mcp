@@ -7,6 +7,7 @@ import { createLogger, type Logger, type LogLevel, type LogSink } from "./lib/lo
 import { TokenStore, defaultTokenStorePath } from "./lib/tokenStore.js";
 import { JikanClient } from "./clients/jikan.js";
 import { MalClient } from "./clients/mal.js";
+import { OfficialReadsClient } from "./clients/officialReads.js";
 import { registerReadTools } from "./tools/read.js";
 import { registerMyListTools } from "./tools/mylist.js";
 import { registerLoginTools } from "./tools/login.js";
@@ -27,8 +28,13 @@ const INSTRUCTIONS = [
 export function buildServer(config: Config, logger: Logger): McpServer {
   const tokenStore = new TokenStore(config.auth.tokenStorePath ?? defaultTokenStorePath(), logger);
 
-  const jikan = new JikanClient(config, logger);
   const mal = new MalClient(config, logger, tokenStore);
+  // OfficialReadsClient is the fallback for read tools whose Jikan live pass-through
+  // to MAL is degraded (search/top/seasonal — see notes/jikan-reliability.md); it
+  // structurally satisfies JikanFallback, needs only a Client ID (no user token),
+  // and is kept separate from MalClient's OAuth/personal-list concern.
+  const officialReads = new OfficialReadsClient(config, logger);
+  const jikan = new JikanClient(config, logger, officialReads);
 
   const server = new McpServer(
     { name: "mal-mcp", version: VERSION },

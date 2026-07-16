@@ -64,10 +64,16 @@ export class HttpClient {
   }
 
   async #once<T>(url: string, options: RequestOptions, timeoutMs: number): Promise<T> {
+    // A plain (ref'd) timer, not AbortSignal.timeout(): that helper's internal
+    // timer is deliberately unref'd, so with no other active handle (as in the
+    // mocked-fetch tests, and conceivably a real hung request) the event loop
+    // can exit before it ever fires. AbortSignal.any() still merges it with an
+    // optional caller signal without manual add/removeEventListener plumbing.
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const onAbort = () => controller.abort();
-    options.signal?.addEventListener("abort", onAbort, { once: true });
+    const signal = options.signal
+      ? AbortSignal.any([controller.signal, options.signal])
+      : controller.signal;
 
     let res: Response;
     try {
@@ -80,7 +86,7 @@ export class HttpClient {
           ...options.headers,
         },
         ...(options.body === undefined ? {} : { body: options.body }),
-        signal: controller.signal,
+        signal,
       });
     } catch (err) {
       if (options.signal?.aborted) {
@@ -98,7 +104,6 @@ export class HttpClient {
       throw toNetworkError(err);
     } finally {
       clearTimeout(timer);
-      options.signal?.removeEventListener("abort", onAbort);
     }
 
     if (!res.ok) throw await toHttpError(res);

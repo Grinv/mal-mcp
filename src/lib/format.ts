@@ -78,7 +78,7 @@ export interface JikanPagination {
 
 const SYNOPSIS_PREVIEW = 350;
 
-function names(refs: NamedRef[] | undefined): string[] {
+export function names(refs: NamedRef[] | undefined): string[] {
   return (refs ?? []).map((r) => r.name).filter((n): n is string => typeof n === "string");
 }
 
@@ -88,11 +88,14 @@ function imageUrl(images: JikanImages | undefined): string | undefined {
 
 // Jikan returns score 0 to mean "no score yet" (see docs "JSON Notes"); surface
 // that as absent rather than a literal 0 an agent might read as a 0/10 rating.
-function score(value: number | null | undefined): number | undefined {
+export function score(value: number | null | undefined): number | undefined {
   return value ? value : undefined;
 }
 
-function trimSynopsis(synopsis: string | null | undefined, detailed: boolean): string | undefined {
+export function trimSynopsis(
+  synopsis: string | null | undefined,
+  detailed: boolean,
+): string | undefined {
   if (!synopsis) return undefined;
   if (detailed || synopsis.length <= SYNOPSIS_PREVIEW) return synopsis;
   return synopsis.slice(0, SYNOPSIS_PREVIEW).trimEnd() + "…";
@@ -105,7 +108,7 @@ function clip(text: string | null | undefined, max: number): string | undefined 
 }
 
 /** Drop keys whose value is undefined so structuredContent stays compact. */
-function clean<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
+export function clean<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {
     if (v === undefined || v === null) continue;

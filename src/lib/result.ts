@@ -1,7 +1,7 @@
 // Helpers that build MCP tool results. Tool handlers return these objects;
 // failures become { isError: true } results (never thrown) so the agent
 // receives an actionable message instead of a protocol error.
-import type { ApiError } from "./errors.js";
+import { redact, type ApiError, type ApiErrorHint } from "./errors.js";
 
 export interface ToolResult {
   content: { type: "text"; text: string }[];
@@ -32,7 +32,24 @@ export function apiErrorToResult(err: ApiError): ToolResult {
   return errorResult(messageFor(err));
 }
 
+// Prose for each ApiErrorHint — the sole place hint text is authored. Clients (e.g.
+// jikanFallback.ts) only attach the marker fact; they never construct user-facing copy.
+const HINT_TEXT: Record<ApiErrorHint, string> = {
+  client_id_would_help:
+    "Tip: setting the MAL_CLIENT_ID environment variable would let this retry via the official " +
+    "MAL API when Jikan has trouble (no login needed) — see docs/auth.md.",
+};
+
 function messageFor(err: ApiError): string {
+  const hint = err.hint ? ` ${HINT_TEXT[err.hint]}` : "";
+  return baseMessageFor(err) + hint;
+}
+
+// `err.message` is upstream-controlled text (an HTTP response body, or a network-layer
+// exception message) — redact() strips anything credential-shaped before it reaches the
+// agent/user, and wrapping it in parens keeps the surrounding sentence's punctuation clean
+// regardless of whether the upstream text itself ends mid-sentence or with its own period.
+function baseMessageFor(err: ApiError): string {
   switch (err.code) {
     case "unauthorized":
       return (
@@ -49,14 +66,17 @@ function messageFor(err: ApiError): string {
     case "rate_limited":
       return "Upstream rate limit hit (429). Please retry in a few seconds.";
     case "server_error":
-      return "The upstream service returned an error (5xx). Please retry later.";
+      return `The upstream service returned an error (5xx). Please retry later. (${redact(err.message)})`;
     case "network":
-      return "Could not reach the upstream service (network error). Check connectivity and retry.";
+      return (
+        `Could not reach the upstream service (network error). Check connectivity and ` +
+        `retry. (${redact(err.message)})`
+      );
     case "timeout":
-      return "The upstream request timed out. Please retry.";
+      return `The upstream request timed out. Please retry. (${redact(err.message)})`;
     case "bad_request":
-      return `The request was rejected as invalid: ${err.message}`;
+      return `The request was rejected as invalid: ${redact(err.message)}`;
     default:
-      return `Unexpected error talking to the upstream service: ${err.message}`;
+      return `Unexpected error talking to the upstream service: ${redact(err.message)}`;
   }
 }

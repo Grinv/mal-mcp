@@ -4,6 +4,7 @@
 import { HttpClient } from "../lib/http.js";
 import { RateLimiter, type RateRule } from "../lib/rateLimit.js";
 import { TtlCache } from "../lib/cache.js";
+import { withFallback, currentSeason, nextSeason, type JikanFallback } from "./jikanFallback.js";
 import {
   pageInfo,
   summarizeAnime,
@@ -90,8 +91,10 @@ const JIKAN_RATE_RULES: RateRule[] = [
 export class JikanClient {
   readonly #http: HttpClient;
   readonly #cache: TtlCache<Record<string, unknown>>;
+  readonly #logger: Logger;
+  readonly #fallback: JikanFallback | undefined;
 
-  constructor(config: Config, logger: Logger) {
+  constructor(config: Config, logger: Logger, fallback?: JikanFallback) {
     // A zero interval disables client-side throttling entirely (used in tests);
     // otherwise enforce both the min interval and Jikan's documented windows.
     const limiter = new RateLimiter(
@@ -106,6 +109,8 @@ export class JikanClient {
       beforeRequest: () => limiter.acquire(),
     });
     this.#cache = new TtlCache(config.cacheTtlMs);
+    this.#logger = logger;
+    this.#fallback = fallback;
   }
 
   /** Fetch a paginated list and map each item through `summarize`. */
@@ -132,11 +137,35 @@ export class JikanClient {
   }
 
   async searchAnime(p: SearchParams): Promise<Record<string, unknown>> {
-    return this.#list<JikanMedia>("anime", { ...p }, (a) => summarizeAnime(a));
+    return withFallback(
+      this.#logger,
+      this.#fallback,
+      "anime search",
+      () => this.#list<JikanMedia>("anime", { ...p }, (a) => summarizeAnime(a)),
+      () =>
+        this.#fallback!.searchAnimeOfficial({
+          q: p.q ?? "",
+          limit: p.limit,
+          page: p.page,
+          sfw: p.sfw,
+        }),
+    );
   }
 
   async searchManga(p: SearchParams): Promise<Record<string, unknown>> {
-    return this.#list<JikanMedia>("manga", { ...p }, (m) => summarizeManga(m));
+    return withFallback(
+      this.#logger,
+      this.#fallback,
+      "manga search",
+      () => this.#list<JikanMedia>("manga", { ...p }, (m) => summarizeManga(m)),
+      () =>
+        this.#fallback!.searchMangaOfficial({
+          q: p.q ?? "",
+          limit: p.limit,
+          page: p.page,
+          sfw: p.sfw,
+        }),
+    );
   }
 
   async getAnime(id: number): Promise<Record<string, unknown>> {
@@ -227,25 +256,80 @@ export class JikanClient {
   }
 
   async getTopAnime(p: TopParams): Promise<Record<string, unknown>> {
-    return this.#list<JikanMedia>("top/anime", { ...p }, (a) => summarizeAnime(a));
+    return withFallback(
+      this.#logger,
+      this.#fallback,
+      "top anime",
+      () => this.#list<JikanMedia>("top/anime", { ...p }, (a) => summarizeAnime(a)),
+      () =>
+        this.#fallback!.topAnimeOfficial({
+          type: p.type,
+          filter: p.filter,
+          limit: p.limit,
+          page: p.page,
+        }),
+    );
   }
 
   async getTopManga(p: TopParams): Promise<Record<string, unknown>> {
-    return this.#list<JikanMedia>("top/manga", { ...p }, (m) => summarizeManga(m));
+    return withFallback(
+      this.#logger,
+      this.#fallback,
+      "top manga",
+      () => this.#list<JikanMedia>("top/manga", { ...p }, (m) => summarizeManga(m)),
+      () =>
+        this.#fallback!.topMangaOfficial({
+          type: p.type,
+          filter: p.filter,
+          limit: p.limit,
+          page: p.page,
+        }),
+    );
   }
 
   async getSeason(p: SeasonParams): Promise<Record<string, unknown>> {
     const path = p.year && p.season ? `seasons/${p.year}/${p.season}` : "seasons/now";
-    return this.#list<JikanMedia>(path, { limit: p.limit, page: p.page, sfw: p.sfw }, (a) =>
-      summarizeAnime(a),
+    return withFallback(
+      this.#logger,
+      this.#fallback,
+      "seasonal anime",
+      () =>
+        this.#list<JikanMedia>(path, { limit: p.limit, page: p.page, sfw: p.sfw }, (a) =>
+          summarizeAnime(a),
+        ),
+      () => {
+        // The official API has no "current season" shortcut — an explicit year+season
+        // is required either way, so use the caller's if given, else compute it.
+        const { year, season } =
+          p.year && p.season ? { year: p.year, season: p.season } : currentSeason(new Date());
+        return this.#fallback!.seasonOfficial(year, season, {
+          limit: p.limit,
+          page: p.page,
+          sfw: p.sfw,
+        });
+      },
     );
   }
 
   async getUpcomingSeason(p: SeasonParams): Promise<Record<string, unknown>> {
-    return this.#list<JikanMedia>(
-      "seasons/upcoming",
-      { limit: p.limit, page: p.page, sfw: p.sfw },
-      (a) => summarizeAnime(a),
+    return withFallback(
+      this.#logger,
+      this.#fallback,
+      "upcoming season",
+      () =>
+        this.#list<JikanMedia>(
+          "seasons/upcoming",
+          { limit: p.limit, page: p.page, sfw: p.sfw },
+          (a) => summarizeAnime(a),
+        ),
+      () => {
+        const { year, season } = nextSeason(new Date());
+        return this.#fallback!.seasonOfficial(year, season, {
+          limit: p.limit,
+          page: p.page,
+          sfw: p.sfw,
+        });
+      },
     );
   }
 
@@ -309,14 +393,18 @@ export class JikanClient {
   }
 
   async getAnimeStatistics(id: number): Promise<Record<string, unknown>> {
-    return this.#cached<RawStatistics>(`anime-stats:${id}`, `anime/${id}/statistics`, (s) =>
-      summarizeStatistics(s),
-    );
+    return this.#statistics("anime", id);
   }
 
   async getMangaStatistics(id: number): Promise<Record<string, unknown>> {
-    return this.#cached<RawStatistics>(`manga-stats:${id}`, `manga/${id}/statistics`, (s) =>
-      summarizeStatistics(s),
+    return this.#statistics("manga", id);
+  }
+
+  #statistics(kind: "anime" | "manga", id: number): Promise<Record<string, unknown>> {
+    return this.#cached<RawStatistics>(
+      `${kind}-stats:${id}`,
+      `${kind}/${id}/statistics`,
+      summarizeStatistics,
     );
   }
 

@@ -35,3 +35,19 @@ test("apiErrorToResult produces an actionable message per error code", () => {
     assert.match(r.content[0]!.text, re);
   }
 });
+
+test("apiErrorToResult appends the hint's centrally-owned sentence, not client-authored text", () => {
+  const r = apiErrorToResult(
+    new ApiError({ code: "server_error", message: "boom", hint: "client_id_would_help" }),
+  );
+  assert.match(r.content[0]!.text, /5xx|retry later/i);
+  assert.match(r.content[0]!.text, /MAL_CLIENT_ID/);
+  assert.match(r.content[0]!.text, /boom/); // the redacted upstream message is still included
+});
+
+test("apiErrorToResult redacts credential-shaped text embedded in the upstream message", () => {
+  const r = apiErrorToResult(
+    new ApiError({ code: "server_error", message: "upstream said access_token=SECRET123" }),
+  );
+  assert.ok(!r.content[0]!.text.includes("SECRET123"));
+});

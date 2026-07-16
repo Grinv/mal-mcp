@@ -16,3 +16,6 @@ coverage/
 # Logs / OS
 *.log
 .DS_Store
+
+# Local scratch notes (not for the repo)
+/notes/

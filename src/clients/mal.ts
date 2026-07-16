@@ -12,6 +12,7 @@ import {
   listenForCode,
   openBrowser,
 } from "../lib/oauthLogin.js";
+import { malApiHttpClient } from "./httpClients.js";
 import type { Logger } from "../lib/logger.js";
 import type { Config, MalAuth } from "../config.js";
 
@@ -86,12 +87,7 @@ export class MalClient {
     this.#auth = config.auth;
     this.#logger = logger;
     this.#store = store;
-    this.#http = new HttpClient({
-      baseUrl: config.malBaseUrl,
-      logger,
-      timeoutMs: config.httpTimeoutMs,
-      retries: config.httpRetries,
-    });
+    this.#http = malApiHttpClient(config, logger);
     this.#oauth = new HttpClient({
       baseUrl: config.malOauthBaseUrl,
       logger,

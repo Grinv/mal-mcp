@@ -6,9 +6,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-17
+
+### Added
+
+- `search_anime`/`search_manga`/`get_top_anime`/`get_top_manga`/`get_seasonal_anime`/`get_upcoming_season` fall back to the official MAL API (via `MAL_CLIENT_ID`, no OAuth needed) when Jikan's live pass-through fails, honoring `sfw` exclusion during the fallback; unchanged with no Client ID configured.
+
 ### Changed
 
-- Raise runtime floor to Node ≥ 20 (was ≥ 18) ([45b8954](https://github.com/Grinv/mal-mcp/commit/45b8954)).
+- Raise runtime floor to Node ≥ 20.3 (was ≥ 18) ([45b8954](https://github.com/Grinv/mal-mcp/commit/45b8954)).
+- Surface the redacted upstream error detail (and, for the six fallback-eligible tools, a tip to set `MAL_CLIENT_ID`) in 5xx/network/timeout tool errors instead of a generic message.
 
 ### Fixed
 
