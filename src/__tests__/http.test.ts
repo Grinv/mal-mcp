@@ -8,78 +8,62 @@ function client(extra: { retries?: number; timeoutMs?: number } = {}): HttpClien
   return new HttpClient({ baseUrl: "https://example.test/api", logger: silentLogger(), ...extra });
 }
 
-test("getJson parses the body and sends a User-Agent + query params", async () => {
+test("getJson parses the body and sends a User-Agent + query params", async (t) => {
   const mock = mockFetch((_url) => jsonResponse({ ok: true }));
-  const restore = installFetch(mock);
-  try {
-    const res = await client().getJson<{ ok: boolean }>("thing", {
-      query: { q: "frieren", limit: 5, skip: undefined },
-    });
-    assert.equal(res.ok, true);
-    assert.equal(mock.calls.length, 1);
-    const call = mock.calls[0]!;
-    assert.match(call.url, /q=frieren/);
-    assert.match(call.url, /limit=5/);
-    assert.ok(!call.url.includes("skip")); // undefined dropped
-    const headers = call.init?.headers as Record<string, string>;
-    assert.match(headers["User-Agent"] ?? "", /^mal-mcp\//);
-  } finally {
-    restore();
-  }
+  installFetch(t, mock);
+  const res = await client().getJson<{ ok: boolean }>("thing", {
+    query: { q: "frieren", limit: 5, skip: undefined },
+  });
+  assert.equal(res.ok, true);
+  assert.equal(mock.calls.length, 1);
+  const call = mock.calls[0]!;
+  assert.match(call.url, /q=frieren/);
+  assert.match(call.url, /limit=5/);
+  assert.ok(!call.url.includes("skip")); // undefined dropped
+  const headers = call.init?.headers as Record<string, string>;
+  assert.match(headers["User-Agent"] ?? "", /^mal-mcp\//);
 });
 
-test("does not retry a 404 and maps it to not_found", async () => {
+test("does not retry a 404 and maps it to not_found", async (t) => {
   const mock = mockFetch(() => jsonResponse({ error: "nope" }, { status: 404 }));
-  const restore = installFetch(mock);
-  try {
-    await assert.rejects(
-      () => client({ retries: 2 }).getJson("missing"),
-      (err: unknown) => err instanceof ApiError && err.code === "not_found",
-    );
-    assert.equal(mock.calls.length, 1);
-  } finally {
-    restore();
-  }
+  installFetch(t, mock);
+  await assert.rejects(
+    () => client({ retries: 2 }).getJson("missing"),
+    (err: unknown) => err instanceof ApiError && err.code === "not_found",
+  );
+  assert.equal(mock.calls.length, 1);
 });
 
-test("surfaces Jikan's structured error message and report_url", async () => {
+test("surfaces Jikan's structured error message and report_url", async (t) => {
   const mock = mockFetch(() =>
     jsonResponse(
       { status: 500, type: "InternalException", message: "boom", report_url: "https://gh/issue" },
       { status: 500 },
     ),
   );
-  const restore = installFetch(mock);
-  try {
-    await assert.rejects(
-      () => client({ retries: 0 }).getJson("oops"),
-      (err: unknown) =>
-        err instanceof ApiError &&
-        /boom/.test(err.message) &&
-        /report: https:\/\/gh/.test(err.message),
-    );
-  } finally {
-    restore();
-  }
+  installFetch(t, mock);
+  await assert.rejects(
+    () => client({ retries: 0 }).getJson("oops"),
+    (err: unknown) =>
+      err instanceof ApiError &&
+      /boom/.test(err.message) &&
+      /report: https:\/\/gh/.test(err.message),
+  );
 });
 
-test("retries a 5xx then succeeds", async () => {
+test("retries a 5xx then succeeds", async (t) => {
   let n = 0;
   const mock = mockFetch(() => {
     n += 1;
     return n === 1 ? jsonResponse({ e: 1 }, { status: 500 }) : jsonResponse({ ok: true });
   });
-  const restore = installFetch(mock);
-  try {
-    const res = await client({ retries: 1 }).getJson<{ ok: boolean }>("flaky");
-    assert.equal(res.ok, true);
-    assert.equal(mock.calls.length, 2);
-  } finally {
-    restore();
-  }
+  installFetch(t, mock);
+  const res = await client({ retries: 1 }).getJson<{ ok: boolean }>("flaky");
+  assert.equal(res.ok, true);
+  assert.equal(mock.calls.length, 2);
 });
 
-test("honors Retry-After on 429", async () => {
+test("honors Retry-After on 429", async (t) => {
   let n = 0;
   const mock = mockFetch(() => {
     n += 1;
@@ -87,17 +71,13 @@ test("honors Retry-After on 429", async () => {
       ? jsonResponse({}, { status: 429, headers: { "retry-after": "0" } })
       : jsonResponse({ ok: true });
   });
-  const restore = installFetch(mock);
-  try {
-    const res = await client({ retries: 1 }).getJson<{ ok: boolean }>("limited");
-    assert.equal(res.ok, true);
-    assert.equal(mock.calls.length, 2);
-  } finally {
-    restore();
-  }
+  installFetch(t, mock);
+  const res = await client({ retries: 1 }).getJson<{ ok: boolean }>("limited");
+  assert.equal(res.ok, true);
+  assert.equal(mock.calls.length, 2);
 });
 
-test("aborts on timeout and maps to a timeout error", async () => {
+test("aborts on timeout and maps to a timeout error", async (t) => {
   const mock = mockFetch(
     (_url, init) =>
       new Promise<Response>((_resolve, reject) => {
@@ -106,18 +86,14 @@ test("aborts on timeout and maps to a timeout error", async () => {
         );
       }),
   );
-  const restore = installFetch(mock);
-  try {
-    await assert.rejects(
-      () => client({ retries: 0, timeoutMs: 30 }).getJson("slow"),
-      (err: unknown) => err instanceof ApiError && err.code === "timeout",
-    );
-  } finally {
-    restore();
-  }
+  installFetch(t, mock);
+  await assert.rejects(
+    () => client({ retries: 0, timeoutMs: 30 }).getJson("slow"),
+    (err: unknown) => err instanceof ApiError && err.code === "timeout",
+  );
 });
 
-test("a caller abort is propagated as a non-retryable error (no retries)", async () => {
+test("a caller abort is propagated as a non-retryable error (no retries)", async (t) => {
   const mock = mockFetch(
     (_url, init) =>
       new Promise<Response>((_resolve, reject) => {
@@ -126,18 +102,13 @@ test("a caller abort is propagated as a non-retryable error (no retries)", async
         );
       }),
   );
-  const restore = installFetch(mock);
+  installFetch(t, mock);
   const controller = new AbortController();
-  try {
-    const p = client({ retries: 3 }).getJson("x", { signal: controller.signal });
-    setTimeout(() => controller.abort(), 5);
-    await assert.rejects(
-      () => p,
-      (err: unknown) =>
-        err instanceof ApiError && err.code === "network" && err.retryable === false,
-    );
-    assert.equal(mock.calls.length, 1); // not retried
-  } finally {
-    restore();
-  }
+  const p = client({ retries: 3 }).getJson("x", { signal: controller.signal });
+  setTimeout(() => controller.abort(), 5);
+  await assert.rejects(
+    () => p,
+    (err: unknown) => err instanceof ApiError && err.code === "network" && err.retryable === false,
+  );
+  assert.equal(mock.calls.length, 1); // not retried
 });

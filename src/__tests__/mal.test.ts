@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
@@ -12,7 +12,7 @@ function tempStorePath(name: string): string {
   return join(tmpdir(), `mal-mcp-test-${name}.json`);
 }
 
-test("silent refresh: 401 triggers refresh, retries, and persists the rotated token", async () => {
+test("silent refresh: 401 triggers refresh, retries, and persists the rotated token", async (t) => {
   const storePath = tempStorePath("refresh");
   rmSync(storePath, { force: true });
 
@@ -33,7 +33,7 @@ test("silent refresh: 401 triggers refresh, retries, and persists the rotated to
     if (auth === "Bearer old") return jsonResponse({ error: "unauthorized" }, { status: 401 });
     return jsonResponse({ id: 42, name: "tester" });
   });
-  const restore = installFetch(mock);
+  installFetch(t, mock);
   try {
     const client = new MalClient(config, silentLogger(), store);
     const info = (await client.getMyUserInfo()) as Record<string, unknown>;
@@ -45,27 +45,22 @@ test("silent refresh: 401 triggers refresh, retries, and persists the rotated to
     assert.equal(persisted.refreshToken, "rot1");
     assert.ok(persisted.expiresAt > Date.now());
   } finally {
-    restore();
     rmSync(storePath, { force: true });
   }
 });
 
-test("delete returns a confirmation and uses DELETE", async () => {
+test("delete returns a confirmation and uses DELETE", async (t) => {
   const config = loadConfig({ MAL_ACCESS_TOKEN: "tok" });
   const mock = mockFetch(() => jsonResponse({}, { status: 200 }));
-  const restore = installFetch(mock);
-  try {
-    const client = new MalClient(config, silentLogger());
-    const res = (await client.deleteMyAnimeListItem(123)) as Record<string, unknown>;
-    assert.deepEqual(res, { deleted: true, anime_id: 123 });
-    assert.equal(mock.calls[0]!.init?.method, "DELETE");
-    assert.match(mock.calls[0]!.url, /anime\/123\/my_list_status$/);
-  } finally {
-    restore();
-  }
+  installFetch(t, mock);
+  const client = new MalClient(config, silentLogger());
+  const res = (await client.deleteMyAnimeListItem(123)) as Record<string, unknown>;
+  assert.deepEqual(res, { deleted: true, anime_id: 123 });
+  assert.equal(mock.calls[0]!.init?.method, "DELETE");
+  assert.match(mock.calls[0]!.url, /anime\/123\/my_list_status$/);
 });
 
-test("getMyAnimeList requests and round-trips the list_status annotation fields", async () => {
+test("getMyAnimeList requests and round-trips the list_status annotation fields", async (t) => {
   const config = loadConfig({ MAL_ACCESS_TOKEN: "tok" });
   const mock = mockFetch(() =>
     jsonResponse({
@@ -86,44 +81,36 @@ test("getMyAnimeList requests and round-trips the list_status annotation fields"
       paging: { next: "https://api/next" },
     }),
   );
-  const restore = installFetch(mock);
-  try {
-    const client = new MalClient(config, silentLogger());
-    const res = (await client.getMyAnimeList({})) as {
-      items: { list_status: Record<string, unknown> }[];
-      has_next_page: boolean;
-    };
-    // The request must ask MAL for the write-capable annotation fields.
-    const url = mock.calls[0]!.url;
-    for (const f of ["priority", "tags", "comments", "num_times_rewatched", "rewatch_value"])
-      assert.ok(decodeURIComponent(url).includes(f), `list request should request ${f}`);
-    // And trimList must pass them straight through to the caller.
-    const ls = res.items[0]!.list_status;
-    assert.equal(ls["priority"], 1);
-    assert.deepEqual(ls["tags"], ["fav"]);
-    assert.equal(ls["comments"], "note");
-    assert.equal(res.has_next_page, true);
-  } finally {
-    restore();
-  }
+  installFetch(t, mock);
+  const client = new MalClient(config, silentLogger());
+  const res = (await client.getMyAnimeList({})) as {
+    items: { list_status: Record<string, unknown> }[];
+    has_next_page: boolean;
+  };
+  // The request must ask MAL for the write-capable annotation fields.
+  const url = mock.calls[0]!.url;
+  for (const f of ["priority", "tags", "comments", "num_times_rewatched", "rewatch_value"])
+    assert.ok(decodeURIComponent(url).includes(f), `list request should request ${f}`);
+  // And trimList must pass them straight through to the caller.
+  const ls = res.items[0]!.list_status;
+  assert.equal(ls["priority"], 1);
+  assert.deepEqual(ls["tags"], ["fav"]);
+  assert.equal(ls["comments"], "note");
+  assert.equal(res.has_next_page, true);
 });
 
-test("getMyMangaList requests the manga-specific annotation fields", async () => {
+test("getMyMangaList requests the manga-specific annotation fields", async (t) => {
   const config = loadConfig({ MAL_ACCESS_TOKEN: "tok" });
   const mock = mockFetch(() => jsonResponse({ data: [], paging: {} }));
-  const restore = installFetch(mock);
-  try {
-    const client = new MalClient(config, silentLogger());
-    await client.getMyMangaList({});
-    const url = decodeURIComponent(mock.calls[0]!.url);
-    for (const f of ["num_times_reread", "reread_value", "priority", "tags", "comments"])
-      assert.ok(url.includes(f), `manga list request should request ${f}`);
-  } finally {
-    restore();
-  }
+  installFetch(t, mock);
+  const client = new MalClient(config, silentLogger());
+  await client.getMyMangaList({});
+  const url = decodeURIComponent(mock.calls[0]!.url);
+  for (const f of ["num_times_reread", "reread_value", "priority", "tags", "comments"])
+    assert.ok(url.includes(f), `manga list request should request ${f}`);
 });
 
-test("a stored token takes precedence over the env access token", async () => {
+test("a stored token takes precedence over the env access token", async (t) => {
   const storePath = tempStorePath("precedence");
   const store = new TokenStore(storePath, silentLogger());
   store.save({ accessToken: "stored", refreshToken: "r", expiresAt: Date.now() + 3_600_000 });
@@ -133,29 +120,28 @@ test("a stored token takes precedence over the env access token", async () => {
     const auth = (init?.headers as Record<string, string>)["Authorization"];
     return jsonResponse({ used: auth });
   });
-  const restore = installFetch(mock);
+  installFetch(t, mock);
   try {
     const client = new MalClient(config, silentLogger(), store);
     const res = (await client.getMyUserInfo()) as Record<string, unknown>;
     assert.equal(res["used"], "Bearer stored");
   } finally {
-    restore();
     rmSync(storePath, { force: true });
   }
 });
 
-test("login: startLogin builds an authorize URL; submitRedirect exchanges the code (no secret) and configures the client", async () => {
-  const config = loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: "8199" });
-  const tokenBodies: string[] = [];
-  const mock = mockFetch((url, init) => {
-    if (url.includes("/oauth2/token")) {
-      tokenBodies.push(String(init?.body ?? ""));
-      return jsonResponse({ access_token: "acc", refresh_token: "ref", expires_in: 2_592_000 });
-    }
-    return jsonResponse({ id: 1, name: "me" });
-  });
-  const restore = installFetch(mock);
-  try {
+describe("login", () => {
+  test("startLogin builds an authorize URL; submitRedirect exchanges the code (no secret) and configures the client", async (t) => {
+    const config = loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: "8199" });
+    const tokenBodies: string[] = [];
+    const mock = mockFetch((url, init) => {
+      if (url.includes("/oauth2/token")) {
+        tokenBodies.push(String(init?.body ?? ""));
+        return jsonResponse({ access_token: "acc", refresh_token: "ref", expires_in: 2_592_000 });
+      }
+      return jsonResponse({ id: 1, name: "me" });
+    });
+    installFetch(t, mock);
     const client = new MalClient(config, silentLogger());
     assert.equal(client.isConfigured(), false);
 
@@ -176,22 +162,23 @@ test("login: startLogin builds an authorize URL; submitRedirect exchanges the co
     // A personal-list call now works with the freshly obtained token.
     const info = (await client.getMyUserInfo()) as { name?: string };
     assert.equal(info.name, "me");
-  } finally {
-    restore();
-  }
+  });
+
+  test("submitRedirect without a started login errors", async () => {
+    const client = new MalClient(loadConfig({ MAL_CLIENT_ID: "cid" }), silentLogger());
+    await assert.rejects(
+      () => client.submitRedirect("http://x/cb?code=Y"),
+      /no login in progress/i,
+    );
+  });
+
+  test("startLogin requires a client id", async () => {
+    const client = new MalClient(loadConfig({}), silentLogger());
+    await assert.rejects(() => client.startLogin({ open: () => {} }), /MAL_CLIENT_ID/);
+  });
 });
 
-test("login: submitRedirect without a started login errors", async () => {
-  const client = new MalClient(loadConfig({ MAL_CLIENT_ID: "cid" }), silentLogger());
-  await assert.rejects(() => client.submitRedirect("http://x/cb?code=Y"), /no login in progress/i);
-});
-
-test("login: startLogin requires a client id", async () => {
-  const client = new MalClient(loadConfig({}), silentLogger());
-  await assert.rejects(() => client.startLogin({ open: () => {} }), /MAL_CLIENT_ID/);
-});
-
-test("concurrent 401s trigger a single (deduped) token refresh", async () => {
+test("concurrent 401s trigger a single (deduped) token refresh", async (t) => {
   const config = loadConfig({
     MAL_ACCESS_TOKEN: "old",
     MAL_CLIENT_ID: "id",
@@ -207,12 +194,8 @@ test("concurrent 401s trigger a single (deduped) token refresh", async () => {
     if (auth === "Bearer old") return jsonResponse({ error: "unauthorized" }, { status: 401 });
     return jsonResponse({ ok: true });
   });
-  const restore = installFetch(mock);
-  try {
-    const client = new MalClient(config, silentLogger());
-    await Promise.all([client.getMyUserInfo(), client.getMyAnimeList({})]);
-    assert.equal(refreshCalls, 1);
-  } finally {
-    restore();
-  }
+  installFetch(t, mock);
+  const client = new MalClient(config, silentLogger());
+  await Promise.all([client.getMyUserInfo(), client.getMyAnimeList({})]);
+  assert.equal(refreshCalls, 1);
 });

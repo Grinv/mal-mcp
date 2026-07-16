@@ -245,7 +245,7 @@ npm run check:api    # live health-check of upstream endpoints
 npm run inspector    # run under the MCP Inspector
 ```
 
-Runtime requires Node ≥ 18 (global `fetch`). See [AGENTS.md](AGENTS.md) for
+Runtime requires Node ≥ 20 (global `fetch`). See [AGENTS.md](AGENTS.md) for
 contributor/agent guidance.
 
 ## Updating

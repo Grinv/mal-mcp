@@ -51,7 +51,7 @@ npm run check:api      # live upstream health-check (network)
 
 - **Docs and in-code text are English** (README, docs, comments, tool
   descriptions, error messages).
-- Runtime floor is **Node ≥ 18** (global `fetch`); tsup targets `node18`. Tests
+- Runtime floor is **Node ≥ 20** (global `fetch`); tsup targets `node20`. Tests
   may run on newer Node but must not raise the runtime floor.
 - Log to **stderr only** — stdout is the MCP protocol channel. Use the logger;
   it redacts credentials.

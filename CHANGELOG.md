@@ -6,7 +6,20 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [0.3.0] - 2026-07-09
+### Changed
+
+- **Runtime floor raised Node ≥ 18 → ≥ 20.** `tsup`/esbuild test builds now
+  target `node20`; CI's test matrix drops Node 18.
+- **Carcass hardening ported from the `mcp-server-template` lineage** (via
+  steam-games-mcp): `scripts/build-tests.mjs` now clears stale `dist-tests/`
+  output before each rebuild (a renamed/deleted test file could otherwise keep
+  running from a leftover compiled `.js`); `scripts/run-tests.mjs` forwards
+  passthrough CLI args (e.g. `npm test -- --test-name-pattern=foo`) to
+  `node --test`; `RateLimiter` no longer relies on `Date.now()` always being far
+  from a `0` epoch sentinel (only observable under a mocked clock, e.g. Node 20's
+  `t.mock.timers`). Test files also migrated from a manual
+  `installFetch()`/`restore()` pattern to Node 20's built-in `t.mock.method` /
+  `t.after` (auto-restoring, safe on test failure).
 
 ### Added
 

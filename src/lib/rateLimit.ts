@@ -21,7 +21,10 @@ export class RateLimiter {
   // Ascending timestamps of granted acquisitions, pruned to the largest window.
   readonly #history: number[] = [];
   #tail: Promise<void> = Promise.resolve();
-  #lastStart = 0;
+  // `null` is an explicit "no acquisition has happened yet" sentinel — not a
+  // reliance on real Date.now() always being far from 0 (true for any real
+  // clock, but not for one mocked to start at/near the epoch in tests).
+  #lastStart: number | null = null;
 
   constructor(minIntervalMs: number, rules: RateRule[] = []) {
     this.#minIntervalMs = Math.max(0, minIntervalMs);
@@ -51,7 +54,7 @@ export class RateLimiter {
   /** Earliest delay (ms) before another acquisition stays within every limit. */
   #delayUntilAllowed(): number {
     const now = Date.now();
-    let until = this.#lastStart + this.#minIntervalMs;
+    let until = this.#lastStart !== null ? this.#lastStart + this.#minIntervalMs : 0;
     for (const rule of this.#rules) {
       if (this.#history.length < rule.limit) continue;
       // Once the `limit`-th most recent request leaves the window, there is

@@ -25,7 +25,7 @@
     "manga"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "bin": {
     "mal-mcp": "dist/index.js"
