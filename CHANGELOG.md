@@ -6,6 +6,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Remove `get_anime_reviews`' dangling reference to a nonexistent `get_top_reviews` tool ([2041bb1](https://github.com/Grinv/mal-mcp/commit/2041bb1)).
+
+### Changed
+
+- Sharpen several tool descriptions — disclose hidden defaults (review/schedule limits, JST air times), add `get_manga`'s field list, and disambiguate `get_top_anime`/`get_top_manga`, `get_random_person`, `get_top_people`/`get_top_characters` and the five mylist tools from their siblings ([2041bb1](https://github.com/Grinv/mal-mcp/commit/2041bb1)).
+
 ## [0.4.0] - 2026-07-17
 
 ### Added
