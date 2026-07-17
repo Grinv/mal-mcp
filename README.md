@@ -3,6 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/mal-mcp.svg)](https://www.npmjs.com/package/mal-mcp)
 [![CI](https://github.com/Grinv/mal-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Grinv/mal-mcp/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/npm/l/mal-mcp.svg)](LICENSE)
+[![mal-mcp MCP server](https://glama.ai/mcp/servers/Grinv/mal-mcp/badges/score.svg)](https://glama.ai/mcp/servers/Grinv/mal-mcp)
 
 An [MCP](https://modelcontextprotocol.io) server for **MyAnimeList**. It works with
 any MCP-compatible client or agent (Claude Desktop/Code, Cursor, VS Code, Cline,
