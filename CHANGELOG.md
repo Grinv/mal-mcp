@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-07-18
+
 ### Fixed
 
 - Remove `get_anime_reviews`' dangling reference to a nonexistent `get_top_reviews` tool ([2041bb1](https://github.com/Grinv/mal-mcp/commit/2041bb1)).
