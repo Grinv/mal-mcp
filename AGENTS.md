@@ -59,7 +59,9 @@ npm run check:api      # live upstream health-check (network)
 - Tool failures return `{ isError: true }` results (via `guard()` / `result.ts`),
   never thrown — the agent should get an actionable message.
 - Write tool `description`s and per-field `.describe()` text for the calling
-  model: explain when to use a tool and what each parameter means.
+  model: explain when to use a tool and what each parameter means. Check new
+  or edited descriptions against [docs/tool-descriptions.md](docs/tool-descriptions.md)
+  (Glama's TDQS rubric) before committing.
 - Keep dependencies minimal. New deps need a clear justification (supply-chain).
 - **Never commit secrets.** Credentials come from env vars, the `login_mal`
   OAuth flow, or the on-disk token store (`tokenStore.ts`, `0600`) — never
