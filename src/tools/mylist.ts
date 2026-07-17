@@ -55,7 +55,9 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
     "get_my_user_info",
     {
       title: "Get my MAL profile",
-      description: "Get the authenticated user's MyAnimeList profile and anime statistics.",
+      description:
+        "Get the logged-in user's MyAnimeList profile and anime statistics. Requires a prior " +
+        "login_mal.",
       inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -67,7 +69,8 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
     {
       title: "Get my anime list",
       description:
-        "Get the authenticated user's own anime list, with each entry's status, score and progress.",
+        "Get the authenticated user's own anime list, with each entry's status, score and progress. " +
+        "Requires a prior login_mal.",
       inputSchema: {
         status: animeListStatus.optional(),
         sort: z
@@ -86,7 +89,9 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
     "get_my_manga_list",
     {
       title: "Get my manga list",
-      description: "Get the authenticated user's own manga list, with status, score and progress.",
+      description:
+        "Get the authenticated user's own manga list, with status, score and progress. Requires a " +
+        "prior login_mal.",
       inputSchema: {
         status: mangaListStatus.optional(),
         sort: z
@@ -107,7 +112,8 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
       title: "Update my anime status",
       description:
         "Add or update an anime on the authenticated user's list (status, score, watched episodes, " +
-        "dates). Creates the entry if absent. Provide at least one field besides anime_id.",
+        "dates). Creates the entry if absent; fields you omit are left unchanged on an existing " +
+        "entry. Provide at least one field besides anime_id. Requires a prior login_mal.",
       inputSchema: {
         anime_id: malId,
         status: animeListStatus.optional(),
@@ -138,8 +144,9 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
     {
       title: "Update my manga status",
       description:
-        "Add or update a manga on the authenticated user's list (status, score, chapters/volumes read). " +
-        "Creates the entry if absent. Provide at least one field besides manga_id.",
+        "Add or update a manga on the authenticated user's list (status, score, chapters/volumes " +
+        "read). Creates the entry if absent; fields you omit are left unchanged on an existing " +
+        "entry. Provide at least one field besides manga_id. Requires a prior login_mal.",
       inputSchema: {
         manga_id: malId,
         status: mangaListStatus.optional(),
@@ -169,7 +176,8 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
     {
       title: "Remove anime from my list",
       description:
-        "Remove an anime entry from the authenticated user's list. This cannot be undone.",
+        "Remove an anime entry from the authenticated user's list. This cannot be undone. " +
+        "Requires a prior login_mal.",
       inputSchema: { anime_id: malId },
       annotations: {
         readOnlyHint: false,
@@ -187,7 +195,8 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
     {
       title: "Remove manga from my list",
       description:
-        "Remove a manga entry from the authenticated user's list. This cannot be undone.",
+        "Remove a manga entry from the authenticated user's list. This cannot be undone. " +
+        "Requires a prior login_mal.",
       inputSchema: { manga_id: malId },
       annotations: {
         readOnlyHint: false,

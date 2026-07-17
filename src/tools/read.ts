@@ -126,7 +126,8 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     {
       title: "Get manga details",
       description:
-        "Get full details for one manga by mal_id. Obtain the mal_id from search_manga first.",
+        "Get full details for one manga by mal_id: synopsis, score, genres, authors, " +
+        "serialization, and related entries. Obtain the mal_id from search_manga first.",
       inputSchema: { id: malId },
       annotations: READ_ONLY,
     },
@@ -189,8 +190,8 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     {
       title: "Get anime reviews",
       description:
-        "Get user reviews for one anime (by mal_id), including score and review text. " +
-        "Get the mal_id from search_anime. (For a cross-title feed, use get_top_reviews.)",
+        "Get user reviews for one anime (by mal_id), including score and review text. Defaults to " +
+        "5 reviews if `limit` is omitted. Get the mal_id from search_anime.",
       inputSchema: { id: malId, limit: limit.optional() },
       annotations: READ_ONLY,
     },
@@ -215,8 +216,8 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     {
       title: "Get manga reviews",
       description:
-        "Get user reviews for one manga (by mal_id), including score and review text. " +
-        "Get the mal_id from search_manga.",
+        "Get user reviews for one manga (by mal_id), including score and review text. Defaults to " +
+        "5 reviews if `limit` is omitted. Get the mal_id from search_manga.",
       inputSchema: { id: malId, limit: limit.optional() },
       annotations: READ_ONLY,
     },
@@ -228,7 +229,9 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     {
       title: "Get top anime",
       description:
-        "Get ranked/top anime. Use `filter` for special rankings (airing, upcoming, bypopularity, favorite).",
+        "Get anime ranked by all-time score/popularity, not tied to any season. Use `filter` for " +
+        "special rankings (airing, upcoming, bypopularity, favorite); for a specific season's " +
+        "lineup use get_seasonal_anime or get_upcoming_season instead.",
       inputSchema: {
         type: z
           .enum(["tv", "movie", "ova", "special", "ona", "music"])
@@ -251,7 +254,8 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     {
       title: "Get top manga",
       description:
-        "Get ranked/top manga. Use `filter` for special rankings (bypopularity, favorite).",
+        "Get manga ranked by all-time score/popularity, not tied to any release window. Use " +
+        "`filter` for special rankings (bypopularity, favorite).",
       inputSchema: {
         type: mangaType.optional(),
         filter: z
@@ -294,7 +298,9 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     "get_anime_schedule",
     {
       title: "Get broadcast schedule",
-      description: "Get the anime broadcast schedule, optionally for a single weekday.",
+      description:
+        "Get the anime broadcast schedule (air times in JST), optionally for a single weekday. " +
+        "Defaults to 25 results if `limit` is omitted.",
       inputSchema: {
         day: z
           .enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"])
@@ -529,7 +535,9 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     "get_top_people",
     {
       title: "Get top people",
-      description: "Get the most popular/favorited people (voice actors, staff, authors).",
+      description:
+        "Get the most popular/favorited people (voice actors, staff, authors), ranked overall. " +
+        "Use search_people instead to look up a specific person by name.",
       inputSchema: { limit: limit.optional(), page: page.optional() },
       annotations: READ_ONLY,
     },
@@ -540,7 +548,9 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     "get_top_characters",
     {
       title: "Get top characters",
-      description: "Get the most popular/favorited characters.",
+      description:
+        "Get the most popular/favorited characters, ranked overall. Use search_characters instead " +
+        "to look up a specific character by name.",
       inputSchema: { limit: limit.optional(), page: page.optional() },
       annotations: READ_ONLY,
     },
@@ -577,7 +587,9 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     "get_random_person",
     {
       title: "Get a random person",
-      description: "Return one random person — voice actor, director, author (full details).",
+      description:
+        "Return one random person — voice actor, director, author (full details). Good for " +
+        "discovery / trivia.",
       inputSchema: {},
       annotations: READ_ONLY,
     },
