@@ -1,4 +1,4 @@
-# mal-mcp
+# MAL MCP Server
 
 [![npm version](https://img.shields.io/npm/v/mal-mcp.svg)](https://www.npmjs.com/package/mal-mcp)
 [![CI](https://github.com/Grinv/mal-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Grinv/mal-mcp/actions/workflows/ci.yml)

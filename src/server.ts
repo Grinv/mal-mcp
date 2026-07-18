@@ -37,7 +37,7 @@ export function buildServer(config: Config, logger: Logger): McpServer {
   const jikan = new JikanClient(config, logger, officialReads);
 
   const server = new McpServer(
-    { name: "mal-mcp", version: VERSION },
+    { name: "mal-mcp", title: "MAL MCP Server", version: VERSION },
     // Declare the logging capability so the SDK registers `logging/setLevel`
     // and lets us push `notifications/message` to the client (see start()).
     { capabilities: { logging: {} }, instructions: INSTRUCTIONS },
