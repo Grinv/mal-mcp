@@ -1,18 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { buildServer } from "../server.js";
-import { loadConfig } from "../config.js";
-import { silentLogger, jsonResponse, mockFetch, installFetch } from "./helpers.js";
-
-async function connect(env: NodeJS.ProcessEnv) {
-  const server = buildServer(loadConfig(env), silentLogger());
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  const client = new Client({ name: "test", version: "0" });
-  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
-  return { server, client };
-}
+import { jsonResponse, mockFetch, installFetch, connectServer, toolText } from "./helpers.js";
 
 test("search_anime tool returns structured results end-to-end", async (t) => {
   const mock = mockFetch(() =>
@@ -22,11 +10,8 @@ test("search_anime tool returns structured results end-to-end", async (t) => {
     }),
   );
   installFetch(t, mock);
-  const { client, server } = await connect({ JIKAN_MIN_INTERVAL_MS: "0" });
-  t.after(async () => {
-    await client.close();
-    await server.close();
-  });
+  const { client, close } = await connectServer({ JIKAN_MIN_INTERVAL_MS: "0" });
+  t.after(close);
   const res = await client.callTool({ name: "search_anime", arguments: { q: "bebop" } });
   assert.notEqual(res.isError, true);
   const structured = res.structuredContent as { results: Record<string, unknown>[] };
@@ -39,11 +24,8 @@ test("new read tools are wired and return structured content end-to-end", async 
     jsonResponse({ data: [{ mal_id: 1, name: "Action", title: "T" }], pagination: {} }),
   );
   installFetch(t, mock);
-  const { client, server } = await connect({ JIKAN_MIN_INTERVAL_MS: "0", CACHE_TTL_MS: "0" });
-  t.after(async () => {
-    await client.close();
-    await server.close();
-  });
+  const { client, close } = await connectServer({ JIKAN_MIN_INTERVAL_MS: "0", CACHE_TTL_MS: "0" });
+  t.after(close);
   const cases: [string, Record<string, unknown>, string][] = [
     ["get_anime_genres", {}, "genres"],
     ["get_manga_genres", { filter: "themes" }, "genres"],
@@ -71,14 +53,11 @@ test("new read tools are wired and return structured content end-to-end", async 
 });
 
 test("personal-list tool without a token returns an actionable error", async (t) => {
-  const { client, server } = await connect({});
-  t.after(async () => {
-    await client.close();
-    await server.close();
-  });
+  const { client, close } = await connectServer({});
+  t.after(close);
   const res = await client.callTool({ name: "get_my_user_info", arguments: {} });
   assert.equal(res.isError, true);
-  const text = (res.content as { type: string; text: string }[])[0]!.text;
+  const text = toolText(res);
   assert.match(text, /token/i);
   assert.match(text, /docs\/auth\.md/);
 });
@@ -94,11 +73,8 @@ test("personal-list tools work end-to-end with a token (exercises the MAL client
     });
   });
   installFetch(t, mock);
-  const { client, server } = await connect({ MAL_ACCESS_TOKEN: "tok" });
-  t.after(async () => {
-    await client.close();
-    await server.close();
-  });
+  const { client, close } = await connectServer({ MAL_ACCESS_TOKEN: "tok" });
+  t.after(close);
   const list = await client.callTool({
     name: "get_my_manga_list",
     arguments: { status: "reading" },
@@ -127,11 +103,8 @@ test("personal-list tools work end-to-end with a token (exercises the MAL client
 });
 
 test("the server advertises all expected tools", async (t) => {
-  const { client, server } = await connect({});
-  t.after(async () => {
-    await client.close();
-    await server.close();
-  });
+  const { client, close } = await connectServer({});
+  t.after(close);
   const { tools } = await client.listTools();
   const names = tools.map((tool) => tool.name);
   assert.ok(names.includes("search_anime"));

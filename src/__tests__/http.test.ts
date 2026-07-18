@@ -77,6 +77,50 @@ test("honors Retry-After on 429", async (t) => {
   assert.equal(mock.calls.length, 2);
 });
 
+test("throws ApiError when a 200 response body isn't valid JSON", async (t) => {
+  const mock = mockFetch(
+    () => new Response("not-json{", { status: 200, headers: { "content-type": "text/plain" } }),
+  );
+  installFetch(t, mock);
+  await assert.rejects(
+    () => client().getJson("thing"),
+    (err: unknown) =>
+      err instanceof ApiError && err.code === "unknown" && /invalid JSON/i.test(err.message),
+  );
+});
+
+test("returns undefined for a 204 No Content response", async (t) => {
+  const mock = mockFetch(() => new Response(null, { status: 204 }));
+  installFetch(t, mock);
+  const res = await client().getJson("thing");
+  assert.equal(res, undefined);
+});
+
+test("falls back to the raw body when an error response isn't JSON", async (t) => {
+  const mock = mockFetch(() => new Response("<html>Service Unavailable</html>", { status: 503 }));
+  installFetch(t, mock);
+  await assert.rejects(
+    () => client({ retries: 0 }).getJson("oops"),
+    (err: unknown) => err instanceof ApiError && /Service Unavailable/.test(err.message),
+  );
+});
+
+test("honors Retry-After given as an HTTP date rather than seconds", async (t) => {
+  let n = 0;
+  const mock = mockFetch(() => {
+    n += 1;
+    if (n === 1) {
+      const retryAt = new Date(Date.now() + 10).toUTCString();
+      return jsonResponse({}, { status: 429, headers: { "retry-after": retryAt } });
+    }
+    return jsonResponse({ ok: true });
+  });
+  installFetch(t, mock);
+  const res = await client({ retries: 1 }).getJson<{ ok: boolean }>("limited");
+  assert.equal(res.ok, true);
+  assert.equal(mock.calls.length, 2);
+});
+
 test("aborts on timeout and maps to a timeout error", async (t) => {
   const mock = mockFetch(
     (_url, init) =>

@@ -50,6 +50,24 @@ export function installFetch(t: TestContext, mock: FetchMock): void {
   t.mock.method(globalThis, "fetch", mock.fn);
 }
 
+/** A single MCP content block's text (empty string if it's not a text block or is missing). */
+function contentText(item: { type?: string; text?: string } | undefined): string {
+  return item?.text ?? "";
+}
+
+/** Extract a tool-call result's first content block's text (empty string if absent). */
+export function toolText(res: unknown): string {
+  const content = (res as { content?: unknown } | undefined)?.content;
+  return contentText((content as { type: string; text?: string }[] | undefined)?.[0]);
+}
+
+/** Extract a getPrompt() result's first message's content text (empty string if absent). */
+export function promptText(res: unknown): string {
+  const messages = (res as { messages?: unknown } | undefined)?.messages;
+  const first = (messages as { content?: unknown }[] | undefined)?.[0];
+  return contentText(first?.content as { type?: string; text?: string } | undefined);
+}
+
 /** Build the server and connect an in-memory client for end-to-end tool tests. */
 export async function connectServer(
   env: NodeJS.ProcessEnv = {},

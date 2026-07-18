@@ -110,6 +110,16 @@ test("topMangaOfficial maps Jikan's `lightnovel` type onto the official `novels`
   assert.match(url, /ranking_type=novels/);
 });
 
+test("topMangaOfficial falls back to ranking_type=all for a type with no ranking mapping", async (t) => {
+  const config = loadConfig({ MAL_CLIENT_ID: "cid" });
+  const mock = mockFetch(() => jsonResponse({ data: [] }));
+  installFetch(t, mock);
+  const client = new OfficialReadsClient(config, silentLogger());
+  await client.topMangaOfficial({ type: "doujinshi" }); // neither a filter nor a mappable type
+  const url = decodeURIComponent(mock.calls[0]!.url);
+  assert.match(url, /ranking_type=all/);
+});
+
 test("seasonOfficial hits anime/season/{year}/{season}", async (t) => {
   const config = loadConfig({ MAL_CLIENT_ID: "cid" });
   const mock = mockFetch(() => jsonResponse({ data: [{ node: { id: 1, title: "Seasonal" } }] }));

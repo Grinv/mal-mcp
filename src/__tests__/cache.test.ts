@@ -102,6 +102,16 @@ test("wrapStaleOnError: concurrent failures each independently fall back to the 
   assert.equal(calls, 1); // shared failure, not two independent upstream hits
 });
 
+test("set evicts the oldest entry once max size is exceeded", async () => {
+  const cache = new TtlCache<number>(60_000, 2);
+  await cache.wrap("a", async () => 1);
+  await cache.wrap("b", async () => 2);
+  await cache.wrap("c", async () => 3); // exceeds max=2 → evicts "a"
+  assert.equal(cache.get("a"), undefined);
+  assert.equal(cache.get("b"), 2);
+  assert.equal(cache.get("c"), 3);
+});
+
 test("ttl <= 0 disables caching", async () => {
   const cache = new TtlCache<number>(0);
   let calls = 0;

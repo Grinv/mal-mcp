@@ -108,7 +108,7 @@ function clip(text: string | null | undefined, max: number): string | undefined 
 }
 
 /** Drop keys whose value is undefined so structuredContent stays compact. */
-export function clean<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
+export function clean<T extends object>(obj: T): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {
     if (v === undefined || v === null) continue;
@@ -118,8 +118,68 @@ export function clean<T extends Record<string, unknown>>(obj: T): Record<string,
   return out;
 }
 
+// The agent-facing anime/manga summary shape — shared by Jikan's summarizeAnime/summarizeManga
+// (below) and the official-API fallback's summarizeOfficialAnime/summarizeOfficialManga
+// (formatOfficial.ts). Both sources project their own raw shape into these fields and call
+// projectAnimeSummary/projectMangaSummary, so the two summary paths can't drift out of parity —
+// adding/removing a field here forces both mapping sites to be updated.
+export interface AnimeSummaryFields {
+  mal_id: number;
+  title?: string;
+  title_english?: string;
+  type?: string;
+  episodes?: number;
+  status?: string;
+  airing?: boolean;
+  score?: number;
+  rank?: number;
+  popularity?: number;
+  members?: number;
+  year?: number;
+  season?: string;
+  rating?: string;
+  aired?: string;
+  genres: string[];
+  themes: string[];
+  demographics: string[];
+  studios: string[];
+  synopsis?: string;
+  url?: string;
+  image_url?: string;
+}
+
+export function projectAnimeSummary(f: AnimeSummaryFields): Record<string, unknown> {
+  return clean(f);
+}
+
+export interface MangaSummaryFields {
+  mal_id: number;
+  title?: string;
+  title_english?: string;
+  type?: string;
+  chapters?: number;
+  volumes?: number;
+  status?: string;
+  score?: number;
+  rank?: number;
+  popularity?: number;
+  members?: number;
+  published?: string;
+  genres: string[];
+  themes: string[];
+  demographics: string[];
+  authors: string[];
+  synopsis?: string;
+  url?: string;
+  image_url?: string;
+}
+
+export function projectMangaSummary(f: MangaSummaryFields): Record<string, unknown> {
+  return clean(f);
+}
+
 export function summarizeAnime(a: JikanMedia, detailed = false): Record<string, unknown> {
-  const base = clean({
+  const fields: AnimeSummaryFields = {
     mal_id: a.mal_id,
     title: a.title,
     title_english: a.title_english ?? undefined,
@@ -142,7 +202,8 @@ export function summarizeAnime(a: JikanMedia, detailed = false): Record<string, 
     synopsis: trimSynopsis(a.synopsis, detailed),
     url: a.url,
     image_url: imageUrl(a.images),
-  });
+  };
+  const base = projectAnimeSummary(fields);
   if (!detailed) return base;
   return clean({
     ...base,
@@ -171,7 +232,7 @@ export function summarizeAnime(a: JikanMedia, detailed = false): Record<string, 
 }
 
 export function summarizeManga(m: JikanMedia, detailed = false): Record<string, unknown> {
-  const base = clean({
+  const fields: MangaSummaryFields = {
     mal_id: m.mal_id,
     title: m.title,
     title_english: m.title_english ?? undefined,
@@ -191,7 +252,8 @@ export function summarizeManga(m: JikanMedia, detailed = false): Record<string, 
     synopsis: trimSynopsis(m.synopsis, detailed),
     url: m.url,
     image_url: imageUrl(m.images),
-  });
+  };
+  const base = projectMangaSummary(fields);
   if (!detailed) return base;
   return clean({
     ...base,

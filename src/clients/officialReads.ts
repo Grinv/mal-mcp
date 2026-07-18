@@ -6,8 +6,7 @@
 // personal-list reads/writes, this one needs no user token at all, just an app registration.
 import { HttpClient } from "../lib/http.js";
 import { ApiError } from "../lib/errors.js";
-import { RateLimiter } from "../lib/rateLimit.js";
-import { malApiHttpClient } from "./httpClients.js";
+import { malApiHttpClient, withThrottle } from "./httpClients.js";
 import {
   summarizeOfficialAnime,
   summarizeOfficialManga,
@@ -122,8 +121,7 @@ export class OfficialReadsClient {
 
   constructor(config: Config, logger: Logger) {
     this.#clientId = config.auth.clientId;
-    const limiter = new RateLimiter(MIN_INTERVAL_MS);
-    this.#http = malApiHttpClient(config, logger, { beforeRequest: () => limiter.acquire() });
+    this.#http = malApiHttpClient(config, logger, withThrottle(MIN_INTERVAL_MS));
   }
 
   /** Whether Client-ID-only public reads are available (just an app registration — no

@@ -93,7 +93,7 @@ Once it's connected, just ask your agent in natural language.
 | `login_mal`, `submit_mal_redirect`                                                    | MAL     | login |
 
 `token` = needs a MyAnimeList login (run `login_mal` once). Prompts:
-`recommend_similar`, `seasonal_overview`.
+`recommend_similar`, `seasonal_overview`, `hidden_gems`.
 
 ## Install
 

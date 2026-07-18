@@ -29,7 +29,8 @@ src/
   clients/        # jikan.ts (reads) + jikanFallback.ts (retry policy), mal.ts
                   # (personal list + token refresh + login), officialReads.ts
                   # (Client-ID-only public reads, the fallback's data source),
-                  # httpClients.ts (shared HttpClient factory for the official API)
+                  # httpClients.ts (shared HttpClient factory for the official API,
+                  # + withThrottle(), the rate-limit wiring shared with jikan.ts too)
   tools/          # read.ts, mylist.ts, login.ts (login_mal), guard.ts
   prompts.ts
   __tests__/      # node:test (*.test.ts) + helpers.ts

@@ -6,6 +6,21 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-18
+
+### Added
+
+- Add a `hidden_gems` prompt — surfaces highly-rated anime/manga that aren't widely known, alongside `recommend_similar`/`seasonal_overview`.
+
+### Fixed
+
+- Fix the `.mcpb` bundle's advertised tool list (`manifest.json`), which was missing 22 of the 45 tools since the v0.2.0/v0.3.0 expansions.
+- Validate `get_my_user_info`/`get_my_anime_list`/`get_my_manga_list`/`update_my_anime_status`/`update_my_manga_status` responses against the expected shape, surfacing a clear error instead of forwarding a malformed upstream response as-is.
+
+### Changed
+
+- Disclose undisclosed caps/truncation (recommendations capped at 25, `get_person`'s voice roles capped at 50, reviews truncated to 1200 chars), the `search_anime`/`search_manga` fallback's dropped filters, `get_seasonal_anime`'s partial year/season behavior, and cross-reference `get_top_anime`/`get_top_manga` and `get_anime_characters` from tools they could be confused with.
+
 ## [0.4.1] - 2026-07-18
 
 ### Fixed

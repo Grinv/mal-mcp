@@ -2,6 +2,7 @@
 // operations that Jikan cannot do (they require a user token). Implements
 // silent token refresh: on 401 (or when the cached access token is expired)
 // it refreshes via grant_type=refresh_token and persists the rotated token.
+import { z } from "zod";
 import { HttpClient } from "../lib/http.js";
 import { ApiError } from "../lib/errors.js";
 import { TokenStore, type TokenState } from "../lib/tokenStore.js";
@@ -87,6 +88,10 @@ export class MalClient {
     this.#auth = config.auth;
     this.#logger = logger;
     this.#store = store;
+    // Deliberately no withThrottle() here (contrast OfficialReadsClient): personal-list
+    // reads/writes are single user-initiated calls, not bulk enumeration, and MAL publishes
+    // no rate limit for this API's OAuth-authenticated endpoints either way. Revisit if that
+    // stops holding true.
     this.#http = malApiHttpClient(config, logger);
     this.#oauth = new HttpClient({
       baseUrl: config.malOauthBaseUrl,
@@ -126,12 +131,13 @@ export class MalClient {
   // so each public method delegates to one resource-parameterized private helper.
 
   async getMyUserInfo(): Promise<Record<string, unknown>> {
-    return this.#authed((token) =>
-      this.#http.getJson<Record<string, unknown>>("users/@me", {
+    const data = await this.#authed((token) =>
+      this.#http.getJson<unknown>("users/@me", {
         query: { fields: USER_FIELDS },
         headers: bearer(token),
       }),
     );
+    return parseUpstream(MyUserInfoSchema, data, "get_my_user_info");
   }
 
   getMyAnimeList(p: AnimeListParams): Promise<Record<string, unknown>> {
@@ -147,12 +153,13 @@ export class MalClient {
     fields: string,
     p: AnimeListParams,
   ): Promise<Record<string, unknown>> {
-    const res = await this.#authed((token) =>
-      this.#http.getJson<MalListResponse>(`users/@me/${resource}list`, {
+    const data = await this.#authed((token) =>
+      this.#http.getJson<unknown>(`users/@me/${resource}list`, {
         query: { fields, status: p.status, sort: p.sort, limit: p.limit, offset: p.offset },
         headers: bearer(token),
       }),
     );
+    const res = parseUpstream(MalListResponseSchema, data, `get_my_${resource}_list`);
     return trimList(res);
   }
 
@@ -170,18 +177,19 @@ export class MalClient {
     return this.#updateStatus("manga", mangaId, update);
   }
 
-  #updateStatus(
+  async #updateStatus(
     resource: Resource,
     id: number,
     update: AnimeStatusUpdate | MangaStatusUpdate,
   ): Promise<Record<string, unknown>> {
-    return this.#authed((token) =>
-      this.#http.requestJson<Record<string, unknown>>(`${resource}/${id}/my_list_status`, {
+    const data = await this.#authed((token) =>
+      this.#http.requestJson<unknown>(`${resource}/${id}/my_list_status`, {
         method: "PATCH",
         body: formBody(update),
         headers: { ...bearer(token), "Content-Type": "application/x-www-form-urlencoded" },
       }),
     );
+    return parseUpstream(ListStatusUpdateResponseSchema, data, `update_my_${resource}_status`);
   }
 
   deleteMyAnimeListItem(animeId: number): Promise<Record<string, unknown>> {
@@ -378,16 +386,63 @@ interface TokenResponse {
   token_type?: string;
 }
 
-interface MalListNode {
-  node?: { id?: number; title?: string };
-  list_status?: Record<string, unknown>;
-}
-interface MalListResponse {
-  data?: MalListNode[];
-  paging?: { next?: string; previous?: string };
+// Response shapes are validated (not just cast) at the boundary: the official API drives
+// data straight into the tool result with no summarizer in between (unlike Jikan/officialReads,
+// whose format.ts/formatOfficial.ts reshape every field), so a malformed/unexpected response
+// here would otherwise reach the agent completely unnoticed. Every schema uses .passthrough()
+// — we only assert the fields we read have sane types, never reject fields MAL adds later.
+
+const MalListNodeSchema = z
+  .object({
+    node: z.object({ id: z.number().optional(), title: z.string().optional() }).optional(),
+    list_status: z.record(z.string(), z.unknown()).optional(),
+  })
+  .passthrough();
+
+const MalListResponseSchema = z
+  .object({
+    data: z.array(MalListNodeSchema).optional(),
+    paging: z.object({ next: z.string().optional(), previous: z.string().optional() }).optional(),
+  })
+  .passthrough();
+
+const MyUserInfoSchema = z
+  .object({
+    id: z.number(),
+    name: z.string(),
+    location: z.string().nullable().optional(),
+    joined_at: z.string().optional(),
+    anime_statistics: z.record(z.string(), z.unknown()).optional(),
+  })
+  .passthrough();
+
+// Loose on purpose: anime and manga list_status responses differ (num_episodes_watched vs
+// num_chapters_read/num_volumes_read, is_rewatching vs is_rereading, …) and MAL may add fields —
+// this only confirms the response is the object shape update_my_*_status promises, not a bare
+// array/string/null a broken upstream could return.
+const ListStatusUpdateResponseSchema = z
+  .object({
+    status: z.string().optional(),
+    score: z.number().optional(),
+  })
+  .passthrough();
+
+/** Validate an upstream JSON response against `schema`; a mismatch becomes an actionable
+ *  ApiError instead of silently forwarding a malformed shape to the agent. */
+function parseUpstream<T>(schema: z.ZodType<T>, data: unknown, context: string): T {
+  const result = schema.safeParse(data);
+  if (!result.success) {
+    throw new ApiError({
+      code: "unknown",
+      message:
+        `MyAnimeList returned an unexpected response shape for ${context}: ` +
+        result.error.issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`).join("; "),
+    });
+  }
+  return result.data;
 }
 
-function trimList(res: MalListResponse): Record<string, unknown> {
+function trimList(res: z.infer<typeof MalListResponseSchema>): Record<string, unknown> {
   return {
     items: (res.data ?? []).map((entry) => ({
       mal_id: entry.node?.id,

@@ -2,8 +2,9 @@
 // Wraps HttpClient with a polite rate limiter and a TTL cache. It only fetches
 // and caches; all raw→agent-facing shaping lives in ../lib/format.js.
 import { HttpClient } from "../lib/http.js";
-import { RateLimiter, type RateRule } from "../lib/rateLimit.js";
+import type { RateRule } from "../lib/rateLimit.js";
 import { TtlCache } from "../lib/cache.js";
+import { withThrottle } from "./httpClients.js";
 import { withFallback, currentSeason, nextSeason, type JikanFallback } from "./jikanFallback.js";
 import {
   pageInfo,
@@ -97,16 +98,15 @@ export class JikanClient {
   constructor(config: Config, logger: Logger, fallback?: JikanFallback) {
     // A zero interval disables client-side throttling entirely (used in tests);
     // otherwise enforce both the min interval and Jikan's documented windows.
-    const limiter = new RateLimiter(
-      config.jikanMinIntervalMs,
-      config.jikanMinIntervalMs === 0 ? [] : JIKAN_RATE_RULES,
-    );
     this.#http = new HttpClient({
       baseUrl: config.jikanBaseUrl,
       logger,
       timeoutMs: config.httpTimeoutMs,
       retries: config.httpRetries,
-      beforeRequest: () => limiter.acquire(),
+      ...withThrottle(
+        config.jikanMinIntervalMs,
+        config.jikanMinIntervalMs === 0 ? [] : JIKAN_RATE_RULES,
+      ),
     });
     this.#cache = new TtlCache(config.cacheTtlMs);
     this.#logger = logger;

@@ -6,7 +6,15 @@
 // keeps search_anime/search_manga/get_top_anime/get_top_manga/get_seasonal_anime/
 // get_upcoming_season returning a consistent shape regardless of which upstream
 // actually answered.
-import { names, score, trimSynopsis, clean } from "./format.js";
+import {
+  names,
+  score,
+  trimSynopsis,
+  projectAnimeSummary,
+  projectMangaSummary,
+  type AnimeSummaryFields,
+  type MangaSummaryFields,
+} from "./format.js";
 
 const OFFICIAL_ANIME_STATUS: Record<string, string> = {
   currently_airing: "Currently Airing",
@@ -57,7 +65,7 @@ export interface OfficialAnimeNode {
 }
 
 export function summarizeOfficialAnime(n: OfficialAnimeNode): Record<string, unknown> {
-  return clean({
+  const fields: AnimeSummaryFields = {
     mal_id: n.id,
     title: n.title,
     title_english: n.alternative_titles?.en ?? undefined,
@@ -81,7 +89,8 @@ export function summarizeOfficialAnime(n: OfficialAnimeNode): Record<string, unk
     synopsis: trimSynopsis(n.synopsis, false),
     url: `https://myanimelist.net/anime/${n.id}`,
     image_url: officialImageUrl(n.main_picture),
-  });
+  };
+  return projectAnimeSummary(fields);
 }
 
 export interface OfficialMangaNode {
@@ -107,7 +116,7 @@ export interface OfficialMangaNode {
 }
 
 export function summarizeOfficialManga(n: OfficialMangaNode): Record<string, unknown> {
-  return clean({
+  const fields: MangaSummaryFields = {
     mal_id: n.id,
     title: n.title,
     title_english: n.alternative_titles?.en ?? undefined,
@@ -129,5 +138,6 @@ export function summarizeOfficialManga(n: OfficialMangaNode): Record<string, unk
     synopsis: trimSynopsis(n.synopsis, false),
     url: `https://myanimelist.net/manga/${n.id}`,
     image_url: officialImageUrl(n.main_picture),
-  });
+  };
+  return projectMangaSummary(fields);
 }

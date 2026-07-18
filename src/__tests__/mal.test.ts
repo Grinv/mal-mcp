@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import { readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { createServer } from "node:net";
 import { MalClient } from "../clients/mal.js";
+import { ApiError } from "../lib/errors.js";
 import { TokenStore, type TokenState } from "../lib/tokenStore.js";
 import { loadConfig } from "../config.js";
 import { silentLogger, jsonResponse, mockFetch, installFetch } from "./helpers.js";
@@ -44,6 +46,120 @@ test("silent refresh: 401 triggers refresh, retries, and persists the rotated to
     assert.equal(persisted.accessToken, "new");
     assert.equal(persisted.refreshToken, "rot1");
     assert.ok(persisted.expiresAt > Date.now());
+  } finally {
+    rmSync(storePath, { force: true });
+  }
+});
+
+test("getMyUserInfo rejects a malformed response instead of forwarding it as-is", async (t) => {
+  const config = loadConfig({ MAL_ACCESS_TOKEN: "tok" });
+  // Missing the required id/name fields — e.g. an upstream schema change or a proxy error page.
+  const mock = mockFetch(() => jsonResponse({ unexpected: "shape" }));
+  installFetch(t, mock);
+  const client = new MalClient(config, silentLogger());
+  await assert.rejects(
+    () => client.getMyUserInfo(),
+    (err: unknown) =>
+      err instanceof ApiError &&
+      err.code === "unknown" &&
+      /unexpected response shape/i.test(err.message),
+  );
+});
+
+test("updateMyAnimeStatus rejects a response that isn't the expected object shape", async (t) => {
+  const config = loadConfig({ MAL_ACCESS_TOKEN: "tok" });
+  // A broken upstream/proxy returning a bare array instead of the list_status object.
+  const mock = mockFetch(() => jsonResponse([]));
+  installFetch(t, mock);
+  const client = new MalClient(config, silentLogger());
+  await assert.rejects(
+    () => client.updateMyAnimeStatus(1, { status: "watching" }),
+    (err: unknown) =>
+      err instanceof ApiError &&
+      err.code === "unknown" &&
+      /unexpected response shape for update_my_anime_status/i.test(err.message),
+  );
+});
+
+test("updateMyMangaStatus uses the manga endpoint and PATCH", async (t) => {
+  const config = loadConfig({ MAL_ACCESS_TOKEN: "tok" });
+  const mock = mockFetch(() => jsonResponse({ status: "reading", score: 7 }));
+  installFetch(t, mock);
+  const client = new MalClient(config, silentLogger());
+  const res = (await client.updateMyMangaStatus(55, { status: "reading", score: 7 })) as Record<
+    string,
+    unknown
+  >;
+  assert.equal(res["status"], "reading");
+  assert.equal(mock.calls[0]!.init?.method, "PATCH");
+  assert.match(mock.calls[0]!.url, /manga\/55\/my_list_status$/);
+});
+
+test("proactively refreshes an access token that's already expired (no 401 needed)", async (t) => {
+  const storePath = tempStorePath("proactive-refresh");
+  const store = new TokenStore(storePath, silentLogger());
+  store.save({ accessToken: "old", refreshToken: "refresh0", expiresAt: Date.now() - 1000 });
+  const config = loadConfig({ MAL_CLIENT_ID: "id" });
+
+  let refreshCalls = 0;
+  const authHeaders: (string | undefined)[] = [];
+  const mock = mockFetch((url, init) => {
+    if (url.includes("/oauth2/token")) {
+      refreshCalls += 1;
+      return jsonResponse({ access_token: "new", refresh_token: "rot1", expires_in: 2_592_000 });
+    }
+    authHeaders.push((init?.headers as Record<string, string>)["Authorization"]);
+    return jsonResponse({ id: 1, name: "tester" });
+  });
+  installFetch(t, mock);
+  try {
+    const client = new MalClient(config, silentLogger(), store);
+    const info = (await client.getMyUserInfo()) as Record<string, unknown>;
+    assert.equal(info["name"], "tester");
+    assert.equal(refreshCalls, 1);
+    // The already-expired token must never be sent — refresh happens up front.
+    assert.deepEqual(authHeaders, ["Bearer new"]);
+  } finally {
+    rmSync(storePath, { force: true });
+  }
+});
+
+test("getMyUserInfo throws when no token is configured and refresh isn't possible", async (t) => {
+  installFetch(
+    t,
+    mockFetch(() => {
+      throw new Error("must not fetch — no token should mean no request is ever sent");
+    }),
+  );
+  const client = new MalClient(loadConfig({}), silentLogger());
+  await assert.rejects(
+    () => client.getMyUserInfo(),
+    (err: unknown) =>
+      err instanceof ApiError &&
+      err.code === "unauthorized" &&
+      /No MyAnimeList access token configured/.test(err.message),
+  );
+});
+
+test("returns a stale access token when refresh isn't possible, letting the request itself fail", async (t) => {
+  const storePath = tempStorePath("stale-no-refresh");
+  const store = new TokenStore(storePath, silentLogger());
+  store.save({ accessToken: "stale", refreshToken: "r", expiresAt: Date.now() - 1000 });
+  const config = loadConfig({}); // no MAL_CLIENT_ID → cannot refresh regardless of refreshToken
+  const mock = mockFetch((_url, init) => {
+    const auth = (init?.headers as Record<string, string>)["Authorization"];
+    return auth === "Bearer stale"
+      ? jsonResponse({ error: "unauthorized" }, { status: 401 })
+      : jsonResponse({});
+  });
+  installFetch(t, mock);
+  try {
+    const client = new MalClient(config, silentLogger(), store);
+    await assert.rejects(
+      () => client.getMyUserInfo(),
+      (err: unknown) => err instanceof ApiError && err.code === "unauthorized",
+    );
+    assert.equal(mock.calls.length, 1); // sent the stale token as-is; no refresh attempted
   } finally {
     rmSync(storePath, { force: true });
   }
@@ -118,7 +234,7 @@ test("a stored token takes precedence over the env access token", async (t) => {
   const config = loadConfig({ MAL_ACCESS_TOKEN: "env-token" });
   const mock = mockFetch((_url, init) => {
     const auth = (init?.headers as Record<string, string>)["Authorization"];
-    return jsonResponse({ used: auth });
+    return jsonResponse({ id: 1, name: "tester", used: auth });
   });
   installFetch(t, mock);
   try {
@@ -164,6 +280,19 @@ describe("login", () => {
     assert.equal(info.name, "me");
   });
 
+  test("falls back to manual-paste mode when the local callback port is busy", async (t) => {
+    const port = 8299;
+    const occupied = createServer();
+    await new Promise<void>((resolve) => occupied.listen(port, "127.0.0.1", resolve));
+    t.after(() => new Promise<void>((resolve) => occupied.close(() => resolve())));
+
+    const config = loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: String(port) });
+    const client = new MalClient(config, silentLogger());
+    const { authorizeUrl, listening } = await client.startLogin({ open: () => {} });
+    assert.equal(listening, false);
+    assert.match(authorizeUrl, /\/authorize\?/);
+  });
+
   test("submitRedirect without a started login errors", async () => {
     const client = new MalClient(loadConfig({ MAL_CLIENT_ID: "cid" }), silentLogger());
     await assert.rejects(
@@ -192,7 +321,7 @@ test("concurrent 401s trigger a single (deduped) token refresh", async (t) => {
     }
     const auth = (init?.headers as Record<string, string>)["Authorization"];
     if (auth === "Bearer old") return jsonResponse({ error: "unauthorized" }, { status: 401 });
-    return jsonResponse({ ok: true });
+    return jsonResponse({ id: 1, name: "tester", data: [], paging: {} });
   });
   installFetch(t, mock);
   const client = new MalClient(config, silentLogger());

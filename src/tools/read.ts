@@ -43,7 +43,9 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       title: "Search anime",
       description:
         "Search MyAnimeList anime by keyword; returns compact summaries (with the mal_id that " +
-        "other anime tools require) plus pagination info.",
+        "other anime tools require) plus pagination info. If Jikan is unavailable and " +
+        "MAL_CLIENT_ID is set, transparently retries via the official API, which ignores " +
+        "`genres`/`status`/`order_by`/`sort` (only `q`/`sfw`/`limit`/`page` still apply).",
       inputSchema: {
         q: z.string().min(1).describe("Search query, e.g. an anime title."),
         type: animeType.optional(),
@@ -78,7 +80,9 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       title: "Search manga",
       description:
         "Search MyAnimeList manga by keyword (also light novels, manhwa/manhua); returns compact " +
-        "summaries with the mal_id that other manga tools require.",
+        "summaries with the mal_id that other manga tools require. If Jikan is unavailable and " +
+        "MAL_CLIENT_ID is set, transparently retries via the official API, which ignores " +
+        "`genres`/`status`/`order_by`/`sort` (only `q`/`sfw`/`limit`/`page` still apply).",
       inputSchema: {
         q: z.string().min(1).describe("Search query, e.g. a manga title."),
         type: mangaType.optional(),
@@ -177,8 +181,9 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     {
       title: "Get anime recommendations",
       description:
-        "Get community recommendations for anime similar to the given mal_id, ordered by votes. " +
-        "Get the mal_id from search_anime.",
+        "Get community recommendations for anime similar to the given mal_id, ordered by votes " +
+        "and capped at the top 25 (no pagination). Get the mal_id from search_anime. Use " +
+        "get_top_anime instead for a global popularity/score ranking not tied to one title.",
       inputSchema: { id: malId },
       annotations: READ_ONLY,
     },
@@ -190,8 +195,9 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     {
       title: "Get anime reviews",
       description:
-        "Get user reviews for one anime (by mal_id), including score and review text. Defaults to " +
-        "5 reviews if `limit` is omitted. Get the mal_id from search_anime.",
+        "Get user reviews for one anime (by mal_id), including score and review text (truncated " +
+        "to 1200 characters). Defaults to 5 reviews if `limit` is omitted. Get the mal_id from " +
+        "search_anime.",
       inputSchema: { id: malId, limit: limit.optional() },
       annotations: READ_ONLY,
     },
@@ -203,8 +209,9 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     {
       title: "Get manga recommendations",
       description:
-        "Get community recommendations for manga similar to the given mal_id, ordered by votes. " +
-        "Get the mal_id from search_manga.",
+        "Get community recommendations for manga similar to the given mal_id, ordered by votes " +
+        "and capped at the top 25 (no pagination). Get the mal_id from search_manga. Use " +
+        "get_top_manga instead for a global popularity/score ranking not tied to one title.",
       inputSchema: { id: malId },
       annotations: READ_ONLY,
     },
@@ -216,8 +223,9 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     {
       title: "Get manga reviews",
       description:
-        "Get user reviews for one manga (by mal_id), including score and review text. Defaults to " +
-        "5 reviews if `limit` is omitted. Get the mal_id from search_manga.",
+        "Get user reviews for one manga (by mal_id), including score and review text (truncated " +
+        "to 1200 characters). Defaults to 5 reviews if `limit` is omitted. Get the mal_id from " +
+        "search_manga.",
       inputSchema: { id: malId, limit: limit.optional() },
       annotations: READ_ONLY,
     },
@@ -275,7 +283,8 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     {
       title: "Get seasonal anime",
       description:
-        "List anime from a given season. Omit year and season to get the current season.",
+        "List anime from a given season — supply both `year` and `season` together, or omit both " +
+        "for the current season; supplying only one is treated as omitting both.",
       inputSchema: {
         year: z
           .number()
@@ -370,7 +379,8 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       title: "Search characters",
       description:
         "Search MyAnimeList characters by name. Returns compact summaries and the mal_id needed " +
-        "by get_character.",
+        "by get_character. Use get_anime_characters instead if you already have an anime's " +
+        "mal_id and want its full cast.",
       inputSchema: {
         q: z.string().min(1).describe("Character name."),
         order_by: z.enum(["mal_id", "name", "favorites"]).describe("Field to order by.").optional(),
@@ -424,7 +434,8 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       title: "Get person details",
       description:
         "Get full details for one person by mal_id: bio, their anime/manga staff positions and " +
-        "voiced roles. Obtain the mal_id from search_people or a character's voice_actors.",
+        "voiced roles (capped to the 50 most prominent for prolific people). Obtain the mal_id " +
+        "from search_people or a character's voice_actors.",
       inputSchema: { id: malId },
       annotations: READ_ONLY,
     },

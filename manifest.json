@@ -56,12 +56,28 @@
       "description": "List an anime's characters and voice actors."
     },
     {
+      "name": "get_manga_characters",
+      "description": "List a manga's characters and their roles."
+    },
+    {
+      "name": "get_anime_episodes",
+      "description": "List an anime's episodes with air dates and flags."
+    },
+    {
       "name": "get_anime_recommendations",
       "description": "Community recommendations for an anime."
     },
     {
       "name": "get_anime_reviews",
       "description": "User reviews for an anime."
+    },
+    {
+      "name": "get_manga_recommendations",
+      "description": "Community recommendations for a manga."
+    },
+    {
+      "name": "get_manga_reviews",
+      "description": "User reviews for a manga."
     },
     {
       "name": "get_top_anime",
@@ -86,6 +102,82 @@
     {
       "name": "get_user_favorites",
       "description": "A public user's favorite anime/manga/characters/people."
+    },
+    {
+      "name": "get_anime_genres",
+      "description": "List anime genre/theme/demographic IDs for search filters."
+    },
+    {
+      "name": "get_manga_genres",
+      "description": "List manga genre/theme/demographic IDs for search filters."
+    },
+    {
+      "name": "search_characters",
+      "description": "Search characters by name."
+    },
+    {
+      "name": "get_character",
+      "description": "Get full details for one character by id."
+    },
+    {
+      "name": "search_people",
+      "description": "Search voice actors, directors and authors by name."
+    },
+    {
+      "name": "get_person",
+      "description": "Get full details for one person by id."
+    },
+    {
+      "name": "get_anime_staff",
+      "description": "An anime's production staff and roles."
+    },
+    {
+      "name": "get_random_anime",
+      "description": "A random anime pick, with full details."
+    },
+    {
+      "name": "get_random_manga",
+      "description": "A random manga pick, with full details."
+    },
+    {
+      "name": "get_upcoming_season",
+      "description": "Anime scheduled for the upcoming season."
+    },
+    {
+      "name": "get_anime_statistics",
+      "description": "Watch-status counts and score distribution for an anime."
+    },
+    {
+      "name": "get_manga_statistics",
+      "description": "Read-status counts and score distribution for a manga."
+    },
+    {
+      "name": "get_producers",
+      "description": "List or search anime producers/studios."
+    },
+    {
+      "name": "get_top_people",
+      "description": "Most popular voice actors, staff and authors, ranked."
+    },
+    {
+      "name": "get_top_characters",
+      "description": "Most popular characters, ranked."
+    },
+    {
+      "name": "get_seasons_list",
+      "description": "List the years/seasons that have anime data."
+    },
+    {
+      "name": "get_random_character",
+      "description": "A random character pick, with full details."
+    },
+    {
+      "name": "get_random_person",
+      "description": "A random person pick, with full details."
+    },
+    {
+      "name": "get_anime_news",
+      "description": "Recent news articles about an anime."
     },
     {
       "name": "get_my_user_info",

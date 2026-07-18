@@ -62,4 +62,39 @@ export function registerPrompts(server: McpServer): void {
       };
     },
   );
+
+  server.registerPrompt(
+    "hidden_gems",
+    {
+      title: "Find hidden gems",
+      description:
+        "Surface highly-rated anime or manga that aren't widely known — high score, low popularity.",
+      argsSchema: {
+        kind: z
+          .enum(["anime", "manga"])
+          .describe("Look for anime or manga. Defaults to anime.")
+          .optional(),
+      },
+    },
+    ({ kind }) => {
+      const which = kind ?? "anime";
+      const topTool = which === "anime" ? "get_top_anime" : "get_top_manga";
+      return {
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text:
+                `Find hidden-gem ${which}: high score but not widely known.\n` +
+                `Call ${topTool} with no filter (default all-time ranking) and limit=25, then pick the ` +
+                "entries whose score is high but whose popularity rank / members count is much worse " +
+                "than their score rank would suggest — those are the underseen ones. Present 5-8 picks " +
+                "with title, score, and a one-line reason each noting why it's underrated.",
+            },
+          },
+        ],
+      };
+    },
+  );
 }

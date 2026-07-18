@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { toolText } from "./helpers.js";
 
 // The unit suite exercises the code via an in-memory transport against src. This
 // e2e instead drives the REAL built bundle the way Claude Desktop does: a spawned
@@ -59,7 +60,7 @@ test("e2e: built bundle runs standalone, handshakes, lists all tools, gates pers
     // binary.
     const res = await client.callTool({ name: "get_my_user_info", arguments: {} });
     assert.equal(res.isError, true);
-    const text = (res.content as { type: string; text: string }[])[0]?.text ?? "";
+    const text = toolText(res);
     assert.match(text, /needs a MyAnimeList login/i);
   } finally {
     await client.close();
