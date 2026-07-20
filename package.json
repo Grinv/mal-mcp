@@ -1,6 +1,6 @@
 {
   "name": "mal-mcp",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "mcpName": "io.github.Grinv/mal-mcp",
   "description": "MyAnimeList MCP server — Jikan-powered reads plus official MAL personal-list management",
   "type": "module",
