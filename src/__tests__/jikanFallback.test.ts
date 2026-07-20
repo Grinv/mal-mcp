@@ -28,6 +28,11 @@ function fakeFallback(hasClientId = true): JikanFallback {
     topAnimeOfficial: async () => ({ results: [] }),
     topMangaOfficial: async () => ({ results: [] }),
     seasonOfficial: async () => ({ results: [] }),
+    animeRecommendationsOfficial: async () => ({ recommendations: [] }),
+    mangaRecommendationsOfficial: async () => ({ recommendations: [] }),
+    animeDetailsOfficial: async () => ({ mal_id: 0 }),
+    mangaDetailsOfficial: async () => ({ mal_id: 0 }),
+    animeStatisticsOfficial: async () => ({}),
   };
 }
 

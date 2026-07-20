@@ -48,3 +48,49 @@ test("live: seasonOfficial(current) returns a list", { skip }, async () => {
   };
   assert.ok(Array.isArray(res.results));
 });
+
+test(
+  "live: animeRecommendationsOfficial maps a real response onto {mal_id,title,votes,url}",
+  { skip },
+  async () => {
+    const res = (await client.animeRecommendationsOfficial(1)) as {
+      recommendations: Record<string, unknown>[];
+    };
+    assert.ok(res.recommendations.length >= 1);
+    const first = res.recommendations[0]!;
+    assert.equal(typeof first["mal_id"], "number");
+    assert.equal(typeof first["title"], "string");
+    assert.match(first["url"] as string, /^https:\/\/myanimelist\.net\/anime\//);
+  },
+);
+
+test(
+  "live: animeDetailsOfficial returns detail-mode fields for a real anime",
+  { skip },
+  async () => {
+    const res = await client.animeDetailsOfficial(1); // Cowboy Bebop
+    assert.equal(typeof res["mal_id"], "number");
+    assert.equal(typeof res["title"], "string");
+    assert.equal(typeof res["synopsis"], "string");
+  },
+);
+
+test(
+  "live: mangaDetailsOfficial returns detail-mode fields for a real manga",
+  { skip },
+  async () => {
+    const res = await client.mangaDetailsOfficial(2); // Berserk
+    assert.equal(typeof res["mal_id"], "number");
+    assert.equal(typeof res["title"], "string");
+  },
+);
+
+test(
+  "live: animeStatisticsOfficial returns watch-status counts for a real anime",
+  { skip },
+  async () => {
+    const res = await client.animeStatisticsOfficial(1); // Cowboy Bebop
+    assert.equal(typeof res["total"], "number");
+    assert.equal(typeof res["completed"], "number");
+  },
+);

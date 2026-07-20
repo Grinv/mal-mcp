@@ -45,6 +45,26 @@ function fakeFallback(hasClientId = true): JikanFallback & {
       calls.push({ kind: "season", args: { year, season, ...p } });
       return { results: [{ mal_id: 5, title: "Fallback Season" }], page: {} };
     },
+    animeRecommendationsOfficial: async (id) => {
+      calls.push({ kind: "animeRecommendations", args: { id } });
+      return { recommendations: [{ mal_id: 6, title: "Fallback Anime Rec" }] };
+    },
+    mangaRecommendationsOfficial: async (id) => {
+      calls.push({ kind: "mangaRecommendations", args: { id } });
+      return { recommendations: [{ mal_id: 7, title: "Fallback Manga Rec" }] };
+    },
+    animeDetailsOfficial: async (id) => {
+      calls.push({ kind: "animeDetails", args: { id } });
+      return { mal_id: id, title: "Fallback Anime Details" };
+    },
+    mangaDetailsOfficial: async (id) => {
+      calls.push({ kind: "mangaDetails", args: { id } });
+      return { mal_id: id, title: "Fallback Manga Details" };
+    },
+    animeStatisticsOfficial: async (id) => {
+      calls.push({ kind: "animeStatistics", args: { id } });
+      return { watching: 42 };
+    },
   };
 }
 
@@ -139,6 +159,63 @@ test("getUpcomingSeason computes the season after the current one for the fallba
   const call = fallback.calls[0] as { kind: string; args: { year: number; season: string } };
   assert.equal(call.args.year, expected.year);
   assert.equal(call.args.season, expected.season);
+});
+
+test("getAnimeRecommendations falls back to the official MAL API on a retryable upstream failure", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ message: "boom" }, { status: 500 }));
+  installFetch(t, mock);
+  const fallback = fakeFallback();
+  const res = (await jikan(fallback).getAnimeRecommendations(1)) as {
+    recommendations: Record<string, unknown>[];
+  };
+  assert.equal(res.recommendations[0]!["title"], "Fallback Anime Rec");
+  assert.deepEqual(fallback.calls, [{ kind: "animeRecommendations", args: { id: 1 } }]);
+});
+
+test("getMangaRecommendations falls back to the official MAL API on a retryable upstream failure", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ message: "boom" }, { status: 500 }));
+  installFetch(t, mock);
+  const fallback = fakeFallback();
+  const res = (await jikan(fallback).getMangaRecommendations(1)) as {
+    recommendations: Record<string, unknown>[];
+  };
+  assert.equal(res.recommendations[0]!["title"], "Fallback Manga Rec");
+  assert.deepEqual(fallback.calls, [{ kind: "mangaRecommendations", args: { id: 1 } }]);
+});
+
+test("getAnime falls back to the official MAL API on a retryable upstream failure", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ message: "boom" }, { status: 500 }));
+  installFetch(t, mock);
+  const fallback = fakeFallback();
+  const res = (await jikan(fallback).getAnime(1)) as Record<string, unknown>;
+  assert.equal(res["title"], "Fallback Anime Details");
+  assert.deepEqual(fallback.calls, [{ kind: "animeDetails", args: { id: 1 } }]);
+});
+
+test("getManga falls back to the official MAL API on a retryable upstream failure", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ message: "boom" }, { status: 500 }));
+  installFetch(t, mock);
+  const fallback = fakeFallback();
+  const res = (await jikan(fallback).getManga(1)) as Record<string, unknown>;
+  assert.equal(res["title"], "Fallback Manga Details");
+  assert.deepEqual(fallback.calls, [{ kind: "mangaDetails", args: { id: 1 } }]);
+});
+
+test("getAnimeStatistics falls back to the official MAL API on a retryable upstream failure", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ message: "boom" }, { status: 500 }));
+  installFetch(t, mock);
+  const fallback = fakeFallback();
+  const res = (await jikan(fallback).getAnimeStatistics(1)) as Record<string, unknown>;
+  assert.equal(res["watching"], 42);
+  assert.deepEqual(fallback.calls, [{ kind: "animeStatistics", args: { id: 1 } }]);
+});
+
+test("getMangaStatistics has no fallback and still propagates the upstream ApiError", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ message: "boom" }, { status: 500 }));
+  installFetch(t, mock);
+  const fallback = fakeFallback();
+  await assert.rejects(() => jikan(fallback).getMangaStatistics(1));
+  assert.equal(fallback.calls.length, 0);
 });
 
 test("without a fallback configured, the upstream ApiError still propagates unchanged", async (t) => {

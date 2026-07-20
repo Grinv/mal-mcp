@@ -169,14 +169,32 @@ export class JikanClient {
   }
 
   async getAnime(id: number): Promise<Record<string, unknown>> {
-    return this.#cached<JikanMedia>(`anime:${id}`, `anime/${id}/full`, (d) =>
-      summarizeAnime(d, true),
+    return this.#cache.wrapStaleOnError(`anime:${id}`, () =>
+      withFallback(
+        this.#logger,
+        this.#fallback,
+        "anime details",
+        async () => {
+          const res = await this.#http.getJson<ItemResponse<JikanMedia>>(`anime/${id}/full`);
+          return summarizeAnime(res.data, true);
+        },
+        () => this.#fallback!.animeDetailsOfficial(id),
+      ),
     );
   }
 
   async getManga(id: number): Promise<Record<string, unknown>> {
-    return this.#cached<JikanMedia>(`manga:${id}`, `manga/${id}/full`, (d) =>
-      summarizeManga(d, true),
+    return this.#cache.wrapStaleOnError(`manga:${id}`, () =>
+      withFallback(
+        this.#logger,
+        this.#fallback,
+        "manga details",
+        async () => {
+          const res = await this.#http.getJson<ItemResponse<JikanMedia>>(`manga/${id}/full`);
+          return summarizeManga(res.data, true);
+        },
+        () => this.#fallback!.mangaDetailsOfficial(id),
+      ),
     );
   }
 
@@ -201,10 +219,22 @@ export class JikanClient {
   }
 
   #recommendations(kind: "anime" | "manga", id: number): Promise<Record<string, unknown>> {
-    return this.#cached<RawRecommendation[]>(
-      `${kind}-recs:${id}`,
-      `${kind}/${id}/recommendations`,
-      summarizeRecommendations,
+    return this.#cache.wrapStaleOnError(`${kind}-recs:${id}`, () =>
+      withFallback(
+        this.#logger,
+        this.#fallback,
+        `${kind} recommendations`,
+        async () => {
+          const res = await this.#http.getJson<ItemResponse<RawRecommendation[]>>(
+            `${kind}/${id}/recommendations`,
+          );
+          return summarizeRecommendations(res.data);
+        },
+        () =>
+          kind === "anime"
+            ? this.#fallback!.animeRecommendationsOfficial(id)
+            : this.#fallback!.mangaRecommendationsOfficial(id),
+      ),
     );
   }
 
@@ -393,17 +423,27 @@ export class JikanClient {
   }
 
   async getAnimeStatistics(id: number): Promise<Record<string, unknown>> {
-    return this.#statistics("anime", id);
+    return this.#cache.wrapStaleOnError(`anime-stats:${id}`, () =>
+      withFallback(
+        this.#logger,
+        this.#fallback,
+        "anime statistics",
+        async () => {
+          const res = await this.#http.getJson<ItemResponse<RawStatistics>>(
+            `anime/${id}/statistics`,
+          );
+          return summarizeStatistics(res.data);
+        },
+        () => this.#fallback!.animeStatisticsOfficial(id),
+      ),
+    );
   }
 
+  // No official-API equivalent for manga statistics (see officialReads.ts) — always Jikan-only.
   async getMangaStatistics(id: number): Promise<Record<string, unknown>> {
-    return this.#statistics("manga", id);
-  }
-
-  #statistics(kind: "anime" | "manga", id: number): Promise<Record<string, unknown>> {
     return this.#cached<RawStatistics>(
-      `${kind}-stats:${id}`,
-      `${kind}/${id}/statistics`,
+      `manga-stats:${id}`,
+      `manga/${id}/statistics`,
       summarizeStatistics,
     );
   }

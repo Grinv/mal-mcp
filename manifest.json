@@ -221,7 +221,7 @@
     "mal_client_id": {
       "type": "string",
       "title": "MyAnimeList Client ID",
-      "description": "Optional. Makes 6 search/ranking read tools more resilient (no login needed). Also required for personal-list tools — run login_mal after setting this. Register an app of type 'other' at myanimelist.net/apiconfig. See docs/auth.md.",
+      "description": "Optional. Makes 11 read tools more resilient (no login needed). Also required for personal-list tools — run login_mal after setting this. Register an app of type 'other' at myanimelist.net/apiconfig. See docs/auth.md.",
       "required": false,
       "sensitive": true
     },

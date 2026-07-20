@@ -36,15 +36,37 @@ OAuth token) and exactly what each one unlocks.
 > off-limits ("don't use them"), so that data comes from Jikan regardless.
 > `OfficialReadsClient` is additive, not a default change: with no
 > `MAL_CLIENT_ID` configured, every read tool behaves exactly as if it didn't
-> exist. It covers exactly six tools — `search_anime`, `search_manga`,
+> exist. It covers six tools — `search_anime`, `search_manga`,
 > `get_top_anime`, `get_top_manga`, `get_seasonal_anime`, `get_upcoming_season`
 > — because those are Jikan's own live pass-through calls to MAL (not served
 > from Jikan's cached DB), so they're the ones exposed to MAL-side flakiness
-> (see [../notes/jikan-reliability.md](../notes/jikan-reliability.md)).
-> Every other read tool (reviews, recommendations, user profiles, schedule,
-> statistics, producers, everything character/people) has **no** official-API
-> equivalent at all — verified live, not assumed — so there's nothing to fall
-> back to there regardless of Client ID.
+> (see [../notes/jikan-reliability.md](../notes/jikan-reliability.md)), plus
+> `get_anime_recommendations`/`get_manga_recommendations`: not a pass-through,
+> but the official API happens to expose the same data as a `recommendations`
+> field on `GET /anime/{anime_id}` / `GET /manga/{manga_id}` (`client_auth: -`
+> — Client-ID-only, same tier as the other six; items are
+> `{node: {id,title,main_picture}, num_recommendations}`, verified live
+> against myanimelist.net/apiconfig/references/api/v2). It's fetched as a
+> single extra field on the details endpoint, not a separate ranked
+> collection, so ordering/ties vs. Jikan's own vote count aren't guaranteed
+> to match exactly. `get_anime`/`get_manga` also fall back onto that same
+> `GET /anime|manga/{id}` endpoint with a wider `fields` list — the official
+> API covers most of Jikan's `detailed: true` extras (title_japanese, source,
+> duration, broadcast, background, relations, scored_by) but has **no**
+> equivalent at all for `producers`/`licensors`/`streaming`/
+> `opening_themes`/`ending_themes`/`trailer`/`favorites`, which are simply
+> absent during that fallback (see `summarizeOfficialAnimeDetailed`/
+> `summarizeOfficialMangaDetailed` in `lib/formatOfficial.ts`). `get_anime_statistics`
+> falls back too — `AnimeForDetails.statistics` (`fields=statistics` on the same
+> endpoint) gives the watch-status counts (`watching`/`completed`/`on_hold`/
+> `dropped`/`plan_to_watch`/`num_list_users`), but has **no** score-distribution
+> histogram at all, so `scores` is simply absent during that fallback.
+> `get_manga_statistics` has no equivalent whatsoever — `MangaForDetails` carries
+> no `statistics` property — so it stays fully Jikan-only. Every other read tool
+> (reviews, user profiles, schedule, producers, news, episodes, genres, random
+> picks, everything character/people) has **no** official-API equivalent at
+> all — verified live, not assumed — so there's nothing to fall back to there
+> regardless of Client ID.
 
 - **API v2 reference** (endpoints, `fields` param, `my_list_status` update/delete) —
   <https://myanimelist.net/apiconfig/references/api/v2>

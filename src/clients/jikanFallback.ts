@@ -3,7 +3,9 @@
 // failing the tool outright. Kept separate from jikan.ts's HTTP/caching/rate-limit mechanics —
 // this module is purely about *when* and *how* to fall back, independently testable. See
 // notes/jikan-reliability.md for why Jikan's live pass-through endpoints (search/top/seasonal)
-// are the ones that need this.
+// are the ones that need this; recommendations/anime/manga-details/anime-statistics get the same
+// treatment because the official API happens to expose equivalents (see officialReads.ts), not
+// because they're pass-throughs.
 import { ApiError } from "../lib/errors.js";
 import type { Logger } from "../lib/logger.js";
 
@@ -43,6 +45,11 @@ export interface JikanFallback {
     season: string,
     p: { limit?: number; page?: number; sfw?: boolean },
   ): Promise<Record<string, unknown>>;
+  animeRecommendationsOfficial(id: number): Promise<Record<string, unknown>>;
+  mangaRecommendationsOfficial(id: number): Promise<Record<string, unknown>>;
+  animeDetailsOfficial(id: number): Promise<Record<string, unknown>>;
+  mangaDetailsOfficial(id: number): Promise<Record<string, unknown>>;
+  animeStatisticsOfficial(id: number): Promise<Record<string, unknown>>;
 }
 
 function isUpstreamFailure(err: unknown): err is ApiError {

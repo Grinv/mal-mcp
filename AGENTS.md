@@ -8,10 +8,10 @@ this file, not in CLAUDE.md. (For end-user/runtime docs, see [README.md](README.
 
 A TypeScript MCP server. Hybrid backend: read tools call the public Jikan API
 (no auth); personal-list tools call the official MyAnimeList API (user token).
-Six read tools (search/top/seasonal) additionally fall back to the official
-API via just a Client ID — see `JikanFallback` in `clients/jikanFallback.ts`
-and the rationale/scope in [docs/api-references.md](docs/api-references.md)
-before changing a client. [docs/auth.md](docs/auth.md) lays out what each
+Eleven read tools (search/top/seasonal/recommendations/details/anime
+statistics) additionally fall back to the official API via just a Client ID —
+see `JikanFallback` in `clients/jikanFallback.ts` and the rationale/scope in
+[docs/api-references.md](docs/api-references.md) before changing a client. [docs/auth.md](docs/auth.md) lays out what each
 credential tier (none / Client ID / OAuth token) unlocks — read that before
 changing auth-gating logic or docs that describe it.
 

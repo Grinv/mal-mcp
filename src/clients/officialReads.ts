@@ -1,6 +1,11 @@
 // Public (Client-ID-only, no OAuth) reads from the official MAL API. Used as a fallback for
 // search_anime/search_manga/get_top_anime/get_top_manga/get_seasonal_anime/get_upcoming_season
-// when Jikan's live pass-through to MAL is degraded (see notes/jikan-reliability.md).
+// when Jikan's live pass-through to MAL is degraded (see notes/jikan-reliability.md), and for
+// get_anime_recommendations/get_manga_recommendations/get_anime/get_manga/get_anime_statistics
+// when Jikan's own (not-live-pass-through) endpoints fail — the official API happens to expose
+// equivalents for all five via GET /anime|manga/{id} plus a wider `fields` list (verified live
+// against myanimelist.net/apiconfig/references/api/v2). get_manga_statistics has no such
+// equivalent — MangaForDetails carries no `statistics` property at all.
 // Structurally implements JikanFallback (see clients/jikan.ts) — neither module imports the
 // other. Deliberately separate from MalClient: that class is about OAuth-authenticated
 // personal-list reads/writes, this one needs no user token at all, just an app registration.
@@ -10,8 +15,14 @@ import { malApiHttpClient, withThrottle } from "./httpClients.js";
 import {
   summarizeOfficialAnime,
   summarizeOfficialManga,
+  summarizeOfficialRecommendations,
+  summarizeOfficialAnimeDetailed,
+  summarizeOfficialMangaDetailed,
+  summarizeOfficialAnimeStatistics,
   type OfficialAnimeNode,
   type OfficialMangaNode,
+  type OfficialRecommendationEdge,
+  type OfficialAnimeStatistics,
 } from "../lib/formatOfficial.js";
 import type { Logger } from "../lib/logger.js";
 import type { Config } from "../config.js";
@@ -26,6 +37,17 @@ const ANIME_FIELDS =
 const MANGA_FIELDS =
   "alternative_titles,start_date,synopsis,mean,rank,popularity,num_list_users,media_type,status," +
   "genres,num_chapters,num_volumes,authors{first_name,last_name},nsfw";
+
+// Superset of the above for get_anime/get_manga's fallback (a single-item detail lookup, not a
+// list) — adds the fields Jikan's `detailed: true` output also carries. See
+// summarizeOfficialAnimeDetailed/summarizeOfficialMangaDetailed for what still can't be
+// reproduced (producers/licensors/streaming/themes/trailer/favorites — no official-API field).
+const ANIME_DETAIL_FIELDS =
+  ANIME_FIELDS +
+  ",source,average_episode_duration,broadcast,background,related_anime,related_manga," +
+  "num_scoring_users";
+const MANGA_DETAIL_FIELDS =
+  MANGA_FIELDS + ",background,related_anime,related_manga,serialization,num_scoring_users";
 
 // Official `ranking_type` enums (verified against myanimelist.net/apiconfig/references/api/v2 —
 // there is no combined type+filter like Jikan's TopParams, just one enum value per request).
@@ -182,6 +204,71 @@ export class OfficialReadsClient {
       p,
       summarizeOfficialAnime,
     );
+  }
+
+  animeRecommendationsOfficial(id: number): Promise<Record<string, unknown>> {
+    return this.#recommendations("anime", id);
+  }
+
+  mangaRecommendationsOfficial(id: number): Promise<Record<string, unknown>> {
+    return this.#recommendations("manga", id);
+  }
+
+  async #recommendations(kind: "anime" | "manga", id: number): Promise<Record<string, unknown>> {
+    if (!this.#clientId) {
+      throw new ApiError({ code: "unauthorized", message: "MAL_CLIENT_ID not configured" });
+    }
+    const res = await this.#http.getJson<{ recommendations?: OfficialRecommendationEdge[] }>(
+      `${kind}/${id}`,
+      { query: { fields: "recommendations" }, headers: { "X-MAL-CLIENT-ID": this.#clientId } },
+    );
+    return summarizeOfficialRecommendations(kind, res.recommendations ?? []);
+  }
+
+  animeDetailsOfficial(id: number): Promise<Record<string, unknown>> {
+    return this.#details<OfficialAnimeNode>(
+      "anime",
+      id,
+      ANIME_DETAIL_FIELDS,
+      summarizeOfficialAnimeDetailed,
+    );
+  }
+
+  mangaDetailsOfficial(id: number): Promise<Record<string, unknown>> {
+    return this.#details<OfficialMangaNode>(
+      "manga",
+      id,
+      MANGA_DETAIL_FIELDS,
+      summarizeOfficialMangaDetailed,
+    );
+  }
+
+  async #details<T>(
+    kind: "anime" | "manga",
+    id: number,
+    fields: string,
+    summarize: (node: T) => Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    if (!this.#clientId) {
+      throw new ApiError({ code: "unauthorized", message: "MAL_CLIENT_ID not configured" });
+    }
+    const res = await this.#http.getJson<T>(`${kind}/${id}`, {
+      query: { fields },
+      headers: { "X-MAL-CLIENT-ID": this.#clientId },
+    });
+    return summarize(res);
+  }
+
+  // Anime-only — see summarizeOfficialAnimeStatistics's comment for why manga has no equivalent.
+  async animeStatisticsOfficial(id: number): Promise<Record<string, unknown>> {
+    if (!this.#clientId) {
+      throw new ApiError({ code: "unauthorized", message: "MAL_CLIENT_ID not configured" });
+    }
+    const res = await this.#http.getJson<{ statistics?: OfficialAnimeStatistics }>(`anime/${id}`, {
+      query: { fields: "statistics" },
+      headers: { "X-MAL-CLIENT-ID": this.#clientId },
+    });
+    return summarizeOfficialAnimeStatistics(res.statistics);
   }
 
   async #list<T extends { nsfw?: string | null }>(

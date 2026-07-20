@@ -6,6 +6,18 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-20
+
+### Added
+
+- `get_anime_recommendations`/`get_manga_recommendations` fall back to the official MAL API's own `recommendations` field (via `MAL_CLIENT_ID`, no OAuth needed) when Jikan fails, joining the existing search/top/seasonal fallback.
+- `get_anime`/`get_manga` gain the same official-API fallback; it omits `producers`/`licensors`/`streaming`/`opening_themes`/`ending_themes`/`trailer`/`favorites`, which have no official-API equivalent.
+- `get_anime_statistics` also falls back (watch-status counts only, no score distribution — the official API has no histogram field); `get_manga_statistics` has no official-API equivalent at all and stays Jikan-only.
+
+### Changed
+
+- Cross-reference `get_my_user_info`/`get_user_profile` and disclose that `get_my_user_info` has no manga statistics at all (the official API has no such field).
+
 ## [0.5.0] - 2026-07-18
 
 ### Added

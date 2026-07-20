@@ -118,7 +118,10 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       title: "Get anime details",
       description:
         "Get full details for one anime by mal_id: synopsis, score, genres, studios, " +
-        "streaming links and related entries. Obtain the mal_id from search_anime first.",
+        "streaming links and related entries. Obtain the mal_id from search_anime first. If " +
+        "Jikan is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
+        "API, which omits `producers`/`licensors`/`streaming`/`opening_themes`/`ending_themes`/" +
+        "`trailer`/`favorites` (no equivalent fields there).",
       inputSchema: { id: malId },
       annotations: READ_ONLY,
     },
@@ -131,7 +134,9 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       title: "Get manga details",
       description:
         "Get full details for one manga by mal_id: synopsis, score, genres, authors, " +
-        "serialization, and related entries. Obtain the mal_id from search_manga first.",
+        "serialization, and related entries. Obtain the mal_id from search_manga first. If " +
+        "Jikan is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
+        "API, which omits `favorites` (no equivalent field there).",
       inputSchema: { id: malId },
       annotations: READ_ONLY,
     },
@@ -183,7 +188,10 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "Get community recommendations for anime similar to the given mal_id, ordered by votes " +
         "and capped at the top 25 (no pagination). Get the mal_id from search_anime. Use " +
-        "get_top_anime instead for a global popularity/score ranking not tied to one title.",
+        "get_top_anime instead for a global popularity/score ranking not tied to one title. If " +
+        "Jikan is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
+        "API's own recommendations field (same output shape, but ordering/counts may differ " +
+        "slightly from Jikan's).",
       inputSchema: { id: malId },
       annotations: READ_ONLY,
     },
@@ -211,7 +219,10 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "Get community recommendations for manga similar to the given mal_id, ordered by votes " +
         "and capped at the top 25 (no pagination). Get the mal_id from search_manga. Use " +
-        "get_top_manga instead for a global popularity/score ranking not tied to one title.",
+        "get_top_manga instead for a global popularity/score ranking not tied to one title. If " +
+        "Jikan is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
+        "API's own recommendations field (same output shape, but ordering/counts may differ " +
+        "slightly from Jikan's).",
       inputSchema: { id: malId },
       annotations: READ_ONLY,
     },
@@ -326,7 +337,11 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     "get_user_profile",
     {
       title: "Get user profile",
-      description: "Get a public MyAnimeList user's profile and watch/read statistics by username.",
+      description:
+        "Get a public MyAnimeList user's profile and watch/read statistics by username — works " +
+        "for any username, including your own, with no login needed. Use get_my_user_info " +
+        "instead when you're already logged in via login_mal and want the authenticated " +
+        "user's data specifically (though that tool only covers anime stats, not manga).",
       inputSchema: { username: z.string().min(1).describe("MyAnimeList username.") },
       annotations: READ_ONLY,
     },
@@ -499,7 +514,9 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       title: "Get anime statistics",
       description:
         "Get watch-status counts (watching/completed/…) and the score distribution for an anime by mal_id. " +
-        "Get the mal_id from search_anime.",
+        "Get the mal_id from search_anime. If Jikan is unavailable and MAL_CLIENT_ID is set, " +
+        "transparently retries via the official API, which omits the score distribution " +
+        "(`scores`) entirely — no equivalent field there.",
       inputSchema: { id: malId },
       annotations: READ_ONLY,
     },

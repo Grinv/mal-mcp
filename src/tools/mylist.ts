@@ -56,8 +56,10 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
     {
       title: "Get my MAL profile",
       description:
-        "Get the logged-in user's MyAnimeList profile and anime statistics. Requires a prior " +
-        "login_mal.",
+        "Get the logged-in user's MyAnimeList profile and anime watch-status statistics. " +
+        "Requires a prior login_mal. Anime-only — the official API has no manga statistics " +
+        "field at all; use get_user_profile with your own username instead for manga read " +
+        "stats too (no login needed).",
       inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
