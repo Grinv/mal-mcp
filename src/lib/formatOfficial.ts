@@ -267,12 +267,15 @@ export function summarizeOfficialRecommendations(
 // at myanimelist.net/apiconfig/references/api/v2) — get_manga_statistics stays fully Jikan-only.
 export interface OfficialAnimeStatistics {
   num_list_users?: number;
+  // The official API sends these as numeric strings (e.g. "190892"), unlike
+  // num_list_users which is a real number — verified live against
+  // /v2/anime/{id}?fields=statistics. Coerced to number below.
   status?: {
-    watching?: number;
-    completed?: number;
-    on_hold?: number;
-    dropped?: number;
-    plan_to_watch?: number;
+    watching?: string;
+    completed?: string;
+    on_hold?: string;
+    dropped?: string;
+    plan_to_watch?: string;
   };
 }
 
@@ -281,13 +284,15 @@ export interface OfficialAnimeStatistics {
 export function summarizeOfficialAnimeStatistics(
   s: OfficialAnimeStatistics | undefined,
 ): z.infer<typeof statisticsSchema> {
+  const toNumber = (v: string | undefined): number | undefined =>
+    v === undefined ? undefined : Number(v);
   return statisticsSchema.parse(
     clean({
-      watching: s?.status?.watching,
-      completed: s?.status?.completed,
-      on_hold: s?.status?.on_hold,
-      dropped: s?.status?.dropped,
-      plan_to_watch: s?.status?.plan_to_watch,
+      watching: toNumber(s?.status?.watching),
+      completed: toNumber(s?.status?.completed),
+      on_hold: toNumber(s?.status?.on_hold),
+      dropped: toNumber(s?.status?.dropped),
+      plan_to_watch: toNumber(s?.status?.plan_to_watch),
       total: s?.num_list_users,
     }),
   );

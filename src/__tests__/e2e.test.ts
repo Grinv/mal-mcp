@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { Client } from "@modelcontextprotocol/client";
 import { toolText } from "./helpers.js";
+import { VERSION } from "../version.js";
 
 // The unit suite exercises the code via an in-memory transport against src (see
 // helpers.ts's connectServer()) — that only ever drives a bare McpServer, never
@@ -79,6 +80,61 @@ describe("e2e (real built bundle over stdio)", () => {
       assert.equal(res.isError, true);
       const text = toolText(res);
       assert.match(text, /needs a MyAnimeList login/i);
+    } finally {
+      await client.close();
+      rmSync(sandbox, { recursive: true, force: true });
+    }
+  });
+
+  test("negotiates the modern (2026-07-28) era via server/discover and still serves tools", async (t) => {
+    // The other two cases in this file (and every unit test in the suite) only ever
+    // connect with the SDK client's default `versionNegotiation: 'legacy'` — the
+    // plain 2025 `initialize` handshake, byte-identical to a pre-2026 client. That
+    // never exercises serveStdio's modern-era branch: the `server/discover` request,
+    // the `_meta`-enveloped serverInfo, or — since serveStdio's factory can be
+    // invoked a second time for a legacy fallback after a discarded modern probe —
+    // whether buildServer() actually tolerates being called more than once against
+    // the same config/logger. Pin to the modern revision (rather than `'auto'`,
+    // which probes via a disposable sibling process on stdio) for a deterministic
+    // connect with no extra spawn: it fails loudly if the server doesn't answer
+    // `server/discover`, instead of silently falling back to legacy and passing
+    // for the wrong reason.
+    if (!existsSync(distPath)) {
+      t.skip("dist/index.js not built — run `npm run build` first (CI builds before tests)");
+      return;
+    }
+
+    const sandbox = makeSandbox();
+    const client = new Client(
+      { name: "e2e-modern", version: "0" },
+      { versionNegotiation: { mode: { pin: "2026-07-28" } } },
+    );
+    const transport = new StdioClientTransport({
+      command: process.execPath,
+      args: [join(sandbox, "index.js")],
+      env: envWithoutCredentials(),
+    });
+
+    try {
+      await client.connect(transport);
+      assert.equal(client.getProtocolEra(), "modern");
+      assert.deepEqual(client.getServerVersion(), {
+        name: "mal-mcp",
+        title: "MAL MCP Server",
+        version: VERSION,
+      });
+
+      const { tools } = await client.listTools();
+      assert.equal(
+        tools.length,
+        EXPECTED_TOOLS,
+        "every tool should register in the modern era too",
+      );
+
+      // A real tool call over the modern-era envelope/dispatch path, not just the handshake.
+      const res = await client.callTool({ name: "get_my_user_info", arguments: {} });
+      assert.equal(res.isError, true);
+      assert.match(toolText(res), /needs a MyAnimeList login/i);
     } finally {
       await client.close();
       rmSync(sandbox, { recursive: true, force: true });

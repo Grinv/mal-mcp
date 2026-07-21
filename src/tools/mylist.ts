@@ -14,6 +14,7 @@ import {
   deleteMangaItemSchema,
 } from "../lib/format.schemas.js";
 import { errorResult, jsonResult, type ToolResult } from "../lib/result.js";
+import { ApiError } from "../lib/errors.js";
 import { guard } from "./guard.js";
 
 const NEEDS_TOKEN =
@@ -163,7 +164,15 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
       },
     },
     ({ anime_id, ...update }) =>
-      requireToken(async () => jsonResult(await mal.updateMyAnimeStatus(anime_id, update))),
+      requireToken(async () => {
+        if (Object.keys(update).length === 0) {
+          throw new ApiError({
+            code: "bad_request",
+            message: "Provide at least one field besides anime_id.",
+          });
+        }
+        return jsonResult(await mal.updateMyAnimeStatus(anime_id, update));
+      }),
   );
 
   server.registerTool(
@@ -197,7 +206,15 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
       },
     },
     ({ manga_id, ...update }) =>
-      requireToken(async () => jsonResult(await mal.updateMyMangaStatus(manga_id, update))),
+      requireToken(async () => {
+        if (Object.keys(update).length === 0) {
+          throw new ApiError({
+            code: "bad_request",
+            message: "Provide at least one field besides manga_id.",
+          });
+        }
+        return jsonResult(await mal.updateMyMangaStatus(manga_id, update));
+      }),
   );
 
   server.registerTool(

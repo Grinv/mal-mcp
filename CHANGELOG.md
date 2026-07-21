@@ -6,6 +6,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-07-22
+
+### Fixed
+
+- Fix `get_anime_statistics`'s official-API fallback throwing a raw validation error instead of a result — the official API sends watch-status counts as numeric strings, which were passed through unconverted.
+- `update_my_anime_status`/`update_my_manga_status` now reject a call with only `anime_id`/`manga_id` and no other field, instead of silently creating a `watching`/`reading` entry with MAL's defaults.
+
 ## [0.7.0] - 2026-07-22
 
 ### Added

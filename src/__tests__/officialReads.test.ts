@@ -345,12 +345,21 @@ test("mangaDetailsOfficial maps serialization and related entries", async (t) =>
 
 test("animeStatisticsOfficial maps watch-status counts and never fabricates a score histogram", async (t) => {
   const config = loadConfig({ MAL_CLIENT_ID: "cid" });
+  // The real official API sends these status counts as numeric strings (verified live
+  // against /v2/anime/{id}?fields=statistics) while num_list_users is a real number —
+  // mock the same shape so this test catches string/number coercion regressions.
   const mock = mockFetch(() =>
     jsonResponse({
       id: 1,
       statistics: {
         num_list_users: 57150,
-        status: { watching: 100, completed: 56000, on_hold: 200, dropped: 300, plan_to_watch: 550 },
+        status: {
+          watching: "100",
+          completed: "56000",
+          on_hold: "200",
+          dropped: "300",
+          plan_to_watch: "550",
+        },
       },
     }),
   );

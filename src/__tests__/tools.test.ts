@@ -102,6 +102,30 @@ test("personal-list tools work end-to-end with a token (exercises the MAL client
   assert.deepEqual(del.structuredContent, { deleted: true, manga_id: 2 });
 });
 
+test("update_my_anime_status/update_my_manga_status reject a bare id with no other fields", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ status: "watching" }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({ MAL_ACCESS_TOKEN: "tok" });
+  t.after(close);
+
+  const anime = await client.callTool({
+    name: "update_my_anime_status",
+    arguments: { anime_id: 1 },
+  });
+  assert.equal(anime.isError, true);
+  assert.match(toolText(anime), /at least one field besides anime_id/);
+
+  const manga = await client.callTool({
+    name: "update_my_manga_status",
+    arguments: { manga_id: 1 },
+  });
+  assert.equal(manga.isError, true);
+  assert.match(toolText(manga), /at least one field besides manga_id/);
+
+  // Neither call should have reached the upstream API.
+  assert.equal(mock.calls.length, 0);
+});
+
 test("the server advertises all expected tools", async (t) => {
   const { client, close } = await connectServer({});
   t.after(close);
