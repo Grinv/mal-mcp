@@ -1,9 +1,10 @@
+import { serveStdio } from "@modelcontextprotocol/server/stdio";
+import { McpServer } from "@modelcontextprotocol/server";
+
 // Server construction and stdio startup. Kept separate from the bin entry
 // (index.ts) so tests can import buildServer without triggering startup.
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { loadConfig, type Config } from "./config.js";
-import { createLogger, type Logger, type LogLevel, type LogSink } from "./lib/logger.js";
+import { createLogger, type Logger } from "./lib/logger.js";
 import { TokenStore, defaultTokenStorePath } from "./lib/tokenStore.js";
 import { JikanClient } from "./clients/jikan.js";
 import { MalClient } from "./clients/mal.js";
@@ -38,71 +39,24 @@ export function buildServer(config: Config, logger: Logger): McpServer {
 
   const server = new McpServer(
     { name: "mal-mcp", title: "MAL MCP Server", version: VERSION },
-    // Declare the logging capability so the SDK registers `logging/setLevel`
-    // and lets us push `notifications/message` to the client (see start()).
-    { capabilities: { logging: {} }, instructions: INSTRUCTIONS },
+    { instructions: INSTRUCTIONS },
   );
 
   registerReadTools(server, jikan);
   registerMyListTools(server, mal);
   registerLoginTools(server, mal);
-  registerPrompts(server);
+  registerPrompts(server, jikan);
   return server;
 }
 
-// Internal levels → MCP (syslog-style) levels for notifications/message.
-const MCP_LOG_LEVELS = {
-  debug: "debug",
-  info: "info",
-  warn: "warning",
-  error: "error",
-} as const satisfies Record<Exclude<LogLevel, "silent">, string>;
-
-/** A {@link LogSink} that mirrors each log line onto the MCP client as a
- *  `notifications/message`. Best-effort: sends are dropped silently when there
- *  is no transport yet, when the client filtered the level via `logging/setLevel`,
- *  or after disconnect — logging must never break the server. */
-export function mcpLoggingSink(server: McpServer): LogSink {
-  return (level, message) => {
-    void server.server
-      .sendLoggingMessage({
-        level: MCP_LOG_LEVELS[level],
-        logger: "mal-mcp",
-        data: message,
-      })
-      .catch(() => {});
-  };
-}
-
-/** Mirror logs to the client, but ONLY after the initialize handshake completes.
- *  Sending a `notifications/message` before `initialized` violates the MCP
- *  lifecycle, and strict clients (e.g. Claude Desktop) drop the connection — so
- *  `ref.sink` stays unset (stderr-only) until then. Pass the same holder the
- *  logger reads from. */
-export function activateClientLoggingOnInitialize(
-  server: McpServer,
-  ref: { sink?: LogSink },
-): void {
-  const priorOnInitialized = server.server.oninitialized;
-  server.server.oninitialized = () => {
-    priorOnInitialized?.();
-    ref.sink = mcpLoggingSink(server);
-  };
-}
-
-/** Load config, build the server, and serve over stdio until terminated. */
+/** Load config, build the server, and serve over stdio until terminated.
+ *  MCP protocol revision 2026-07-28 deprecated server→client log notifications
+ *  in favor of stderr (SEP-2577) — the host process already reads a spawned
+ *  stdio server's stderr, so this logger's stderr output is the only channel. */
 export async function start(): Promise<void> {
   const config = loadConfig();
-
-  // Forward-ref via a holder: the logger is needed to build the server, but the
-  // sink needs the server, so we fill it in once the server exists — and only
-  // once the client has initialized (see activateClientLoggingOnInitialize).
-  const ref: { sink?: LogSink } = {};
-  const logger = createLogger(config.logLevel, (level, message) => ref.sink?.(level, message));
-  const server = buildServer(config, logger);
-  activateClientLoggingOnInitialize(server, ref);
-
-  await server.connect(new StdioServerTransport());
+  const logger = createLogger(config.logLevel);
+  const handle = serveStdio(() => buildServer(config, logger));
   logger.info(
     `mal-mcp ${VERSION} ready (personal-list tools ${
       config.auth.configured ? "enabled" : "not yet authorized — run login_mal"
@@ -111,7 +65,7 @@ export async function start(): Promise<void> {
 
   const shutdown = (signal: string): void => {
     logger.info(`received ${signal}, shutting down`);
-    void server.close().finally(() => process.exit(0));
+    void handle.close().finally(() => process.exit(0));
   };
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));

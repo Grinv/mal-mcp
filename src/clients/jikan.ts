@@ -113,14 +113,25 @@ export class JikanClient {
     this.#fallback = fallback;
   }
 
-  /** Fetch a paginated list and map each item through `summarize`. */
+  /** Fetch a paginated list and map each item through `summarize`. A single
+   *  malformed item (e.g. missing a field its outputSchema requires) is
+   *  dropped with a warning instead of failing the whole page — one bad
+   *  entry in a 25-item response shouldn't cost the agent all 25 results. */
   async #list<T>(
     path: string,
     query: Query,
     summarize: (item: T) => Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
     const res = await this.#http.getJson<ListResponse<T>>(path, { query });
-    return { results: res.data.map(summarize), page: pageInfo(res.pagination) };
+    const results: Record<string, unknown>[] = [];
+    for (const item of res.data) {
+      try {
+        results.push(summarize(item));
+      } catch (err) {
+        this.#logger.warn(`dropping malformed ${path} list item`, err);
+      }
+    }
+    return { results, page: pageInfo(res.pagination) };
   }
 
   /** Cache by `key`, GET `path`, then shape the raw `data` (item or array). */

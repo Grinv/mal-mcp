@@ -4,7 +4,7 @@
 import { z } from "zod";
 import type { LogLevel } from "./lib/logger.js";
 
-const EnvSchema = z.object({
+export const EnvSchema = z.object({
   MAL_ACCESS_TOKEN: z.string().min(1).optional(),
   MAL_CLIENT_ID: z.string().min(1).optional(),
   MAL_REFRESH_TOKEN: z.string().min(1).optional(),
@@ -28,6 +28,20 @@ const EnvSchema = z.object({
 
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error", "silent"]).default("info"),
 });
+
+// Which EnvSchema fields are also user-facing config, surfaced in manifest.json's
+// user_config (the .mcpb install form) and server.json's environmentVariables (the MCP
+// Registry entry) — see docs/releasing.md. Deliberately a subset: purely internal tunables
+// (MAL_TOKEN_STORE, MAL_OAUTH_PORT, timeouts, cache, rate limits, LOG_LEVEL) stay env-only
+// and don't belong there. The `satisfies` clause is a compile-time guard: a name here that
+// isn't an actual EnvSchema key (typo, or the field got renamed/removed) fails `tsc --noEmit`
+// instead of only surfacing as manifest.json/server.json silently going stale — see
+// version.test.ts's cross-check against manifest.json/server.json for the runtime half.
+export const CREDENTIAL_ENV_VARS = [
+  "MAL_CLIENT_ID",
+  "MAL_REFRESH_TOKEN",
+  "MAL_ACCESS_TOKEN",
+] as const satisfies readonly (keyof z.infer<typeof EnvSchema>)[];
 
 export interface MalAuth {
   accessToken: string | undefined;

@@ -16,6 +16,11 @@ import {
 import { malApiHttpClient } from "./httpClients.js";
 import type { Logger } from "../lib/logger.js";
 import type { Config, MalAuth } from "../config.js";
+import {
+  myListSchema,
+  deleteAnimeItemSchema,
+  deleteMangaItemSchema,
+} from "../lib/format.schemas.js";
 
 const REFRESH_SKEW_MS = 60_000;
 
@@ -130,7 +135,7 @@ export class MalClient {
   // Anime and manga share the same MAL endpoints up to a `${resource}` segment,
   // so each public method delegates to one resource-parameterized private helper.
 
-  async getMyUserInfo(): Promise<Record<string, unknown>> {
+  async getMyUserInfo(): Promise<z.infer<typeof MyUserInfoSchema>> {
     const data = await this.#authed((token) =>
       this.#http.getJson<unknown>("users/@me", {
         query: { fields: USER_FIELDS },
@@ -140,11 +145,11 @@ export class MalClient {
     return parseUpstream(MyUserInfoSchema, data, "get_my_user_info");
   }
 
-  getMyAnimeList(p: AnimeListParams): Promise<Record<string, unknown>> {
+  getMyAnimeList(p: AnimeListParams): Promise<z.infer<typeof myListSchema>> {
     return this.#getMyList("anime", ANIME_LIST_FIELDS, p);
   }
 
-  getMyMangaList(p: AnimeListParams): Promise<Record<string, unknown>> {
+  getMyMangaList(p: AnimeListParams): Promise<z.infer<typeof myListSchema>> {
     return this.#getMyList("manga", MANGA_LIST_FIELDS, p);
   }
 
@@ -152,7 +157,7 @@ export class MalClient {
     resource: Resource,
     fields: string,
     p: AnimeListParams,
-  ): Promise<Record<string, unknown>> {
+  ): Promise<z.infer<typeof myListSchema>> {
     const data = await this.#authed((token) =>
       this.#http.getJson<unknown>(`users/@me/${resource}list`, {
         query: { fields, status: p.status, sort: p.sort, limit: p.limit, offset: p.offset },
@@ -166,14 +171,14 @@ export class MalClient {
   updateMyAnimeStatus(
     animeId: number,
     update: AnimeStatusUpdate,
-  ): Promise<Record<string, unknown>> {
+  ): Promise<z.infer<typeof ListStatusUpdateResponseSchema>> {
     return this.#updateStatus("anime", animeId, update);
   }
 
   updateMyMangaStatus(
     mangaId: number,
     update: MangaStatusUpdate,
-  ): Promise<Record<string, unknown>> {
+  ): Promise<z.infer<typeof ListStatusUpdateResponseSchema>> {
     return this.#updateStatus("manga", mangaId, update);
   }
 
@@ -181,7 +186,7 @@ export class MalClient {
     resource: Resource,
     id: number,
     update: AnimeStatusUpdate | MangaStatusUpdate,
-  ): Promise<Record<string, unknown>> {
+  ): Promise<z.infer<typeof ListStatusUpdateResponseSchema>> {
     const data = await this.#authed((token) =>
       this.#http.requestJson<unknown>(`${resource}/${id}/my_list_status`, {
         method: "PATCH",
@@ -192,12 +197,12 @@ export class MalClient {
     return parseUpstream(ListStatusUpdateResponseSchema, data, `update_my_${resource}_status`);
   }
 
-  deleteMyAnimeListItem(animeId: number): Promise<Record<string, unknown>> {
-    return this.#deleteItem("anime", animeId);
+  async deleteMyAnimeListItem(animeId: number): Promise<z.infer<typeof deleteAnimeItemSchema>> {
+    return deleteAnimeItemSchema.parse(await this.#deleteItem("anime", animeId));
   }
 
-  deleteMyMangaListItem(mangaId: number): Promise<Record<string, unknown>> {
-    return this.#deleteItem("manga", mangaId);
+  async deleteMyMangaListItem(mangaId: number): Promise<z.infer<typeof deleteMangaItemSchema>> {
+    return deleteMangaItemSchema.parse(await this.#deleteItem("manga", mangaId));
   }
 
   async #deleteItem(resource: Resource, id: number): Promise<Record<string, unknown>> {
@@ -389,8 +394,11 @@ interface TokenResponse {
 // Response shapes are validated (not just cast) at the boundary: the official API drives
 // data straight into the tool result with no summarizer in between (unlike Jikan/officialReads,
 // whose format.ts/formatOfficial.ts reshape every field), so a malformed/unexpected response
-// here would otherwise reach the agent completely unnoticed. Every schema uses .passthrough()
-// — we only assert the fields we read have sane types, never reject fields MAL adds later.
+// here would otherwise reach the agent completely unnoticed. Every schema declared IN THIS FILE
+// is .passthrough() — we only assert the fields we read have sane types, never reject fields MAL
+// adds later. myListSchema/deleteAnimeItemSchema/deleteMangaItemSchema below are the exception:
+// they describe trimList()'s/deleteMy*ListItem()'s own shaped output, not a raw upstream
+// response, so — same convention as format.schemas.ts — they're .strict() and defined there.
 
 const MalListNodeSchema = z
   .object({
@@ -406,7 +414,10 @@ const MalListResponseSchema = z
   })
   .passthrough();
 
-const MyUserInfoSchema = z
+// Exported for reuse as the get_my_user_info tool's outputSchema — it's the exact shape this
+// client hands back (no summarizer in between, see the comment above), so the same
+// upstream-validating schema doubles as the MCP-facing one.
+export const MyUserInfoSchema = z
   .object({
     id: z.number(),
     name: z.string(),
@@ -419,8 +430,10 @@ const MyUserInfoSchema = z
 // Loose on purpose: anime and manga list_status responses differ (num_episodes_watched vs
 // num_chapters_read/num_volumes_read, is_rewatching vs is_rereading, …) and MAL may add fields —
 // this only confirms the response is the object shape update_my_*_status promises, not a bare
-// array/string/null a broken upstream could return.
-const ListStatusUpdateResponseSchema = z
+// array/string/null a broken upstream could return. Exported for reuse as the
+// update_my_anime_status/update_my_manga_status tools' outputSchema, same reasoning as
+// MyUserInfoSchema above.
+export const ListStatusUpdateResponseSchema = z
   .object({
     status: z.string().optional(),
     score: z.number().optional(),
@@ -442,15 +455,15 @@ function parseUpstream<T>(schema: z.ZodType<T>, data: unknown, context: string):
   return result.data;
 }
 
-function trimList(res: z.infer<typeof MalListResponseSchema>): Record<string, unknown> {
-  return {
+function trimList(res: z.infer<typeof MalListResponseSchema>): z.infer<typeof myListSchema> {
+  return myListSchema.parse({
     items: (res.data ?? []).map((entry) => ({
       mal_id: entry.node?.id,
       title: entry.node?.title,
       list_status: entry.list_status,
     })),
     has_next_page: Boolean(res.paging?.next),
-  };
+  });
 }
 
 function bearer(token: string): Record<string, string> {

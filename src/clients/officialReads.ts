@@ -140,10 +140,12 @@ const MIN_INTERVAL_MS = 350;
 export class OfficialReadsClient {
   readonly #http: HttpClient;
   readonly #clientId: string | undefined;
+  readonly #logger: Logger;
 
   constructor(config: Config, logger: Logger) {
     this.#clientId = config.auth.clientId;
     this.#http = malApiHttpClient(config, logger, withThrottle(MIN_INTERVAL_MS));
+    this.#logger = logger;
   }
 
   /** Whether Client-ID-only public reads are available (just an app registration — no
@@ -296,9 +298,17 @@ export class OfficialReadsClient {
     // Filtering after the page is fetched means a filtered page can come back shorter than
     // `limit` even when more results exist upstream — an accepted degraded-mode trade-off.
     const nodes = p.sfw ? res.data.filter((d) => isSfw(d.node)) : res.data;
-    return {
-      results: nodes.map((d) => summarize(d.node)),
-      page: { has_next_page: Boolean(res.paging?.next) },
-    };
+    // One malformed node shouldn't fail the whole page — see jikan.ts's #list for the
+    // same reasoning (a single item missing a required output field would otherwise
+    // take out every other result in the response).
+    const results: Record<string, unknown>[] = [];
+    for (const d of nodes) {
+      try {
+        results.push(summarize(d.node));
+      } catch (err) {
+        this.#logger.warn(`dropping malformed ${path} list item`, err);
+      }
+    }
+    return { results, page: { has_next_page: Boolean(res.paging?.next) } };
   }
 }

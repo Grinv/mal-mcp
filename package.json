@@ -53,12 +53,13 @@
     "prepublishOnly": "npm run build && npm test"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.29.0",
+    "@modelcontextprotocol/server": "^2.0.0-beta.4",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@anthropic-ai/mcpb": "2.1.2",
     "@eslint/js": "10.0.1",
+    "@modelcontextprotocol/client": "^2.0.0-beta.4",
     "@types/node": "26.1.0",
     "esbuild": "0.28.1",
     "eslint": "10.6.0",

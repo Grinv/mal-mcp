@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { VERSION } from "../version.js";
+import { CREDENTIAL_ENV_VARS } from "../config.js";
 
 // Tests run from the dist-tests/ working directory; the repo root is one level up.
 const root = join(process.cwd(), "..");
@@ -60,18 +61,26 @@ test("server.json description fits the MCP Registry 100-char limit", () => {
   );
 });
 
-// User-facing config is declared in both manifest.json (the .mcpb install form)
-// and server.json (the registry entry). They must list the same variables, so a
-// new/renamed config option can't silently land in one but not the other.
-// (config.ts is the upstream source; AGENTS.md covers keeping it in sync too.)
-test("server.json environmentVariables match manifest.json user_config", () => {
-  const expected = new Set(Object.keys(manifest.user_config).map((k) => k.toUpperCase()));
+// User-facing config is declared in three places that must agree: config.ts's
+// CREDENTIAL_ENV_VARS (the real, typo-checked source — see its comment),
+// manifest.json's user_config (the .mcpb install form), and server.json's
+// environmentVariables (the registry entry). Previously this test only cross-checked
+// manifest.json against server.json, leaving the config.ts step unverified — a var
+// renamed/added in config.ts without updating the other two would pass silently.
+test("manifest.json user_config and server.json environmentVariables match config.ts's CREDENTIAL_ENV_VARS", () => {
+  const expected = new Set<string>(CREDENTIAL_ENV_VARS);
+  const manifestVars = new Set(Object.keys(manifest.user_config).map((k) => k.toUpperCase()));
+  assert.deepEqual(
+    manifestVars,
+    expected,
+    "manifest.json user_config must match config.ts's CREDENTIAL_ENV_VARS",
+  );
   for (const p of server.packages) {
     const got = new Set((p.environmentVariables ?? []).map((e) => e.name));
     assert.deepEqual(
       got,
       expected,
-      `package ${p.registryType} environmentVariables must match manifest user_config`,
+      `package ${p.registryType} environmentVariables must match config.ts's CREDENTIAL_ENV_VARS`,
     );
   }
   // Registry schema caps each description at 100 chars too.

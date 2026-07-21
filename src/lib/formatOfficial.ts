@@ -6,6 +6,7 @@
 // keeps search_anime/search_manga/get_top_anime/get_top_manga/get_seasonal_anime/
 // get_upcoming_season returning a consistent shape regardless of which upstream
 // actually answered.
+import type { z } from "zod";
 import {
   names,
   score,
@@ -16,6 +17,12 @@ import {
   type AnimeSummaryFields,
   type MangaSummaryFields,
 } from "./format.js";
+import {
+  animeDetailSchema,
+  mangaDetailSchema,
+  recommendationsSchema,
+  statisticsSchema,
+} from "./format.schemas.js";
 
 const OFFICIAL_ANIME_STATUS: Record<string, string> = {
   currently_airing: "Currently Airing",
@@ -151,7 +158,9 @@ export interface OfficialAnimeNode {
   nsfw?: string | null;
 }
 
-export function summarizeOfficialAnime(n: OfficialAnimeNode): Record<string, unknown> {
+export function summarizeOfficialAnime(
+  n: OfficialAnimeNode,
+): ReturnType<typeof projectAnimeSummary> {
   const fields: AnimeSummaryFields = {
     mal_id: n.id,
     title: n.title,
@@ -185,19 +194,23 @@ export function summarizeOfficialAnime(n: OfficialAnimeNode): Record<string, unk
 // producers/licensors/streaming/opening+ending themes/trailer/favorites have no official-API
 // equivalent at all and are simply absent during a fallback — a degraded-mode trade-off, same
 // spirit as the search/season fallback's dropped filters.
-export function summarizeOfficialAnimeDetailed(n: OfficialAnimeNode): Record<string, unknown> {
+export function summarizeOfficialAnimeDetailed(
+  n: OfficialAnimeNode,
+): z.infer<typeof animeDetailSchema> {
   const base = summarizeOfficialAnime(n);
-  return clean({
-    ...base,
-    synopsis: trimSynopsis(n.synopsis, true),
-    title_japanese: n.alternative_titles?.ja ?? undefined,
-    source: officialSource(n.source),
-    duration: formatDuration(n.average_episode_duration),
-    broadcast: formatBroadcast(n.broadcast),
-    scored_by: n.num_scoring_users ?? undefined,
-    background: n.background ?? undefined,
-    relations: groupRelations(n.related_anime, n.related_manga),
-  });
+  return animeDetailSchema.parse(
+    clean({
+      ...base,
+      synopsis: trimSynopsis(n.synopsis, true),
+      title_japanese: n.alternative_titles?.ja ?? undefined,
+      source: officialSource(n.source),
+      duration: formatDuration(n.average_episode_duration),
+      broadcast: formatBroadcast(n.broadcast),
+      scored_by: n.num_scoring_users ?? undefined,
+      background: n.background ?? undefined,
+      relations: groupRelations(n.related_anime, n.related_manga),
+    }),
+  );
 }
 
 export interface OfficialMangaNode {
@@ -239,15 +252,15 @@ export interface OfficialRecommendationEdge {
 export function summarizeOfficialRecommendations(
   kind: "anime" | "manga",
   edges: OfficialRecommendationEdge[],
-): Record<string, unknown> {
-  return {
+): z.infer<typeof recommendationsSchema> {
+  return recommendationsSchema.parse({
     recommendations: edges.slice(0, 25).map((e) => ({
       mal_id: e.node?.id,
       title: e.node?.title,
       votes: e.num_recommendations,
       url: e.node?.id ? `https://myanimelist.net/${kind}/${e.node.id}` : undefined,
     })),
-  };
+  });
 }
 
 // Anime-only: MangaForDetails has no `statistics` property at all (verified against the schema
@@ -267,18 +280,22 @@ export interface OfficialAnimeStatistics {
 // at all — `scores` is simply absent during this fallback, not approximated.
 export function summarizeOfficialAnimeStatistics(
   s: OfficialAnimeStatistics | undefined,
-): Record<string, unknown> {
-  return clean({
-    watching: s?.status?.watching,
-    completed: s?.status?.completed,
-    on_hold: s?.status?.on_hold,
-    dropped: s?.status?.dropped,
-    plan_to_watch: s?.status?.plan_to_watch,
-    total: s?.num_list_users,
-  });
+): z.infer<typeof statisticsSchema> {
+  return statisticsSchema.parse(
+    clean({
+      watching: s?.status?.watching,
+      completed: s?.status?.completed,
+      on_hold: s?.status?.on_hold,
+      dropped: s?.status?.dropped,
+      plan_to_watch: s?.status?.plan_to_watch,
+      total: s?.num_list_users,
+    }),
+  );
 }
 
-export function summarizeOfficialManga(n: OfficialMangaNode): Record<string, unknown> {
+export function summarizeOfficialManga(
+  n: OfficialMangaNode,
+): ReturnType<typeof projectMangaSummary> {
   const fields: MangaSummaryFields = {
     mal_id: n.id,
     title: n.title,
@@ -307,18 +324,22 @@ export function summarizeOfficialManga(n: OfficialMangaNode): Record<string, unk
 
 // Detail-mode fallback for get_manga — see summarizeOfficialAnimeDetailed's comment for the
 // scope of what the official API can and can't reproduce from Jikan's `detailed: true` output.
-export function summarizeOfficialMangaDetailed(n: OfficialMangaNode): Record<string, unknown> {
+export function summarizeOfficialMangaDetailed(
+  n: OfficialMangaNode,
+): z.infer<typeof mangaDetailSchema> {
   const base = summarizeOfficialManga(n);
-  return clean({
-    ...base,
-    synopsis: trimSynopsis(n.synopsis, true),
-    title_japanese: n.alternative_titles?.ja ?? undefined,
-    publishing: n.status === "currently_publishing",
-    scored_by: n.num_scoring_users ?? undefined,
-    background: n.background ?? undefined,
-    serializations: (n.serialization ?? [])
-      .map((s) => s.node?.name)
-      .filter((name): name is string => Boolean(name)),
-    relations: groupRelations(n.related_anime, n.related_manga),
-  });
+  return mangaDetailSchema.parse(
+    clean({
+      ...base,
+      synopsis: trimSynopsis(n.synopsis, true),
+      title_japanese: n.alternative_titles?.ja ?? undefined,
+      publishing: n.status === "currently_publishing",
+      scored_by: n.num_scoring_users ?? undefined,
+      background: n.background ?? undefined,
+      serializations: (n.serialization ?? [])
+        .map((s) => s.node?.name)
+        .filter((name): name is string => Boolean(name)),
+      relations: groupRelations(n.related_anime, n.related_manga),
+    }),
+  );
 }

@@ -38,11 +38,18 @@ no registry token/secret is needed. To publish manually instead:
 `mcp-publisher login github && mcp-publisher publish`.
 
 **Keep config in three places in sync.** A user-facing env var is declared in
-`config.ts` (the source of truth), `manifest.json` `user_config` (the `.mcpb`
-install form), and `server.json` `packages[].environmentVariables` (the registry
-entry). When you add/rename/remove one in `config.ts`, update the other two —
-`version.test.ts` guards that `manifest.json` and `server.json` agree, but it
-can't see `config.ts`, so the `config.ts` → descriptors step is on you. Keep
-`server.json` descriptions ≤ 100 chars (registry schema cap). Purely internal
-tunables (timeouts, cache, rate limits, `LOG_LEVEL`) stay env-only — they don't
-belong in the install form or registry entry.
+`config.ts`'s `CREDENTIAL_ENV_VARS` (the source of truth — a `satisfies` clause
+ties it to `EnvSchema`'s real keys, so a typo/rename fails `tsc --noEmit`),
+`manifest.json` `user_config` (the `.mcpb` install form), and `server.json`
+`packages[].environmentVariables` (the registry entry). When you add/rename/
+remove a credential var, update `CREDENTIAL_ENV_VARS` plus the descriptor in
+both JSON files — `version.test.ts` guards that all three agree (not just
+`manifest.json` against `server.json`), so a mismatch fails a test instead of
+only surfacing as a stale install form. Keep `server.json` descriptions ≤ 100
+chars (registry schema cap). Purely internal tunables (timeouts, cache, rate
+limits, `LOG_LEVEL`) stay env-only — they don't belong in `CREDENTIAL_ENV_VARS`
+or in the install form/registry entry. `MAL_TOKEN_STORE`/`MAL_OAUTH_PORT` are
+the same category (rare, advanced overrides) even though README documents them
+in the main table alongside the credential vars — don't add them to
+`CREDENTIAL_ENV_VARS`/`manifest.json`/`server.json` just because they're in
+`config.ts`'s `EnvSchema`.

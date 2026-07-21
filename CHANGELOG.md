@@ -6,6 +6,27 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-07-22
+
+### Added
+
+- Add machine-readable `outputSchema`/`structuredContent` to every tool's response, alongside the existing text content, so clients can consume results without re-parsing JSON from text.
+- The `recommend_similar` prompt now offers live title autocomplete as you type.
+
+### Changed
+
+- The `recommend_similar` prompt's `title` argument is now optional — if omitted, it asks which anime you mean instead of failing the call (some clients, e.g. Claude Code, don't prompt the user for a missing required argument).
+
+### Removed
+
+- Remove the MCP logging capability and `notifications/message` push; server logs are now stderr-only. Clients that called `logging/setLevel` or listened for log notifications will no longer receive them — check the server's stderr instead.
+
+### Fixed
+
+- Drop a single malformed item from a list response (search/top/seasonal/characters/people/producers/news/etc.) instead of failing the whole call, for both the Jikan and official-API-fallback backends.
+- Fix `recommend_similar`'s prompt steps, which called `get_anime` optional despite requiring the score/genres only it provides.
+- Disclose that `search_anime`/`search_manga`'s official-API fallback also enforces `sfw` client-side (matching the existing seasonal-fallback caveat) — a filtered page can come back shorter than `limit`.
+
 ## [0.6.0] - 2026-07-20
 
 ### Added

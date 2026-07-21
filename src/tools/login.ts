@@ -4,11 +4,28 @@
 // the OAuth dance and stores the token; `submit_mal_redirect` completes it when
 // the browser is on another machine (SSH/remote/headless) and the localhost
 // callback can't be reached.
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import type { MalClient } from "../clients/mal.js";
 import { jsonResult } from "../lib/result.js";
 import { guard } from "./guard.js";
+
+const startLoginResultSchema = z
+  .object({
+    authorize_url: z.string(),
+    redirect_uri: z.string(),
+    auto_capture: z.boolean(),
+    instructions: z.string(),
+  })
+  .strict();
+
+const submitRedirectResultSchema = z
+  .object({
+    logged_in: z.literal(true),
+    user: z.string().optional(),
+    message: z.string(),
+  })
+  .strict();
 
 export function registerLoginTools(server: McpServer, mal: MalClient): void {
   server.registerTool(
@@ -24,23 +41,26 @@ export function registerLoginTools(server: McpServer, mal: MalClient): void {
         "same machine as the server, login completes automatically; if it's remote (SSH/" +
         "headless), copy the URL you land on and pass it to submit_mal_redirect.",
       inputSchema: {},
+      outputSchema: startLoginResultSchema,
       annotations: { readOnlyHint: false, openWorldHint: true },
     },
     () =>
       guard(async () => {
         const { authorizeUrl, redirectUri, listening } = await mal.startLogin();
-        return jsonResult({
-          authorize_url: authorizeUrl,
-          redirect_uri: redirectUri,
-          auto_capture: listening,
-          instructions: listening
-            ? "Open authorize_url, log in and click Allow. Login then completes automatically — " +
-              "call get_my_user_info to confirm. If the browser is on a different machine than " +
-              "this server, instead copy the URL it redirects you to and pass it to submit_mal_redirect."
-            : "Open authorize_url, log in and click Allow, then copy the full URL your browser is " +
-              "redirected to (it contains ?code=...) and pass it to submit_mal_redirect. " +
-              `(The local auto-capture on ${redirectUri} was unavailable — likely the port is busy.)`,
-        });
+        return jsonResult(
+          startLoginResultSchema.parse({
+            authorize_url: authorizeUrl,
+            redirect_uri: redirectUri,
+            auto_capture: listening,
+            instructions: listening
+              ? "Open authorize_url, log in and click Allow. Login then completes automatically — " +
+                "call get_my_user_info to confirm. If the browser is on a different machine than " +
+                "this server, instead copy the URL it redirects you to and pass it to submit_mal_redirect."
+              : "Open authorize_url, log in and click Allow, then copy the full URL your browser is " +
+                "redirected to (it contains ?code=...) and pass it to submit_mal_redirect. " +
+                `(The local auto-capture on ${redirectUri} was unavailable — likely the port is busy.)`,
+          }),
+        );
       }),
   );
 
@@ -59,17 +79,20 @@ export function registerLoginTools(server: McpServer, mal: MalClient): void {
           .min(1)
           .describe("The full redirected URL (contains ?code=...), or just the code value."),
       },
+      outputSchema: submitRedirectResultSchema,
       annotations: { readOnlyHint: false, openWorldHint: true },
     },
     ({ redirect_url }) =>
       guard(async () => {
         await mal.submitRedirect(redirect_url);
-        const info = (await mal.getMyUserInfo()) as { name?: unknown };
-        return jsonResult({
-          logged_in: true,
-          user: typeof info.name === "string" ? info.name : undefined,
-          message: "MyAnimeList login complete. The token is stored and refreshes automatically.",
-        });
+        const info = await mal.getMyUserInfo();
+        return jsonResult(
+          submitRedirectResultSchema.parse({
+            logged_in: true,
+            user: info.name,
+            message: "MyAnimeList login complete. The token is stored and refreshes automatically.",
+          }),
+        );
       }),
   );
 }

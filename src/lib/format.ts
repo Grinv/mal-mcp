@@ -2,6 +2,36 @@
 // keep responses token-efficient. Summaries are used for list endpoints;
 // `summarizeAnime`/`summarizeManga` with `detailed: true` keep the long fields
 // (full synopsis, relations, streaming) for single-item lookups.
+//
+// Schema-first: each shaper below builds its result then runs it through the
+// matching Zod schema of the same name (+ `Schema`) from ./format.schemas.ts
+// via `.parse()` — the same schema used as the tool's `outputSchema` (MCP
+// structured content, SEP-2106). A shaper that starts returning a field its
+// schema doesn't know about (or drops one it promised) throws immediately,
+// right here, instead of only surfacing as silent drift between two
+// independently-maintained files.
+import type { z } from "zod";
+import {
+  animeDetailSchema,
+  animeSummarySchema,
+  charactersSchema,
+  characterEntitySchema,
+  episodesSchema,
+  favoritesSchema,
+  genresSchema,
+  mangaDetailSchema,
+  mangaSummarySchema,
+  newsItemSchema,
+  pageSchema,
+  personEntitySchema,
+  producerSchema,
+  recommendationsSchema,
+  reviewsSchema,
+  seasonsListSchema,
+  staffSchema,
+  statisticsSchema,
+  userSchema,
+} from "./format.schemas.js";
 
 interface NamedRef {
   mal_id?: number;
@@ -148,8 +178,8 @@ export interface AnimeSummaryFields {
   image_url?: string;
 }
 
-export function projectAnimeSummary(f: AnimeSummaryFields): Record<string, unknown> {
-  return clean(f);
+export function projectAnimeSummary(f: AnimeSummaryFields): z.infer<typeof animeSummarySchema> {
+  return animeSummarySchema.parse(clean(f));
 }
 
 export interface MangaSummaryFields {
@@ -174,11 +204,36 @@ export interface MangaSummaryFields {
   image_url?: string;
 }
 
-export function projectMangaSummary(f: MangaSummaryFields): Record<string, unknown> {
-  return clean(f);
+export function projectMangaSummary(f: MangaSummaryFields): z.infer<typeof mangaSummarySchema> {
+  return mangaSummarySchema.parse(clean(f));
 }
 
-export function summarizeAnime(a: JikanMedia, detailed = false): Record<string, unknown> {
+// Compile-time guard, not a runtime check: AnimeSummaryFields/MangaSummaryFields above and
+// animeSummarySchema/mangaSummarySchema (format.schemas.ts) are two independently-maintained
+// descriptions of the same shape, linked only by the .parse() calls above. A field added to one
+// and forgotten on the other would otherwise compile and pass tests cleanly (clean() strips an
+// unset field before .strict() ever sees it) and only throw against live upstream data. This
+// type fails to compile the moment the two key sets diverge, catching that class of drift at
+// `tsc --noEmit` time instead.
+type KeysMatch<A, B> = keyof A extends keyof B ? (keyof B extends keyof A ? true : false) : false;
+const _animeSummaryFieldsMatchSchema: KeysMatch<
+  AnimeSummaryFields,
+  z.infer<typeof animeSummarySchema>
+> = true;
+const _mangaSummaryFieldsMatchSchema: KeysMatch<
+  MangaSummaryFields,
+  z.infer<typeof mangaSummarySchema>
+> = true;
+
+// Overloads narrow the return type on the literal `detailed` argument — plain
+// `boolean` alone can't discriminate the union for callers (and tests) that
+// pass a literal `true`/`false`.
+export function summarizeAnime(a: JikanMedia, detailed: true): z.infer<typeof animeDetailSchema>;
+export function summarizeAnime(a: JikanMedia, detailed?: false): z.infer<typeof animeSummarySchema>;
+export function summarizeAnime(
+  a: JikanMedia,
+  detailed = false,
+): z.infer<typeof animeSummarySchema> | z.infer<typeof animeDetailSchema> {
   const fields: AnimeSummaryFields = {
     mal_id: a.mal_id,
     title: a.title,
@@ -205,33 +260,40 @@ export function summarizeAnime(a: JikanMedia, detailed = false): Record<string, 
   };
   const base = projectAnimeSummary(fields);
   if (!detailed) return base;
-  return clean({
-    ...base,
-    title_japanese: a.title_japanese ?? undefined,
-    source: a.source ?? undefined,
-    duration: a.duration ?? undefined,
-    // Broadcast slot for currently-airing shows; `.string` is the human form
-    // (e.g. "Fridays at 23:00 (JST)"). Only present/meaningful while airing.
-    broadcast: a.broadcast?.string ?? undefined,
-    scored_by: a.scored_by ?? undefined,
-    favorites: a.favorites ?? undefined,
-    background: a.background ?? undefined,
-    producers: names(a.producers),
-    licensors: names(a.licensors),
-    streaming: (a.streaming ?? []).map((s) => clean({ name: s.name, url: s.url })),
-    // Opening/ending theme songs (already-formatted strings, e.g.
-    // `1: "Yuusha" by YOASOBI (eps 1-16)`). Empty arrays are dropped by clean().
-    opening_themes: a.theme?.openings ?? undefined,
-    ending_themes: a.theme?.endings ?? undefined,
-    // Trailer: prefer the watch URL, fall back to the embed URL; both nullable.
-    trailer: a.trailer?.url ?? a.trailer?.embed_url ?? undefined,
-    relations: (a.relations ?? []).map((r) =>
-      clean({ relation: r.relation, entries: names(r.entry) }),
-    ),
-  });
+  return animeDetailSchema.parse(
+    clean({
+      ...base,
+      title_japanese: a.title_japanese ?? undefined,
+      source: a.source ?? undefined,
+      duration: a.duration ?? undefined,
+      // Broadcast slot for currently-airing shows; `.string` is the human form
+      // (e.g. "Fridays at 23:00 (JST)"). Only present/meaningful while airing.
+      broadcast: a.broadcast?.string ?? undefined,
+      scored_by: a.scored_by ?? undefined,
+      favorites: a.favorites ?? undefined,
+      background: a.background ?? undefined,
+      producers: names(a.producers),
+      licensors: names(a.licensors),
+      streaming: (a.streaming ?? []).map((s) => clean({ name: s.name, url: s.url })),
+      // Opening/ending theme songs (already-formatted strings, e.g.
+      // `1: "Yuusha" by YOASOBI (eps 1-16)`). Empty arrays are dropped by clean().
+      opening_themes: a.theme?.openings ?? undefined,
+      ending_themes: a.theme?.endings ?? undefined,
+      // Trailer: prefer the watch URL, fall back to the embed URL; both nullable.
+      trailer: a.trailer?.url ?? a.trailer?.embed_url ?? undefined,
+      relations: (a.relations ?? []).map((r) =>
+        clean({ relation: r.relation, entries: names(r.entry) }),
+      ),
+    }),
+  );
 }
 
-export function summarizeManga(m: JikanMedia, detailed = false): Record<string, unknown> {
+export function summarizeManga(m: JikanMedia, detailed: true): z.infer<typeof mangaDetailSchema>;
+export function summarizeManga(m: JikanMedia, detailed?: false): z.infer<typeof mangaSummarySchema>;
+export function summarizeManga(
+  m: JikanMedia,
+  detailed = false,
+): z.infer<typeof mangaSummarySchema> | z.infer<typeof mangaDetailSchema> {
   const fields: MangaSummaryFields = {
     mal_id: m.mal_id,
     title: m.title,
@@ -255,28 +317,32 @@ export function summarizeManga(m: JikanMedia, detailed = false): Record<string, 
   };
   const base = projectMangaSummary(fields);
   if (!detailed) return base;
-  return clean({
-    ...base,
-    title_japanese: m.title_japanese ?? undefined,
-    // Whether the manga is still being published (analogous to anime `airing`).
-    publishing: m.publishing,
-    scored_by: m.scored_by ?? undefined,
-    favorites: m.favorites ?? undefined,
-    background: m.background ?? undefined,
-    serializations: names(m.serializations),
-    relations: (m.relations ?? []).map((r) =>
-      clean({ relation: r.relation, entries: names(r.entry) }),
-    ),
-  });
+  return mangaDetailSchema.parse(
+    clean({
+      ...base,
+      title_japanese: m.title_japanese ?? undefined,
+      // Whether the manga is still being published (analogous to anime `airing`).
+      publishing: m.publishing,
+      scored_by: m.scored_by ?? undefined,
+      favorites: m.favorites ?? undefined,
+      background: m.background ?? undefined,
+      serializations: names(m.serializations),
+      relations: (m.relations ?? []).map((r) =>
+        clean({ relation: r.relation, entries: names(r.entry) }),
+      ),
+    }),
+  );
 }
 
-export function pageInfo(p: JikanPagination | undefined): Record<string, unknown> {
-  return clean({
-    current_page: p?.current_page,
-    has_next_page: p?.has_next_page,
-    last_visible_page: p?.last_visible_page,
-    total: p?.items?.total,
-  });
+export function pageInfo(p: JikanPagination | undefined): z.infer<typeof pageSchema> {
+  return pageSchema.parse(
+    clean({
+      current_page: p?.current_page,
+      has_next_page: p?.has_next_page,
+      last_visible_page: p?.last_visible_page,
+      total: p?.items?.total,
+    }),
+  );
 }
 
 // ---- Sub-resource raw shapes + summaries ----
@@ -294,8 +360,8 @@ export interface RawCharacter {
 export function summarizeCharacters(
   data: RawCharacter[],
   withVoiceActors: boolean,
-): Record<string, unknown> {
-  return {
+): z.infer<typeof charactersSchema> {
+  return charactersSchema.parse({
     characters: data.map((c) => {
       const base = {
         mal_id: c.character?.mal_id,
@@ -312,7 +378,7 @@ export function summarizeCharacters(
           .filter((n): n is string => typeof n === "string"),
       };
     }),
-  };
+  });
 }
 
 export interface RawRecommendation {
@@ -320,15 +386,17 @@ export interface RawRecommendation {
   votes?: number;
 }
 
-export function summarizeRecommendations(data: RawRecommendation[]): Record<string, unknown> {
-  return {
+export function summarizeRecommendations(
+  data: RawRecommendation[],
+): z.infer<typeof recommendationsSchema> {
+  return recommendationsSchema.parse({
     recommendations: data.slice(0, 25).map((r) => ({
       mal_id: r.entry?.mal_id,
       title: r.entry?.title,
       votes: r.votes,
       url: r.entry?.url,
     })),
-  };
+  });
 }
 
 export interface RawReview {
@@ -340,8 +408,8 @@ export interface RawReview {
   url?: string;
 }
 
-export function summarizeReviews(data: RawReview[]): Record<string, unknown> {
-  return {
+export function summarizeReviews(data: RawReview[]): z.infer<typeof reviewsSchema> {
+  return reviewsSchema.parse({
     reviews: data.map((r) => ({
       user: r.user?.username,
       score: r.score,
@@ -350,7 +418,7 @@ export function summarizeReviews(data: RawReview[]): Record<string, unknown> {
       review: typeof r.review === "string" ? r.review.slice(0, 1200) : undefined,
       url: r.url,
     })),
-  };
+  });
 }
 
 export interface RawEpisode {
@@ -366,8 +434,8 @@ export interface RawEpisode {
 export function summarizeEpisodes(
   data: RawEpisode[],
   pagination: JikanPagination | undefined,
-): Record<string, unknown> {
-  return {
+): z.infer<typeof episodesSchema> {
+  return episodesSchema.parse({
     episodes: data.map((e) => ({
       mal_id: e.mal_id,
       title: e.title,
@@ -378,7 +446,7 @@ export function summarizeEpisodes(
       recap: e.recap,
     })),
     page: pageInfo(pagination),
-  };
+  });
 }
 
 export interface RawGenre {
@@ -388,10 +456,10 @@ export interface RawGenre {
   url?: string;
 }
 
-export function summarizeGenres(data: RawGenre[]): Record<string, unknown> {
-  return {
+export function summarizeGenres(data: RawGenre[]): z.infer<typeof genresSchema> {
+  return genresSchema.parse({
     genres: data.map((g) => ({ mal_id: g.mal_id, name: g.name, count: g.count, url: g.url })),
-  };
+  });
 }
 
 export interface RawUser {
@@ -405,8 +473,8 @@ export interface RawUser {
   statistics?: unknown;
 }
 
-export function summarizeUser(u: RawUser): Record<string, unknown> {
-  return {
+export function summarizeUser(u: RawUser): z.infer<typeof userSchema> {
+  return userSchema.parse({
     username: u.username,
     url: u.url,
     joined: u.joined,
@@ -415,7 +483,7 @@ export function summarizeUser(u: RawUser): Record<string, unknown> {
     last_online: u.last_online ?? undefined,
     about: typeof u.about === "string" ? u.about.slice(0, 600) : undefined,
     statistics: u.statistics,
-  };
+  });
 }
 
 export interface RawFavEntry {
@@ -431,15 +499,15 @@ export interface RawFavorites {
   people?: RawFavEntry[];
 }
 
-export function summarizeFavorites(f: RawFavorites): Record<string, unknown> {
+export function summarizeFavorites(f: RawFavorites): z.infer<typeof favoritesSchema> {
   const titles = (items: RawFavEntry[] | undefined): Record<string, unknown>[] =>
     (items ?? []).map((i) => ({ mal_id: i.mal_id, title: i.title ?? i.name, url: i.url }));
-  return {
+  return favoritesSchema.parse({
     anime: titles(f.anime),
     manga: titles(f.manga),
     characters: titles(f.characters),
     people: titles(f.people),
-  };
+  });
 }
 
 // ---- Characters & people (entity lookups + search) ----
@@ -470,7 +538,7 @@ export interface RawCharacterEntity {
 export function summarizeCharacter(
   c: RawCharacterEntity,
   detailed = false,
-): Record<string, unknown> {
+): z.infer<typeof characterEntitySchema> {
   const base = clean({
     mal_id: c.mal_id,
     name: c.name,
@@ -481,19 +549,21 @@ export function summarizeCharacter(
     url: c.url,
     image_url: imageUrl(c.images),
   });
-  if (!detailed) return base;
-  return clean({
-    ...base,
-    anime: (c.anime ?? []).map((a) =>
-      clean({ role: a.role, mal_id: a.anime?.mal_id, title: a.anime?.title }),
-    ),
-    manga: (c.manga ?? []).map((m) =>
-      clean({ role: m.role, mal_id: m.manga?.mal_id, title: m.manga?.title }),
-    ),
-    voice_actors: (c.voices ?? []).map((v) =>
-      clean({ language: v.language, mal_id: v.person?.mal_id, name: v.person?.name }),
-    ),
-  });
+  if (!detailed) return characterEntitySchema.parse(base);
+  return characterEntitySchema.parse(
+    clean({
+      ...base,
+      anime: (c.anime ?? []).map((a) =>
+        clean({ role: a.role, mal_id: a.anime?.mal_id, title: a.anime?.title }),
+      ),
+      manga: (c.manga ?? []).map((m) =>
+        clean({ role: m.role, mal_id: m.manga?.mal_id, title: m.manga?.title }),
+      ),
+      voice_actors: (c.voices ?? []).map((v) =>
+        clean({ language: v.language, mal_id: v.person?.mal_id, name: v.person?.name }),
+      ),
+    }),
+  );
 }
 
 export interface RawPersonEntity {
@@ -512,7 +582,10 @@ export interface RawPersonEntity {
   voices?: { role?: string; anime?: RawRef; character?: RawRef }[];
 }
 
-export function summarizePerson(p: RawPersonEntity, detailed = false): Record<string, unknown> {
+export function summarizePerson(
+  p: RawPersonEntity,
+  detailed = false,
+): z.infer<typeof personEntitySchema> {
   const base = clean({
     mal_id: p.mal_id,
     name: p.name,
@@ -525,28 +598,30 @@ export function summarizePerson(p: RawPersonEntity, detailed = false): Record<st
     url: p.url,
     image_url: imageUrl(p.images),
   });
-  if (!detailed) return base;
-  return clean({
-    ...base,
-    anime: (p.anime ?? []).map((a) =>
-      clean({ position: a.position, mal_id: a.anime?.mal_id, title: a.anime?.title }),
-    ),
-    manga: (p.manga ?? []).map((m) =>
-      clean({ position: m.position, mal_id: m.manga?.mal_id, title: m.manga?.title }),
-    ),
-    // Voiced roles can be huge for prolific actors; cap to keep the payload sane.
-    voice_roles: (p.voices ?? [])
-      .slice(0, 50)
-      .map((v) => clean({ role: v.role, character: v.character?.name, anime: v.anime?.title })),
-  });
+  if (!detailed) return personEntitySchema.parse(base);
+  return personEntitySchema.parse(
+    clean({
+      ...base,
+      anime: (p.anime ?? []).map((a) =>
+        clean({ position: a.position, mal_id: a.anime?.mal_id, title: a.anime?.title }),
+      ),
+      manga: (p.manga ?? []).map((m) =>
+        clean({ position: m.position, mal_id: m.manga?.mal_id, title: m.manga?.title }),
+      ),
+      // Voiced roles can be huge for prolific actors; cap to keep the payload sane.
+      voice_roles: (p.voices ?? [])
+        .slice(0, 50)
+        .map((v) => clean({ role: v.role, character: v.character?.name, anime: v.anime?.title })),
+    }),
+  );
 }
 
 export interface RawStaff {
   person?: { mal_id?: number; name?: string; url?: string };
   positions?: string[];
 }
-export function summarizeStaff(data: RawStaff[]): Record<string, unknown> {
-  return {
+export function summarizeStaff(data: RawStaff[]): z.infer<typeof staffSchema> {
+  return staffSchema.parse({
     staff: data.map((s) =>
       clean({
         mal_id: s.person?.mal_id,
@@ -555,7 +630,7 @@ export function summarizeStaff(data: RawStaff[]): Record<string, unknown> {
         url: s.person?.url,
       }),
     ),
-  };
+  });
 }
 
 // ---- Statistics ----
@@ -572,22 +647,24 @@ export interface RawStatistics {
   total?: number;
   scores?: { score?: number; votes?: number; percentage?: number }[];
 }
-export function summarizeStatistics(s: RawStatistics): Record<string, unknown> {
-  return clean({
-    watching: s.watching,
-    completed: s.completed,
-    on_hold: s.on_hold,
-    dropped: s.dropped,
-    plan_to_watch: s.plan_to_watch,
-    reading: s.reading,
-    plan_to_read: s.plan_to_read,
-    total: s.total,
-    scores: (s.scores ?? []).map((x) => ({
-      score: x.score,
-      votes: x.votes,
-      percentage: x.percentage,
-    })),
-  });
+export function summarizeStatistics(s: RawStatistics): z.infer<typeof statisticsSchema> {
+  return statisticsSchema.parse(
+    clean({
+      watching: s.watching,
+      completed: s.completed,
+      on_hold: s.on_hold,
+      dropped: s.dropped,
+      plan_to_watch: s.plan_to_watch,
+      reading: s.reading,
+      plan_to_read: s.plan_to_read,
+      total: s.total,
+      scores: (s.scores ?? []).map((x) => ({
+        score: x.score,
+        votes: x.votes,
+        percentage: x.percentage,
+      })),
+    }),
+  );
 }
 
 // ---- Producers (studios) ----
@@ -600,17 +677,19 @@ export interface RawProducer {
   established?: string | null;
   count?: number;
 }
-export function summarizeProducer(p: RawProducer): Record<string, unknown> {
+export function summarizeProducer(p: RawProducer): z.infer<typeof producerSchema> {
   const name = (p.titles ?? []).find((t) => t.type === "Default")?.title ?? p.titles?.[0]?.title;
-  return clean({
-    mal_id: p.mal_id,
-    name,
-    count: p.count,
-    favorites: p.favorites,
-    established: p.established ?? undefined,
-    url: p.url,
-    image_url: imageUrl(p.images),
-  });
+  return producerSchema.parse(
+    clean({
+      mal_id: p.mal_id,
+      name,
+      count: p.count,
+      favorites: p.favorites,
+      established: p.established ?? undefined,
+      url: p.url,
+      image_url: imageUrl(p.images),
+    }),
+  );
 }
 
 // ---- Seasons list & news ----
@@ -618,8 +697,10 @@ export interface RawSeasonEntry {
   year?: number;
   seasons?: string[];
 }
-export function summarizeSeasonsList(data: RawSeasonEntry[]): Record<string, unknown> {
-  return { seasons: data.map((s) => ({ year: s.year, seasons: s.seasons ?? [] })) };
+export function summarizeSeasonsList(data: RawSeasonEntry[]): z.infer<typeof seasonsListSchema> {
+  return seasonsListSchema.parse({
+    seasons: data.map((s) => ({ year: s.year, seasons: s.seasons ?? [] })),
+  });
 }
 
 export interface RawNewsItem {
@@ -631,14 +712,16 @@ export interface RawNewsItem {
   comments?: number;
   excerpt?: string;
 }
-export function summarizeNewsItem(n: RawNewsItem): Record<string, unknown> {
-  return clean({
-    mal_id: n.mal_id,
-    title: n.title,
-    date: n.date,
-    author: n.author_username,
-    comments: n.comments,
-    excerpt: clip(n.excerpt, 300),
-    url: n.url,
-  });
+export function summarizeNewsItem(n: RawNewsItem): z.infer<typeof newsItemSchema> {
+  return newsItemSchema.parse(
+    clean({
+      mal_id: n.mal_id,
+      title: n.title,
+      date: n.date,
+      author: n.author_username,
+      comments: n.comments,
+      excerpt: clip(n.excerpt, 300),
+      url: n.url,
+    }),
+  );
 }

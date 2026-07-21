@@ -1,7 +1,9 @@
 // Shared test helpers. Not a test file (no *.test suffix) so the runner skips it.
 import type { TestContext } from "node:test";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { randomUUID } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { createLogger, type Logger } from "../lib/logger.js";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
@@ -68,14 +70,28 @@ export function promptText(res: unknown): string {
   return contentText(first?.content as { type?: string; text?: string } | undefined);
 }
 
-/** Build the server and connect an in-memory client for end-to-end tool tests. */
+/** Build the server and connect an in-memory client for end-to-end tool tests.
+ *  Defaults MAL_TOKEN_STORE to a fresh, nonexistent per-call path (unless `env`
+ *  overrides it) — without this, buildServer()'s defaultTokenStorePath() falls
+ *  back to the real `~/.config/mal-mcp/tokens.json`, so a maintainer who has
+ *  actually run login_mal on their own machine would have every "no token
+ *  configured" test see their real, valid token instead of a clean slate. */
 export async function connectServer(
   env: NodeJS.ProcessEnv = {},
 ): Promise<{ client: Client; close: () => Promise<void> }> {
-  const server = buildServer(loadConfig(env), silentLogger());
+  const isolatedEnv = {
+    MAL_TOKEN_STORE: join(tmpdir(), `mal-mcp-test-${randomUUID()}.json`),
+    ...env,
+  };
+  const server = buildServer(loadConfig(isolatedEnv), silentLogger());
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "test", version: "0" });
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  // Prime the client's tools/list cache: callTool() only validates a result's
+  // structuredContent against the tool's outputSchema when this cache is
+  // already populated, so every callTool() in the suite doubles as an
+  // outputSchema conformance check instead of silently skipping validation.
+  await client.listTools();
   return {
     client,
     close: async () => {

@@ -179,7 +179,7 @@ test("summarizeFavorites falls back to name when title is absent", () => {
   const f = summarizeFavorites({
     anime: [{ mal_id: 1, title: "Fav" }],
     characters: [{ mal_id: 2, name: "Char" }],
-  }) as { anime: Record<string, unknown>[]; characters: Record<string, unknown>[]; manga: [] };
+  });
   assert.equal(f.anime[0]!["title"], "Fav");
   assert.equal(f.characters[0]!["title"], "Char");
   assert.deepEqual(f.manga, []);

@@ -1,14 +1,13 @@
 // Minimal leveled logger. Always writes to stderr (stdout is reserved for the
-// MCP stdio protocol); an optional sink can mirror each line onto a second
-// channel (e.g. MCP `notifications/message`). All messages are redacted of
-// credentials before either channel sees them.
+// MCP stdio protocol). All messages are redacted of credentials.
+//
+// MCP protocol revision 2026-07-28 deprecated server→client log notifications
+// in favor of stderr (SEP-2577) — the host process already reads a spawned
+// stdio server's stderr, so stderr is the only channel; there is no client-push
+// sink here anymore.
 import { redact } from "./errors.js";
 
 export type LogLevel = "debug" | "info" | "warn" | "error" | "silent";
-
-/** A secondary log destination. Receives the level and the already-redacted
- *  message, gated by the same threshold as stderr. Must never throw. */
-export type LogSink = (level: Exclude<LogLevel, "silent">, message: string) => void;
 
 const ORDER: Record<LogLevel, number> = {
   debug: 10,
@@ -25,7 +24,7 @@ export interface Logger {
   error(msg: string, ...args: unknown[]): void;
 }
 
-export function createLogger(level: LogLevel, sink?: LogSink): Logger {
+export function createLogger(level: LogLevel): Logger {
   const threshold = ORDER[level];
 
   function emit(lvl: Exclude<LogLevel, "silent">, msg: string, args: unknown[]): void {
@@ -33,14 +32,6 @@ export function createLogger(level: LogLevel, sink?: LogSink): Logger {
     const extra = args.length ? " " + redact(args.map((a) => safeString(a)).join(" ")) : "";
     const text = `${redact(msg)}${extra}`;
     console.error(`[mal-mcp] ${lvl}: ${text}`);
-    if (sink) {
-      // The sink must never break logging (or the app); swallow anything it throws.
-      try {
-        sink(lvl, text);
-      } catch {
-        /* ignore */
-      }
-    }
   }
 
   return {

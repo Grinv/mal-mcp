@@ -2,8 +2,17 @@
 // token; when none is configured they return a clear, actionable error instead
 // of failing the whole server. Write tools carry destructive/idempotent hints.
 import { z } from "zod";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { MalClient } from "../clients/mal.js";
+import type { McpServer } from "@modelcontextprotocol/server";
+import {
+  type MalClient,
+  MyUserInfoSchema,
+  ListStatusUpdateResponseSchema,
+} from "../clients/mal.js";
+import {
+  myListSchema,
+  deleteAnimeItemSchema,
+  deleteMangaItemSchema,
+} from "../lib/format.schemas.js";
 import { errorResult, jsonResult, type ToolResult } from "../lib/result.js";
 import { guard } from "./guard.js";
 
@@ -57,10 +66,12 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
       title: "Get my MAL profile",
       description:
         "Get the logged-in user's MyAnimeList profile and anime watch-status statistics. " +
-        "Requires a prior login_mal. Anime-only — the official API has no manga statistics " +
-        "field at all; use get_user_profile with your own username instead for manga read " +
-        "stats too (no login needed).",
+        "Requires MyAnimeList authentication (via `login_mal`, or a pre-supplied " +
+        "`MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`). Anime-only — the official API has no manga " +
+        "statistics field at all; use get_user_profile with your own username instead for " +
+        "manga read stats too (no login needed).",
       inputSchema: {},
+      outputSchema: MyUserInfoSchema,
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
     () => requireToken(async () => jsonResult(await mal.getMyUserInfo())),
@@ -72,7 +83,8 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
       title: "Get my anime list",
       description:
         "Get the authenticated user's own anime list, with each entry's status, score and progress. " +
-        "Requires a prior login_mal.",
+        "Requires MyAnimeList authentication (via `login_mal`, or a pre-supplied " +
+        "`MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`).",
       inputSchema: {
         status: animeListStatus.optional(),
         sort: z
@@ -82,6 +94,7 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         limit: listLimit.optional(),
         offset: offset.optional(),
       },
+      outputSchema: myListSchema,
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
     (args) => requireToken(async () => jsonResult(await mal.getMyAnimeList(args))),
@@ -92,8 +105,9 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
     {
       title: "Get my manga list",
       description:
-        "Get the authenticated user's own manga list, with status, score and progress. Requires a " +
-        "prior login_mal.",
+        "Get the authenticated user's own manga list, with status, score and progress. Requires " +
+        "MyAnimeList authentication (via `login_mal`, or a pre-supplied " +
+        "`MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`).",
       inputSchema: {
         status: mangaListStatus.optional(),
         sort: z
@@ -103,6 +117,7 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         limit: listLimit.optional(),
         offset: offset.optional(),
       },
+      outputSchema: myListSchema,
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
     (args) => requireToken(async () => jsonResult(await mal.getMyMangaList(args))),
@@ -115,12 +130,21 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
       description:
         "Add or update an anime on the authenticated user's list (status, score, watched episodes, " +
         "dates). Creates the entry if absent; fields you omit are left unchanged on an existing " +
-        "entry. Provide at least one field besides anime_id. Requires a prior login_mal.",
+        "entry. Provide at least one field besides anime_id. Requires MyAnimeList authentication " +
+        "(via `login_mal`, or a pre-supplied `MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`).",
       inputSchema: {
         anime_id: malId,
         status: animeListStatus.optional(),
         score: score.optional(),
-        num_watched_episodes: z.number().int().min(0).describe("Episodes watched.").optional(),
+        num_watched_episodes: z
+          .number()
+          .int()
+          .min(0)
+          .describe(
+            "Episodes watched. Note: get_my_anime_list returns this same value as " +
+              "`num_episodes_watched` — the field name is intentionally different here.",
+          )
+          .optional(),
         is_rewatching: z.boolean().describe("Whether currently rewatching.").optional(),
         num_times_rewatched: z.number().int().min(0).describe("Times rewatched.").optional(),
         rewatch_value: rewatchValue.optional(),
@@ -130,6 +154,7 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         finish_date: date.optional(),
         comments: z.string().describe("Free-text comments.").optional(),
       },
+      outputSchema: ListStatusUpdateResponseSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -148,7 +173,8 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
       description:
         "Add or update a manga on the authenticated user's list (status, score, chapters/volumes " +
         "read). Creates the entry if absent; fields you omit are left unchanged on an existing " +
-        "entry. Provide at least one field besides manga_id. Requires a prior login_mal.",
+        "entry. Provide at least one field besides manga_id. Requires MyAnimeList authentication " +
+        "(via `login_mal`, or a pre-supplied `MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`).",
       inputSchema: {
         manga_id: malId,
         status: mangaListStatus.optional(),
@@ -162,6 +188,7 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         tags: tags.optional(),
         comments: z.string().describe("Free-text comments.").optional(),
       },
+      outputSchema: ListStatusUpdateResponseSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -179,8 +206,10 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
       title: "Remove anime from my list",
       description:
         "Remove an anime entry from the authenticated user's list. This cannot be undone. " +
-        "Requires a prior login_mal.",
+        "Requires MyAnimeList authentication (via `login_mal`, or a pre-supplied " +
+        "`MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`).",
       inputSchema: { anime_id: malId },
+      outputSchema: deleteAnimeItemSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
@@ -198,8 +227,10 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
       title: "Remove manga from my list",
       description:
         "Remove a manga entry from the authenticated user's list. This cannot be undone. " +
-        "Requires a prior login_mal.",
+        "Requires MyAnimeList authentication (via `login_mal`, or a pre-supplied " +
+        "`MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`).",
       inputSchema: { manga_id: malId },
+      outputSchema: deleteMangaItemSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,

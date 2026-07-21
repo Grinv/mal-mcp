@@ -15,7 +15,7 @@ export default defineConfig({
   // with ERR_MODULE_NOT_FOUND. Force every runtime dep inline so the bundle is
   // truly self-contained. Keep this list in sync with package.json
   // "dependencies" (bundle.test.ts guards against a dep left external).
-  noExternal: [/@modelcontextprotocol\/sdk/, /^zod($|\/)/],
+  noExternal: [/@modelcontextprotocol\/server/, /^zod($|\/)/],
   splitting: false,
   // No sourcemap: this is a distributed executable server, not a debugged
   // library; the .mcpb excludes .map anyway, and it keeps the npm tarball lean.

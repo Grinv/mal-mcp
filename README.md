@@ -94,16 +94,18 @@ Once it's connected, just ask your agent in natural language.
 | `login_mal`, `submit_mal_redirect`                                                    | MAL     | login |
 
 `token` = needs a MyAnimeList login (run `login_mal` once). Prompts:
-`recommend_similar`, `seasonal_overview`, `hidden_gems`.
+`recommend_similar`, `seasonal_overview`, `hidden_gems`. `recommend_similar`'s
+title is optional — omit it and it'll ask which anime you mean; clients that
+support prompt-argument completion get live title suggestions as you type.
 
 ## Install
 
 ### As an `.mcpb` bundle (one-click, e.g. Claude Desktop)
 
-Download `mal-mcp.mcpb` from the [latest release](https://github.com/Grinv/mal-mcp/releases)
-and open it with your MCP client. It prompts for an optional MyAnimeList **Client
-ID** — set it and run the `login_mal` tool to enable the personal-list tools (see
-[Connect your MyAnimeList account](#connect-your-myanimelist-account-for-the-personal-list-tools)).
+Download [**`mal-mcp.mcpb`**](https://github.com/Grinv/mal-mcp/releases/latest/download/mal-mcp.mcpb)
+(always the latest release) and open it with your MCP client. It prompts for an optional
+MyAnimeList **Client ID** — set it and run the `login_mal` tool to enable the personal-list
+tools (see [Connect your MyAnimeList account](#connect-your-myanimelist-account-for-the-personal-list-tools)).
 Leave it blank to use just the credential-free read tools.
 
 ### From source
@@ -220,21 +222,22 @@ automatically. (mal-mcp is a public PKCE client — there is **no client secret*
 | `MAL_CLIENT_ID`     | Your MyAnimeList Client ID — see [Connect your MyAnimeList account](#connect-your-myanimelist-account-for-the-personal-list-tools) for how to get one (it's free, ~2 minutes, no coding involved). |
 | `MAL_REFRESH_TOKEN` | _Advanced, optional._ Skips the interactive `login_mal` step by pre-supplying a token directly. Most people won't need this — see [docs/auth.md](docs/auth.md) if you do.                          |
 | `MAL_ACCESS_TOKEN`  | _Advanced, optional._ A standalone token that works ~30 days without refreshing. See [docs/auth.md](docs/auth.md).                                                                                 |
-| `MAL_TOKEN_STORE`   | Override where the login token is saved on disk (default: your OS's config folder).                                                                                                                |
-| `MAL_OAUTH_PORT`    | Only needed if port `8080` is already in use on your machine — see step 1 of the [account walkthrough](#connect-your-myanimelist-account-for-the-personal-list-tools).                             |
-| `LOG_LEVEL`         | How much the server logs: `debug` \| `info` \| `warn` \| `error` \| `silent` (default `info`).                                                                                                     |
 
 ### Tuning (rarely needed)
 
-These have sensible defaults; change them only if you self-host Jikan or need
-different timing.
+These have sensible defaults; change them only if you self-host Jikan, need
+different timing, or want to override where/how the server logs or stores its
+token.
 
-| Variable                                               | Purpose                                                                                                                                                                            |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `JIKAN_MIN_INTERVAL_MS`                                | Min spacing between Jikan calls (default `400`). On top of this the client enforces Jikan's published 3/s **and** 60/min limits; set to `0` to disable all client-side throttling. |
-| `CACHE_TTL_MS`                                         | TTL for the in-memory read cache (default `300000` = 5 min).                                                                                                                       |
-| `HTTP_TIMEOUT_MS`, `HTTP_RETRIES`                      | Per-request timeout (default `15000`) and retry attempts for transient failures (default `2`).                                                                                     |
-| `JIKAN_BASE_URL`, `MAL_BASE_URL`, `MAL_OAUTH_BASE_URL` | Override upstream base URLs (e.g. a self-hosted Jikan instance).                                                                                                                   |
+| Variable                                               | Purpose                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MAL_TOKEN_STORE`                                      | Override where the login token is saved on disk (default: your OS's config folder).                                                                                                                                                                                     |
+| `MAL_OAUTH_PORT`                                       | Only needed if port `8080` is already in use on your machine — see step 1 of the [account walkthrough](#connect-your-myanimelist-account-for-the-personal-list-tools).                                                                                                  |
+| `LOG_LEVEL`                                            | How much the server logs: `debug` \| `info` \| `warn` \| `error` \| `silent` (default `info`). Logs go to stderr only — there's no MCP-level log capability, so a client can't fetch or filter them via `logging/setLevel`; check the server process's stderr directly. |
+| `JIKAN_MIN_INTERVAL_MS`                                | Min spacing between Jikan calls (default `400`). On top of this the client enforces Jikan's published 3/s **and** 60/min limits; set to `0` to disable all client-side throttling.                                                                                      |
+| `CACHE_TTL_MS`                                         | TTL for the in-memory read cache (default `300000` = 5 min).                                                                                                                                                                                                            |
+| `HTTP_TIMEOUT_MS`, `HTTP_RETRIES`                      | Per-request timeout (default `15000`) and retry attempts for transient failures (default `2`).                                                                                                                                                                          |
+| `JIKAN_BASE_URL`, `MAL_BASE_URL`, `MAL_OAUTH_BASE_URL` | Override upstream base URLs (e.g. a self-hosted Jikan instance).                                                                                                                                                                                                        |
 
 Provide these in your MCP client config's `env` block (the server does **not**
 read a `.env` file). See [docs/auth.md](docs/auth.md) for how to obtain the
