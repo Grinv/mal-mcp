@@ -593,7 +593,8 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       title: "Get manga statistics",
       description:
         "Get read-status counts (reading/completed/…) and the score distribution for a manga by mal_id. " +
-        "Get the mal_id from search_manga.",
+        "Get the mal_id from search_manga. Unlike get_anime_statistics, no official-API fallback " +
+        "exists for this tool — it always needs Jikan itself to be reachable.",
       inputSchema: { id: malId },
       outputSchema: statisticsSchema,
       annotations: READ_ONLY,
