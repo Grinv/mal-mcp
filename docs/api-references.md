@@ -16,6 +16,24 @@ JavaScript, so a plain HTTP fetch returns only the title — open them in a brow
     surfaces `message` (+ `report_url`).
   - **Caching:** responses cached 24h upstream; `ETag` + `If-None-Match` supported
     (we use a local TTL cache instead).
+  - **`Accept-Encoding` 504 workaround, unconfirmed** ([jikan-me/jikan#596](https://github.com/jikan-me/jikan/issues/596)):
+    a commenter on the issue reported some routes 504
+    (`"Jikan failed to connect to MyAnimeList"`) unless the client sends an
+    `Accept-Encoding` header — `JikanClient` sets `gzip, deflate, br` as a
+    default header on that basis (deliberately omitting the issue's own
+    suggested `zstd`: Node's fetch doesn't decode a zstd-encoded body, so
+    advertising it risks a worse failure than the 504 it's meant to fix, see
+    the code comment in `clients/jikan.ts`). A single paired live test
+    (2026-07-23) showed `genres/{anime,manga}?filter=...` at 5/5 504 without
+    the header vs. 5/5 200 with it, but a same-day, header-less run of the
+    identical route also succeeded — so the header's causal effect there is
+    **not confirmed**; it may just be Jikan self-resolving on its own
+    timeline (see [notes/jikan-reliability.md](../notes/jikan-reliability.md),
+    gitignored, for the full contradiction). Confirmed **not** to help at all
+    on `anime`/`manga` search with `producers`/`start_date`/`type` filters or
+    `users/{username}/full`, which 504 regardless, with or without the
+    header — those still rely on the official-API fallback where one exists.
+    Kept as a free, harmless default; don't cite it as a proven fix.
 
 ## MyAnimeList official API
 

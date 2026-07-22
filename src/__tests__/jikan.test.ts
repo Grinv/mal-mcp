@@ -38,6 +38,14 @@ test("searchAnime returns trimmed results and pagination", async (t) => {
   assert.match(mock.calls[0]!.url, /q=frieren/);
 });
 
+test("sends the Accept-Encoding workaround header for jikan-me/jikan#596, without zstd", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [] }));
+  installFetch(t, mock);
+  await jikan().searchAnime({ q: "frieren" });
+  const headers = mock.calls[0]!.init?.headers as Record<string, string>;
+  assert.equal(headers["Accept-Encoding"], "gzip, deflate, br");
+});
+
 test("getAnime caches by id (second call hits cache, no second fetch)", async (t) => {
   const mock = mockFetch(() => jsonResponse({ data: { mal_id: 1, title: "Bebop" } }));
   installFetch(t, mock);

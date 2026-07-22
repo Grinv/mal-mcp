@@ -89,6 +89,22 @@ const JIKAN_RATE_RULES: RateRule[] = [
   { limit: 60, windowMs: 60_000 },
 ];
 
+// Attempts to work around jikan-me/jikan#596: a commenter there reported some
+// Jikan routes 504 ("failed to connect to MyAnimeList") unless this exact
+// Accept-Encoding is sent. A single paired live test (2026-07-23) suggested
+// it fixed `genres/{anime,manga}?filter=...`, but a same-day, header-less run
+// of the identical route also succeeded — so causality is unconfirmed, not
+// settled (see notes/jikan-reliability.md). Confirmed to do nothing for
+// search-with-producers/start_date/type or user-full-profile 504s, which fail
+// regardless. Kept anyway: free and harmless even if it turns out to help
+// nothing. Deliberately omits `zstd` from the issue's own suggested value:
+// Node's fetch/undici doesn't decode a zstd-encoded response body, it just hands back the raw
+// compressed bytes — if Jikan or a CDN in front of it ever honored the
+// advertised capability, JSON.parse would fail on every Jikan request, not
+// just the ones this workaround targets. gzip/br are the ones actually
+// verified to round-trip through this runtime's fetch.
+const JIKAN_DEFAULT_HEADERS = { "Accept-Encoding": "gzip, deflate, br" };
+
 export class JikanClient {
   readonly #http: HttpClient;
   readonly #cache: TtlCache<Record<string, unknown>>;
@@ -103,6 +119,7 @@ export class JikanClient {
       logger,
       timeoutMs: config.httpTimeoutMs,
       retries: config.httpRetries,
+      defaultHeaders: JIKAN_DEFAULT_HEADERS,
       ...withThrottle(
         config.jikanMinIntervalMs,
         config.jikanMinIntervalMs === 0 ? [] : JIKAN_RATE_RULES,
