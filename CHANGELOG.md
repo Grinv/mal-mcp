@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-07-23
+
 ### Fixed
 
 - Send an `Accept-Encoding: gzip, deflate, br` header on Jikan requests, working around an upstream bug (jikan-me/jikan#596) that 504s some routes without it ([91dd067](https://github.com/Grinv/mal-mcp/commit/91dd067)).
