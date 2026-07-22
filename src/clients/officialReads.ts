@@ -144,7 +144,12 @@ export class OfficialReadsClient {
 
   constructor(config: Config, logger: Logger) {
     this.#clientId = config.auth.clientId;
-    this.#http = malApiHttpClient(config, logger, withThrottle(MIN_INTERVAL_MS));
+    // Every request needs the Client ID header — set it once here instead of repeating it
+    // at each of this class's four `#http.getJson()` call sites.
+    this.#http = malApiHttpClient(config, logger, {
+      ...withThrottle(MIN_INTERVAL_MS),
+      ...(this.#clientId ? { defaultHeaders: { "X-MAL-CLIENT-ID": this.#clientId } } : {}),
+    });
     this.#logger = logger;
   }
 
@@ -222,7 +227,7 @@ export class OfficialReadsClient {
     }
     const res = await this.#http.getJson<{ recommendations?: OfficialRecommendationEdge[] }>(
       `${kind}/${id}`,
-      { query: { fields: "recommendations" }, headers: { "X-MAL-CLIENT-ID": this.#clientId } },
+      { query: { fields: "recommendations" } },
     );
     return summarizeOfficialRecommendations(kind, res.recommendations ?? []);
   }
@@ -254,10 +259,7 @@ export class OfficialReadsClient {
     if (!this.#clientId) {
       throw new ApiError({ code: "unauthorized", message: "MAL_CLIENT_ID not configured" });
     }
-    const res = await this.#http.getJson<T>(`${kind}/${id}`, {
-      query: { fields },
-      headers: { "X-MAL-CLIENT-ID": this.#clientId },
-    });
+    const res = await this.#http.getJson<T>(`${kind}/${id}`, { query: { fields } });
     return summarize(res);
   }
 
@@ -268,7 +270,6 @@ export class OfficialReadsClient {
     }
     const res = await this.#http.getJson<{ statistics?: OfficialAnimeStatistics }>(`anime/${id}`, {
       query: { fields: "statistics" },
-      headers: { "X-MAL-CLIENT-ID": this.#clientId },
     });
     return summarizeOfficialAnimeStatistics(res.statistics);
   }
@@ -291,7 +292,6 @@ export class OfficialReadsClient {
       paging?: { next?: string };
     }>(path, {
       query: { ...extraQuery, limit, offset, fields },
-      headers: { "X-MAL-CLIENT-ID": this.#clientId },
     });
     // Client-side nsfw exclusion (see isSfw): the official API has no server-side equivalent of
     // Jikan's `sfw` param, so this is the fallback's one way to honor an explicit `sfw: true`.
