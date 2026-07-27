@@ -31,7 +31,7 @@ export const EnvSchema = z.object({
 
 // Which EnvSchema fields are also user-facing config, surfaced in manifest.json's
 // user_config (the .mcpb install form) and server.json's environmentVariables (the MCP
-// Registry entry) — see docs/releasing.md. Deliberately a subset: purely internal tunables
+// Registry entry) — see the release skill. Deliberately a subset: purely internal tunables
 // (MAL_TOKEN_STORE, MAL_OAUTH_PORT, timeouts, cache, rate limits, LOG_LEVEL) stay env-only
 // and don't belong there. The `satisfies` clause is a compile-time guard: a name here that
 // isn't an actual EnvSchema key (typo, or the field got renamed/removed) fails `tsc --noEmit`

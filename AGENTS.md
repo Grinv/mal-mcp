@@ -46,11 +46,15 @@ src/
   __tests__/      # node:test (*.test.ts) + helpers.ts
 scripts/          # build-tests.mjs, run-tests.mjs, check-api.mjs, sync-version.mjs
 skills/           # reusable agent workflows for this repo (e.g. live-audit/) —
-                  # plain Markdown, not tied to any one tool's orchestration
-                  # features, per this file's agent-agnostic policy; same
-                  # skill name/layout as this project's sibling MCP servers
-                  # (tmdb-mcp, steam-games-mcp, anilist-mcp-server) — sync
-                  # improvements both ways rather than letting them drift
+                  # plain Markdown with a YAML frontmatter name/description,
+                  # not tied to any one tool's orchestration features, per
+                  # this file's agent-agnostic policy; same skill name/layout
+                  # as this project's sibling MCP servers (tmdb-mcp,
+                  # steam-games-mcp, anilist-mcp-server) — sync improvements
+                  # both ways rather than letting them drift. `.claude/skills`
+                  # and `.agents/skills` are symlinks to this directory, so
+                  # Claude Code/Codex CLI/Gemini CLI pick up every skill here
+                  # without duplicating content per client path.
 ```
 
 ## Commands
@@ -88,8 +92,18 @@ npm run check:api      # live upstream health-check (network)
   them later). Don't unify the two styles.
 - Write tool `description`s and per-field `.describe()` text for the calling
   model: explain when to use a tool and what each parameter means. Check new
-  or edited descriptions against [docs/tool-descriptions.md](docs/tool-descriptions.md)
-  (Glama's TDQS rubric) before committing.
+  or edited descriptions against the `tool-description-check` skill (Glama's
+  TDQS rubric) before committing.
+- **Keep the same field name for the same concept across every tool that
+  takes it** — grep sibling tools before naming a new field for an existing
+  concept (e.g. `id` for a bare MAL numeric id across every `get_anime`/
+  `get_manga`/`get_character`/`get_person`-style read tool). When an
+  upstream field name genuinely can't match across a read/write pair — MAL's
+  own API names the same watched-episode count `num_episodes_watched` on
+  read but `num_watched_episodes` on write — call out the mismatch
+  explicitly in that field's `.describe()` text (see
+  `update_my_anime_status`) rather than leaving it for the caller to
+  discover.
 - Tests must never depend on the real on-disk token store. `connectServer()` in
   `__tests__/helpers.ts` defaults `MAL_TOKEN_STORE` to a fresh per-call temp
   path — a new test that calls `buildServer()` directly (bypassing the helper)
@@ -118,14 +132,15 @@ when reporting a finding, and known bug classes worth checking don't recur.
 ## Before opening a PR
 
 Run `npm run build && npm test && npm run lint && npm run format:check`.
-Update `CHANGELOG.md` (Unreleased section) — see
-[docs/changelog-style.md](docs/changelog-style.md) for entry style.
+Update `CHANGELOG.md` (Unreleased section) — see the `changelog-style` skill for
+entry style.
 
 ## Releasing
 
 `package.json` is the single source of truth for the version; `npm version`
-bumps + syncs every derived file + tags the release. See
-[docs/releasing.md](docs/releasing.md) for the full steps and MCP Registry details.
+bumps + syncs every derived file + tags the release. See the `release` skill
+for the full steps (including the `preversion` gate on `CHANGELOG.md` and
+tool descriptions) and MCP Registry details.
 
 ## Reuse / shared architecture
 

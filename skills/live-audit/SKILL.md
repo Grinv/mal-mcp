@@ -1,3 +1,8 @@
+---
+name: live-audit
+description: Audit mal-mcp — build/test/lint gate, live MCP tool edge-case sweep (input validation, not-found paths, mutations with capture/revert), source-level code review, and docs/metadata consistency. Use when asked to test/audit the published or just-fixed mal-mcp package, hunt for bugs/edge cases, or repeat "the same kind of testing as before."
+---
+
 # live-audit — mal-mcp health check + edge-case hunt
 
 Repo-specific playbook, for any agent/model working on this repo (not tied to
@@ -19,6 +24,17 @@ etc.).
 This assumes the server is already reachable as an MCP connection in your
 current session (e.g. as `mcp__mal__*` tools in Claude Code). If it isn't
 connected, connect it first rather than skipping straight to step 1.
+
+## Contents
+
+- 0. Confirm "published"/"fixed" actually means what you think it means
+- 1. Static pass first (cheap, catches regressions before you burn API calls)
+- 2. Safety rules for live testing (read before calling anything)
+- 3. Live edge-case sweep
+- 4. Source-level code review
+- 5. Docs/metadata consistency
+- 6. Report, then fix only what's confirmed
+- 7. Commit + changelog, if asked
 
 ## 0. Confirm "published"/"fixed" actually means what you think it means
 
@@ -86,23 +102,10 @@ live testing.
   `delete_my_anime_list_item`, `delete_my_manga_list_item`) require the
   user's explicit go-ahead before this pass touches them. Reversible live
   tests against the maintainer's real list are acceptable when asked for —
-  but still follow this contract for every mutation call:
-  1. Capture the exact pre-state first via `get_my_anime_list`/
-     `get_my_manga_list` (filter/search for the specific id) — not an
-     assumption of what it probably is. A title with no existing list entry
-     has a clear pre-state too: "absent."
-  2. Make the smallest possible change that still exercises the behavior
-     (e.g. one status/score field, not a full rewrite).
-  3. Verify the change landed by re-fetching via `get_my_anime_list`/
-     `get_my_manga_list` — don't trust the update tool's own echoed response
-     alone as proof.
-  4. Revert to the captured pre-state immediately, in the same turn
-     (`update_my_anime_status`/`update_my_manga_status` back to the original
-     fields, or `delete_my_*_list_item` if the entry didn't exist before),
-     and verify the revert too. Don't batch several mutations and revert at
-     the end — revert each one before moving to the next unrelated test.
-  5. Never leave the account in a different state than you found it, even if
-     a step errors partway through — check and clean up regardless.
+  run the `mutation-test-safety` skill's contract for every mutation call
+  (pre-state via `get_my_anime_list`/`get_my_manga_list`, revert via
+  `update_my_anime_status`/`update_my_manga_status` back to the original
+  fields or `delete_my_*_list_item` if the entry didn't exist before).
 - **Do not call `login_mal`/`submit_mal_redirect` live** — re-running the
   PKCE OAuth flow can disrupt the session's already-configured token/store
   and isn't meaningfully revertible mid-session.
@@ -164,31 +167,10 @@ supports concurrent subagents/background tasks.
   scripts, `sfw` toggling (including during an official-API fallback, which
   enforces it client-side via each node's `nsfw` field — confirm it isn't
   silently ignored there), whitespace-only search terms.
-- **Live prompt testing** (`src/prompts.ts`) — a static read comparing prompt
-  text against tool names/params misses argument-handling bugs. Actually
-  render every prompt through the real MCP protocol: `npx
-@modelcontextprotocol/inspector --cli node dist/index.js --method
-prompts/list`, then `--method prompts/get --prompt-name <name> --prompt-args
-key=value key2=value2` (space-separated `key=value` pairs, NOT a JSON blob —
-  the CLI rejects JSON with "Invalid parameter format"). For each of the
-  three prompts, cover every combination of optional args, not just "all set"
-  or "all omitted":
-  - `recommend_similar`: no `title` (should ask which anime, not fail —
-    confirm the client actually gets asked rather than the call erroring),
-    `title` set to something real, `title` set to something with no search
-    results.
-  - `seasonal_overview`: neither `season` nor `year`, only `season`, only
-    `year`, both together. Giving just one of `season`/`year` alone renders
-    identically to giving neither ("the current season," no args passed to
-    `get_seasonal_anime`) — this is correct, not a bug: `get_seasonal_anime`'s
-    own description says supplying only one is treated as omitting both
-    (matches `getSeason()`'s `p.year && p.season ? ... : "seasons/now"` in
-    `src/clients/jikan.ts`), so the prompt mirrors the tool's own contract.
-    Don't flag this from a source-only read of the prompt's branching alone —
-    it resembles the "argument that's individually optional but breaks when
-    given alone" bug class, but here the "breakage" is intended.
-  - `hidden_gems`: no `kind`, `kind=anime`, `kind=manga` — each is a
-    genuinely different branch (different top-list tool).
+- **Live prompt testing**: run the `prompt-check` skill against every prompt
+  in `src/prompts.ts` — a static read comparing prompt text against tool
+  names/params misses argument-handling bugs that only show up when actually
+  rendered through the real MCP protocol.
 
 For anything that looks like a bug, **don't stop at the symptom** — grep the
 source for the actual mechanism (the const/regex/schema that produced it)
@@ -219,6 +201,20 @@ not settled, regardless of how clean the original paired numbers looked.
 Sweep every file under `src/tools/`, `src/clients/`, and `src/lib/` (lighter
 pass on the last group unless something specific points there) for:
 
+- A tool whose field name for a concept diverges from every sibling tool
+  handling the same concept (e.g. one list tool naming its MAL username/id
+  parameter differently from another) — grep every call site of a shared
+  concept and diff the field names, don't just check each in isolation. This
+  bug class can't be caught by testing well-formed values (every call site
+  works fine on its own) or by a clean-error check — outside the two
+  `.strict()` schemas in `tools/login.ts`, no input schema here is `.strict()`,
+  so a plausible-but-wrong name is silently dropped as an unrecognized key
+  instead of erroring, and the tool quietly falls back to whatever its field
+  being _absent_ means. Confirmed live on a sibling project
+  (anilist-mcp-server): a search tool's user-filter parameter was named
+  differently from every other user-scoped tool, so passing the
+  sibling-consistent (but wrong) name silently returned the unfiltered global
+  feed instead of erroring or filtering.
 - A `summarize*`/shaper function in `src/lib/format.ts`/`formatOfficial.ts`
   that doesn't end by calling its paired schema's `.parse()` in
   `src/lib/format.schemas.ts` — AGENTS.md's schema-first convention requires
@@ -249,48 +245,23 @@ pass on the last group unless something specific points there) for:
   debug/warn/error log line (`src/lib/logger.ts` redacts credentials — check
   a new call site doesn't route around it by string-concatenating a header
   value directly into a log message).
-- `docs/tool-descriptions.md` (Glama's TDQS rubric) compliance for any new or
-  edited tool `description`/field `.describe()` text, per AGENTS.md.
+- The `tool-description-check` skill (Glama's TDQS rubric) compliance for any
+  new or edited tool `description`/field `.describe()` text, per AGENTS.md.
 
 ## 5. Docs/metadata consistency
 
-Check every one of these, not just a sample:
-
-- `README.md`'s tool table matches `src/tools/*.ts`'s registrations (names,
-  and the auth-tier column — none / Client ID / OAuth token, per
-  `docs/auth.md` — against what each tool actually needs).
-- `manifest.json`'s and `server.json`'s `tools` arrays list the same tool
-  **names** as what's actually registered — treat a test failure here as
-  authoritative if one exists. Their `description` fields are deliberately
-  short, independent marketing-style summaries, NOT a copy of the tool's full
-  `.describe()`/`description` text in `src/tools/*.ts` — don't "fix" them to
-  match verbatim, that's not a bug. Do re-read them for accuracy if a tool's
-  _behavior_ changed in a way the short summary now misrepresents.
-- Tool `description`/field `.describe()` text in `src/tools/*.ts` itself:
-  does it still match the actual `inputSchema`/`outputSchema` and the real
-  behavior?
-- `CHANGELOG.md`'s `[Unreleased]` section (see `docs/changelog-style.md` for
-  entry style) has one line per real behavior change made in this pass — add
-  missing entries, don't just flag them as missing.
-- `docs/api-references.md`'s "verified live" claims still match the current
-  client code, especially any claim this pass's own fixes just invalidated —
-  and especially the Jikan fallback field-gap list, which is exactly the kind
-  of claim a MAL API change could quietly break.
-- `docs/auth.md`'s credential-tier breakdown still matches what each tool
-  actually requires.
-- `AGENTS.md`'s project-shape/file-tree description (including this
-  `skills/` entry) still matches the filesystem.
-- `notes/jikan-reliability.md` (gitignored) — if this pass turned up a new
-  Jikan quirk or reliability data point, log it there with a date, the same
-  way past passes have; don't let a fresh finding live only in this
-  conversation's transcript.
+Run the `docs-consistency-check` skill. Also log any new Jikan quirk or
+reliability data point turned up this pass in `notes/jikan-reliability.md`
+(gitignored), with a date, the same way past passes have — don't let a
+fresh finding live only in this conversation's transcript.
 
 ## 6. Report, then fix only what's confirmed
 
 Rank findings by severity. For each: what's wrong, concrete repro (exact tool
 call + params), the file/line causing it, and the fix shape. Silence on a
 category you didn't get to (rather than implying full coverage) beats a false
-"all clear."
+"all clear." Then run the `self-learning` skill against each confirmed
+finding.
 
 If asked to fix: implement the smallest correct change, add/extend a test in
 the matching `src/__tests__/*.test.ts` (mirror the existing test's style in
@@ -304,7 +275,7 @@ changed is stronger evidence than trusting the diff alone.
 
 One `fix:`/`feat:` commit per logically distinct change (don't bundle two
 unrelated fixes into one commit), then a separate `docs:` commit adding to
-`CHANGELOG.md`'s `[Unreleased]` section (style: `docs/changelog-style.md`)
+`CHANGELOG.md`'s `[Unreleased]` section (style: the `changelog-style` skill)
 with one bullet per fix, each linking that fix commit's short sha
 (`https://github.com/Grinv/mal-mcp/commit/<7-char-sha>`). Author/committer
 `Grinv <4070730+Grinv@users.noreply.github.com>`, **no** `Co-Authored-By`
