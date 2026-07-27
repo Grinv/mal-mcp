@@ -16,28 +16,31 @@ JavaScript, so a plain HTTP fetch returns only the title — open them in a brow
     surfaces `message` (+ `report_url`).
   - **Caching:** responses cached 24h upstream; `ETag` + `If-None-Match` supported
     (we use a local TTL cache instead).
-  - **`Accept-Encoding` 504 workaround, unconfirmed** ([jikan-me/jikan#596](https://github.com/jikan-me/jikan/issues/596)):
-    a commenter on the issue reported some routes 504
-    (`"Jikan failed to connect to MyAnimeList"`) unless the client sends an
-    `Accept-Encoding` header — `JikanClient` sets `gzip, deflate, br` as a
-    default header on that basis (deliberately omitting the issue's own
-    suggested `zstd`: Node's fetch doesn't decode a zstd-encoded body, so
-    advertising it risks a worse failure than the 504 it's meant to fix, see
-    the code comment in `clients/jikan.ts`). A single paired live test
-    (2026-07-23) showed `genres/{anime,manga}?filter=...` at 5/5 504 without
-    the header vs. 5/5 200 with it, but a same-day, header-less run of the
-    identical route also succeeded — so the header's causal effect there is
-    **not confirmed**; it may just be Jikan self-resolving on its own
-    timeline (see [notes/jikan-reliability.md](../notes/jikan-reliability.md),
-    gitignored, for the full contradiction). Confirmed **not** to help at all
-    on `anime`/`manga` search with `producers`/`start_date`/`type` filters or
-    `users/{username}/full`, which 504 regardless, with or without the
-    header — those still rely on the official-API fallback where one exists.
-    Kept as a free, harmless default; don't cite it as a proven fix.
+  - **`Accept-Encoding` default header, not actually a 504 fix**
+    ([jikan-me/jikan#596](https://github.com/jikan-me/jikan/issues/596)):
+    `JikanClient` sends `gzip, deflate, br` as a default header, originally on
+    the strength of a commenter's report that some routes 504 unless a
+    specific `Accept-Encoding` is sent. A broader live A/B re-test
+    (2026-07-27) root-caused the real mechanism instead: Jikan's nginx layer
+    caches per-exact-`Accept-Encoding`-string (`Vary: Accept-Encoding`,
+    confirmed via response headers incl. `X-Cache-Status: STALE`) and falls
+    through to a live (often-flaky) MAL fetch on any cache miss. Whichever
+    string a given route happens to have cached looks "fixed" by it —
+    coincidentally, because it's a commonly-sent value, not because of any
+    encoding-negotiation effect; reordering the same three values, or
+    dropping one, flips a route between a cached 200 and an uncached 504,
+    with no string ever guaranteed to hit a warm entry on any given
+    route/moment (see [notes/jikan-reliability.md](../notes/jikan-reliability.md),
+    gitignored, for the full A/B data). Kept anyway: free and harmless, and
+    it may still ride a cache hit on some routes some of the time — just
+    don't cite it as a proven fix. `zstd` stays out for an unrelated, still-
+    valid reason: Node's fetch/undici won't decode a zstd-encoded body, so
+    advertising it risks a hard JSON-parse failure if Jikan (or something in
+    front of it) ever actually used it.
   - **A Jikan 5xx can arrive with an HTTP 200 status** (found live
     2026-07-27): `anime/{id}/episodes` returned
     `{"status":500,"type":"UpstreamException","message":"...timed out...",
-    "error":"..."}` as its body while the real HTTP status was `200` — i.e.
+"error":"..."}` as its body while the real HTTP status was `200` — i.e.
     Jikan's own upstream-timeout error, but not signaled via a real non-2xx
     response. Undetected, this reaches a shaper expecting `{data,pagination}`
     and crashes on `.map()` of `undefined` (still caught by `guard()`, so no
@@ -159,5 +162,14 @@ bypopularity, favorite`. Both `client_auth (-)` — no OAuth scope needed,
     approximate. `genres`/`status`/`order_by`/`sort` have no equivalent at
     all, client-side or otherwise, and are simply unavailable during a
     fallback (see `notes/jikan-reliability.md`).
+  - **No-match search doesn't return empty** (verified live 2026-07-27, both
+    through the fallback and directly against `GET /v2/anime?q=...`): a query
+    with no real title match (e.g. a random unmatchable string) comes back
+    with a full page of unrelated anime instead of an empty `data` array —
+    the same behavior, byte-for-byte identical result set, on repeated calls.
+    Not a mal-mcp bug (reproduced with a raw, direct call using only the
+    Client ID header, no mal-mcp code involved) — just a real quirk of the
+    official search endpoint's own relevance ranking, worth knowing before
+    treating a nonsense-query result as a false match.
 - **Official sample OAuth2 PKCE flow (Python)** — <https://gitlab.com/-/snippets/2039434>
   - Matches the manual token steps in [auth.md](auth.md).

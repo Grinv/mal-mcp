@@ -89,20 +89,20 @@ const JIKAN_RATE_RULES: RateRule[] = [
   { limit: 60, windowMs: 60_000 },
 ];
 
-// Attempts to work around jikan-me/jikan#596: a commenter there reported some
-// Jikan routes 504 ("failed to connect to MyAnimeList") unless this exact
-// Accept-Encoding is sent. A single paired live test (2026-07-23) suggested
-// it fixed `genres/{anime,manga}?filter=...`, but a same-day, header-less run
-// of the identical route also succeeded — so causality is unconfirmed, not
-// settled (see notes/jikan-reliability.md). Confirmed to do nothing for
-// search-with-producers/start_date/type or user-full-profile 504s, which fail
-// regardless. Kept anyway: free and harmless even if it turns out to help
-// nothing. Deliberately omits `zstd` from the issue's own suggested value:
-// Node's fetch/undici doesn't decode a zstd-encoded response body, it just hands back the raw
-// compressed bytes — if Jikan or a CDN in front of it ever honored the
-// advertised capability, JSON.parse would fail on every Jikan request, not
-// just the ones this workaround targets. gzip/br are the ones actually
-// verified to round-trip through this runtime's fetch.
+// Started life as a workaround for jikan-me/jikan#596 ("some routes 504
+// unless you send this exact Accept-Encoding"). Turns out that's not what's
+// happening: a broader live A/B re-test (2026-07-27, notes/jikan-reliability.md)
+// caught `Vary: Accept-Encoding` + `X-Cache-Status: STALE` on the successful
+// responses — Jikan's nginx caches per exact Accept-Encoding string, and any
+// route whose cache is currently warm for `gzip, deflate, br` looks "fixed"
+// by it. Reorder the same three values, or drop one, and the same route
+// falls through to a live (often-flaky) MAL fetch and 504s instead — nothing
+// to do with encoding or decoding, just whichever string happens to be
+// cached right now. No string is a reliable fix; this one's kept because
+// it's free and occasionally rides a warm cache. `zstd` stays out for an
+// unrelated, still-valid reason: Node's fetch/undici won't decode a
+// zstd-encoded body, so advertising it risks a hard JSON.parse failure on
+// every request if Jikan (or something in front of it) ever actually used it.
 const JIKAN_DEFAULT_HEADERS = { "Accept-Encoding": "gzip, deflate, br" };
 
 // Jikan sometimes reports its own upstream failure with an HTTP 200 status and
