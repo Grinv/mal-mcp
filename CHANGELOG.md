@@ -9,6 +9,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - Detect a Jikan upstream failure smuggled inside an HTTP 200 response (an error-shaped body instead of a real 5xx), which used to crash `get_anime_episodes` and skip retry/fallback entirely instead of surfacing the normal upstream-error message ([4d253e9](https://github.com/Grinv/mal-mcp/commit/4d253e9)).
+- Disclose that `delete_my_anime_list_item`/`delete_my_manga_list_item` report success even when the entry was never on the list (MAL's own delete endpoint doesn't distinguish the two), that `search_anime`/`search_manga`'s official-API fallback can return unrelated results instead of empty for a no-match query, and soften `get_person`'s unverified "most prominent" voice-role ordering claim ([684cd1a](https://github.com/Grinv/mal-mcp/commit/684cd1a)).
 
 ## [0.7.2] - 2026-07-23
 
