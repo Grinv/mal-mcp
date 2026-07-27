@@ -6,6 +6,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Detect a Jikan upstream failure smuggled inside an HTTP 200 response (an error-shaped body instead of a real 5xx), which used to crash `get_anime_episodes` and skip retry/fallback entirely instead of surfacing the normal upstream-error message ([4d253e9](https://github.com/Grinv/mal-mcp/commit/4d253e9)).
+
 ## [0.7.2] - 2026-07-23
 
 ### Fixed
