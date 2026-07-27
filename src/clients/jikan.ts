@@ -105,6 +105,22 @@ const JIKAN_RATE_RULES: RateRule[] = [
 // verified to round-trip through this runtime's fetch.
 const JIKAN_DEFAULT_HEADERS = { "Accept-Encoding": "gzip, deflate, br" };
 
+// Jikan sometimes reports its own upstream failure with an HTTP 200 status and
+// an error-shaped body instead of a real 5xx — confirmed live 2026-07-27:
+// `anime/{id}/episodes` returned `{status:500,type:"UpstreamException",
+// message:"...timed out...",error:"..."}` with res.ok true. Left undetected,
+// that body reaches a shaper expecting `{data,pagination}` and crashes on
+// `.map()` of `undefined` instead of surfacing the normal, retryable
+// "upstream returned an error" message every other 5xx gets. See
+// notes/jikan-reliability.md.
+function detectJikanEmbeddedError(body: unknown): { status: number; message: string } | undefined {
+  if (body === null || typeof body !== "object") return undefined;
+  const rec = body as Record<string, unknown>;
+  if (typeof rec.status !== "number" || rec.status < 400) return undefined;
+  if (typeof rec.type !== "string") return undefined;
+  return { status: rec.status, message: typeof rec.message === "string" ? rec.message : rec.type };
+}
+
 export class JikanClient {
   readonly #http: HttpClient;
   readonly #cache: TtlCache<Record<string, unknown>>;
@@ -120,6 +136,7 @@ export class JikanClient {
       timeoutMs: config.httpTimeoutMs,
       retries: config.httpRetries,
       defaultHeaders: JIKAN_DEFAULT_HEADERS,
+      detectEmbeddedError: detectJikanEmbeddedError,
       ...withThrottle(
         config.jikanMinIntervalMs,
         config.jikanMinIntervalMs === 0 ? [] : JIKAN_RATE_RULES,

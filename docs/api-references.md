@@ -34,6 +34,20 @@ JavaScript, so a plain HTTP fetch returns only the title — open them in a brow
     `users/{username}/full`, which 504 regardless, with or without the
     header — those still rely on the official-API fallback where one exists.
     Kept as a free, harmless default; don't cite it as a proven fix.
+  - **A Jikan 5xx can arrive with an HTTP 200 status** (found live
+    2026-07-27): `anime/{id}/episodes` returned
+    `{"status":500,"type":"UpstreamException","message":"...timed out...",
+    "error":"..."}` as its body while the real HTTP status was `200` — i.e.
+    Jikan's own upstream-timeout error, but not signaled via a real non-2xx
+    response. Undetected, this reaches a shaper expecting `{data,pagination}`
+    and crashes on `.map()` of `undefined` (still caught by `guard()`, so no
+    protocol crash, but with an unhelpful raw-TypeError message, no retry,
+    and no official-API fallback attempt, since none of that machinery ever
+    sees it as an upstream failure). `HttpClient` now takes an optional
+    `detectEmbeddedError` hook (`lib/http.ts`); `JikanClient` supplies one
+    that recognizes this exact shape and converts it into a normal, retryable
+    `ApiError`, same as a real 5xx. Not yet confirmed to happen on any route
+    besides `episodes` — worth checking whether it recurs elsewhere.
 
 ## MyAnimeList official API
 

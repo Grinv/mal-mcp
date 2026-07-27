@@ -25,6 +25,12 @@ export interface HttpClientOptions {
   retries?: number;
   /** Called before each request; lets callers throttle (rate limiting). */
   beforeRequest?: () => Promise<void> | void;
+  /** Some upstreams occasionally report their own failure inside a 200
+   *  response instead of a real non-2xx status (confirmed live for Jikan,
+   *  see jikan.ts's detector) — if this returns a status, it's thrown as an
+   *  ApiError the same way a real HTTP error would be, instead of reaching
+   *  the caller as if it were a successful body. */
+  detectEmbeddedError?: (body: unknown) => { status: number; message: string } | undefined;
 }
 
 const MAX_BACKOFF_MS = 8000;
@@ -111,8 +117,9 @@ export class HttpClient {
     if (res.status === 204) return undefined as T;
     const text = await res.text();
     if (text.length === 0) return undefined as T;
+    let parsed: unknown;
     try {
-      return JSON.parse(text) as T;
+      parsed = JSON.parse(text);
     } catch (err) {
       throw new ApiError({
         code: "unknown",
@@ -120,6 +127,17 @@ export class HttpClient {
         cause: err,
       });
     }
+    const embedded = this.#opts.detectEmbeddedError?.(parsed);
+    if (embedded) {
+      const { code, retryable } = classifyStatus(embedded.status);
+      throw new ApiError({
+        code,
+        status: embedded.status,
+        retryable,
+        message: `HTTP ${embedded.status} (embedded in a 200 response): ${embedded.message}`,
+      });
+    }
+    return parsed as T;
   }
 
   #buildUrl(path: string, query?: RequestOptions["query"]): string {

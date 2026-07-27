@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { JikanClient } from "../clients/jikan.js";
 import { loadConfig } from "../config.js";
+import { ApiError } from "../lib/errors.js";
 import { silentLogger, mockFetch, installFetch } from "./helpers.js";
 
 function jikan() {
@@ -169,4 +170,28 @@ test("getAnimeCharacters keeps only Japanese voice actors", async (t) => {
     characters: { voice_actors: string[] }[];
   };
   assert.deepEqual(res.characters[0]!.voice_actors, ["JP"]);
+});
+
+test("a Jikan error smuggled inside a 200 response (jikan-rest's own upstream-timeout shape) surfaces as a retryable ApiError instead of crashing the shaper", async (t) => {
+  const mock = mockFetch(
+    () =>
+      new Response(
+        JSON.stringify({
+          status: 500,
+          type: "UpstreamException",
+          message: "Request to MyAnimeList.net timed out (10 seconds). Please try again later.",
+          error: "Idle timeout reached",
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+  );
+  installFetch(t, mock);
+  await assert.rejects(
+    () => jikan().getAnimeEpisodes(21),
+    (err: unknown) =>
+      err instanceof ApiError &&
+      err.code === "server_error" &&
+      err.retryable === true &&
+      /timed out/.test(err.message),
+  );
 });

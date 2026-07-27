@@ -121,6 +121,41 @@ test("honors Retry-After given as an HTTP date rather than seconds", async (t) =
   assert.equal(mock.calls.length, 2);
 });
 
+test("detectEmbeddedError converts a 200 response carrying an upstream's own error body into a retryable ApiError", async (t) => {
+  const mock = mockFetch(() =>
+    jsonResponse({ status: 500, type: "UpstreamException", message: "timed out" }, { status: 200 }),
+  );
+  installFetch(t, mock);
+  const c = new HttpClient({
+    baseUrl: "https://example.test/api",
+    logger: silentLogger(),
+    retries: 0,
+    detectEmbeddedError: (body) => {
+      const rec = body as Record<string, unknown>;
+      return typeof rec.status === "number" && rec.status >= 400
+        ? { status: rec.status, message: String(rec.message) }
+        : undefined;
+    },
+  });
+  await assert.rejects(
+    () => c.getJson("thing"),
+    (err: unknown) =>
+      err instanceof ApiError &&
+      err.code === "server_error" &&
+      err.retryable === true &&
+      /timed out/.test(err.message),
+  );
+});
+
+test("without detectEmbeddedError configured, a 200 body is returned as-is even if it looks like an error", async (t) => {
+  const mock = mockFetch(() =>
+    jsonResponse({ status: 500, type: "UpstreamException", message: "timed out" }, { status: 200 }),
+  );
+  installFetch(t, mock);
+  const res = await client().getJson<{ status: number }>("thing");
+  assert.equal(res.status, 500);
+});
+
 test("aborts on timeout and maps to a timeout error", async (t) => {
   const mock = mockFetch(
     (_url, init) =>
