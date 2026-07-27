@@ -223,8 +223,11 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
       title: "Remove anime from my list",
       description:
         "Remove an anime entry from the authenticated user's list. This cannot be undone. " +
-        "Requires MyAnimeList authentication (via `login_mal`, or a pre-supplied " +
-        "`MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`).",
+        "Returns `deleted: true` whenever MAL accepts the request — including when the anime " +
+        "was never on the list to begin with, since MAL's own delete endpoint doesn't " +
+        "distinguish the two — so success alone isn't proof something existed; check " +
+        "get_my_anime_list first if you need to confirm. Requires MyAnimeList authentication " +
+        "(via `login_mal`, or a pre-supplied `MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`).",
       inputSchema: { anime_id: malId },
       outputSchema: deleteAnimeItemSchema,
       annotations: {
@@ -244,8 +247,11 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
       title: "Remove manga from my list",
       description:
         "Remove a manga entry from the authenticated user's list. This cannot be undone. " +
-        "Requires MyAnimeList authentication (via `login_mal`, or a pre-supplied " +
-        "`MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`).",
+        "Returns `deleted: true` whenever MAL accepts the request — including when the manga " +
+        "was never on the list to begin with, since MAL's own delete endpoint doesn't " +
+        "distinguish the two — so success alone isn't proof something existed; check " +
+        "get_my_manga_list first if you need to confirm. Requires MyAnimeList authentication " +
+        "(via `login_mal`, or a pre-supplied `MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`).",
       inputSchema: { manga_id: malId },
       outputSchema: deleteMangaItemSchema,
       annotations: {

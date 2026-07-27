@@ -108,6 +108,14 @@ OAuth token) and exactly what each one unlocks.
   - Update accepts `PATCH` (the curl examples use `PUT`; both work).
   - Response field is `num_episodes_watched`; the update param is
     `num_watched_episodes` (intentionally different).
+  - **`DELETE .../my_list_status` is idempotent regardless of prior
+    existence** (verified live 2026-07-27, both anime and manga): calling
+    delete on an id that was never on the list returns the same success as
+    deleting a real entry — no 404, no distinguishing signal either way.
+    `deleteMyAnimeListItem`/`deleteMyMangaListItem` (`clients/mal.ts`)
+    return `{deleted: true}` unconditionally once MAL accepts the request,
+    so that field is not proof something existed — disclosed in
+    `delete_my_anime_list_item`/`delete_my_manga_list_item`'s descriptions.
   - **`ranking_type` enums** (for `officialReads.ts`'s top-anime/top-manga
     fallback): anime — `all, airing, upcoming, tv, ova, movie, special,
 bypopularity, favorite` (no `ona`/`music`, unlike Jikan's `type` filter);

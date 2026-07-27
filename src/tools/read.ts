@@ -67,14 +67,22 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "other anime tools require) plus pagination info. If Jikan is unavailable and " +
         "MAL_CLIENT_ID is set, transparently retries via the official API, which ignores " +
         "`genres`/`status`/`order_by`/`sort` (only `q`/`sfw`/`limit`/`page` still apply), " +
-        "always returns empty `themes`/`demographics` (no official-API equivalent), and an " +
-        "explicit `sfw: true` is enforced client-side (a filtered page can come back shorter " +
-        "than `limit`).",
+        "always returns empty `themes`/`demographics` (no official-API equivalent), enforces " +
+        "an explicit `sfw: true` client-side (a filtered page can come back shorter than " +
+        "`limit`), and — for a query with no real title match — comes back with a page of " +
+        "unrelated anime instead of an empty result (a quirk of the official search endpoint " +
+        "itself, not a mal-mcp bug; don't treat a nonsense-query result as a real match during " +
+        "a fallback).",
       inputSchema: {
         q: z.string().min(1).describe("Search query, e.g. an anime title."),
         type: animeType.optional(),
         status: animeStatus.optional(),
-        genres: z.string().describe("Comma-separated Jikan genre IDs, e.g. '1,4'.").optional(),
+        genres: z
+          .string()
+          .describe(
+            "Comma-separated Jikan genre IDs, e.g. '1,4'. Look up the IDs with get_anime_genres.",
+          )
+          .optional(),
         order_by: z
           .enum([
             "title",
@@ -108,14 +116,22 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "summaries with the mal_id that other manga tools require. If Jikan is unavailable and " +
         "MAL_CLIENT_ID is set, transparently retries via the official API, which ignores " +
         "`genres`/`status`/`order_by`/`sort` (only `q`/`sfw`/`limit`/`page` still apply), " +
-        "always returns empty `themes`/`demographics` (no official-API equivalent), and an " +
-        "explicit `sfw: true` is enforced client-side (a filtered page can come back shorter " +
-        "than `limit`).",
+        "always returns empty `themes`/`demographics` (no official-API equivalent), enforces " +
+        "an explicit `sfw: true` client-side (a filtered page can come back shorter than " +
+        "`limit`), and — for a query with no real title match — comes back with a page of " +
+        "unrelated manga instead of an empty result (a quirk of the official search endpoint " +
+        "itself, not a mal-mcp bug; don't treat a nonsense-query result as a real match during " +
+        "a fallback).",
       inputSchema: {
         q: z.string().min(1).describe("Search query, e.g. a manga title."),
         type: mangaType.optional(),
         status: mangaStatus.optional(),
-        genres: z.string().describe("Comma-separated Jikan genre IDs, e.g. '1,4'.").optional(),
+        genres: z
+          .string()
+          .describe(
+            "Comma-separated Jikan genre IDs, e.g. '1,4'. Look up the IDs with get_manga_genres.",
+          )
+          .optional(),
         order_by: z
           .enum([
             "title",
@@ -505,8 +521,9 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       title: "Get person details",
       description:
         "Get full details for one person by mal_id: bio, their anime/manga staff positions and " +
-        "voiced roles (capped to the 50 most prominent for prolific people). Obtain the mal_id " +
-        "from search_people or a character's voice_actors.",
+        "voiced roles (capped to the first 50 for prolific people, in whatever order the " +
+        "upstream API returns them — not necessarily their most notable roles). Obtain the " +
+        "mal_id from search_people or a character's voice_actors.",
       inputSchema: { id: malId },
       outputSchema: personEntitySchema,
       annotations: READ_ONLY,
