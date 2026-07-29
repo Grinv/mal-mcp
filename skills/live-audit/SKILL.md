@@ -134,7 +134,10 @@ supports concurrent subagents/background tasks.
 - **Input validation boundaries**: empty `q`, negative/zero/decimal
   `mal_id`/`page`/`limit`, `page`/`limit` at their documented boundary and one
   past it, an unknown/misspelled param name (every `inputSchema` should
-  reject a typo, not silently ignore it).
+  reject a typo, not silently ignore it). Prefer read-only tools for the
+  unknown-param probe; on a mutation tool, send _only_ the bogus field (no
+  other real field) — an ignored unknown field plus a real field still
+  mutates the account for real (see `mutation-test-safety`).
 - **Cross-field pairing rules**: `update_my_anime_status`/
   `update_my_manga_status` called with only `anime_id`/`manga_id` and no
   other field — must reject (regression-check for the 0.7.1 fix; re-verify it

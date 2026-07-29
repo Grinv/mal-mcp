@@ -11,9 +11,17 @@ account. For every mutation call:
 
 1. **Capture the exact pre-state first** (via the matching read tool) — not
    just an assumption of what it probably is. A target with no existing
-   state has a clear pre-state too: "absent."
+   state has a clear pre-state too: "absent." This applies to _every_ call
+   to a mutation tool, including one you intend only as a validation-only
+   probe — if the schema isn't `.strict()`, a bogus/typo'd field is silently
+   dropped rather than rejected, and any other real field in the same call
+   still applies for real.
 2. **Make the smallest possible change** that still exercises the behavior
-   (e.g. one field, not a full rewrite).
+   (e.g. one field, not a full rewrite). Never combine an unknown/invalid
+   probe field with a real valid field in one call — if the probe field is
+   ignored instead of rejected, the valid field mutates the account for
+   real. Test unknown-param rejection with _no other fields set_ (or on a
+   read-only tool) instead.
 3. **Verify the change landed** by re-fetching via a read tool — a
    mutation's own echoed response is not always trustworthy (some tools
    have historically omitted fields they actually changed).
