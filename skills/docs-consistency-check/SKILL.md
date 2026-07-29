@@ -23,7 +23,13 @@ Check every one of these, not just a sample:
   `tool-description-check` skill (Glama's TDQS rubric) per AGENTS.md.
 - `CHANGELOG.md`'s `[Unreleased]` section (see the `changelog-style` skill for
   entry style) has one line per real behavior change made in this pass — add
-  missing entries, don't just flag them as missing.
+  missing entries, don't just flag them as missing. Run
+  `node scripts/check-changelog-coverage.mjs` to list every commit since the
+  last release tag and flag which ones CHANGELOG.md doesn't reference at
+  all — it's not a hard gate (plenty of commits are legitimately internal:
+  dev-dependency bumps, docs-about-docs, CI-only fixes), but triage every
+  line it reports as either "needs an entry" or "correctly excluded,"
+  don't skip the check just because most commits usually are internal.
 - `docs/api-references.md`'s "verified live" claims still match the current
   client code, especially any claim this pass's own fixes just invalidated —
   and especially the Jikan fallback field-gap list, which is exactly the kind
