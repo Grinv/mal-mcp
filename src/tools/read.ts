@@ -72,7 +72,8 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "other anime tools require) plus pagination info. If Jikan is unavailable and " +
         "MAL_CLIENT_ID is set, transparently retries via the official API, which ignores " +
         "`genres`/`status`/`order_by`/`sort` (only `q`/`sfw`/`limit`/`page` still apply), " +
-        "always returns empty `themes`/`demographics` (no official-API equivalent), enforces " +
+        "always returns empty `themes`/`demographics` and no `broadcast` (no official-API " +
+        "equivalent for any of these), enforces " +
         "an explicit `sfw: true` client-side (a filtered page can come back shorter than " +
         "`limit`), and — for a query with no real title match — comes back with a page of " +
         "unrelated anime instead of an empty result (a quirk of the official search endpoint " +
@@ -305,7 +306,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "special rankings (airing, upcoming, bypopularity, favorite); for a specific season's " +
         "lineup use get_seasonal_anime or get_upcoming_season instead. If Jikan is unavailable " +
         "and MAL_CLIENT_ID is set, transparently retries via the official API — `type`/`filter` " +
-        "are merged into one best-effort ranking, and `themes`/`demographics` come back empty.",
+        "are merged into one best-effort ranking, and `themes`/`demographics`/`broadcast` come back empty.",
       inputSchema: z
         .object({
           type: z
@@ -361,7 +362,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "for the current season; supplying only one is treated as omitting both. For next " +
         "season's lineup use get_upcoming_season instead. If Jikan is " +
         "unavailable and MAL_CLIENT_ID is set, transparently retries via the official API — " +
-        "`themes`/`demographics` come back empty, and an explicit `sfw: true` is enforced " +
+        "`themes`/`demographics`/`broadcast` come back empty, and an explicit `sfw: true` is enforced " +
         "client-side (a filtered page can come back shorter than `limit`).",
       inputSchema: z
         .object({
@@ -603,7 +604,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "List anime scheduled for the upcoming season. Use get_seasonal_anime for the current or a " +
         "specific past season. If Jikan is unavailable and MAL_CLIENT_ID is set, transparently " +
-        "retries via the official API — `themes`/`demographics` come back empty, and an explicit " +
+        "retries via the official API — `themes`/`demographics`/`broadcast` come back empty, and an explicit " +
         "`sfw: true` is enforced client-side (a filtered page can come back shorter than `limit`).",
       inputSchema: z
         .object({ sfw: sfw.optional(), limit: limit.optional(), page: page.optional() })
