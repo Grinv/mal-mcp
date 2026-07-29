@@ -6,6 +6,18 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Add a privacy policy (`PRIVACY.md`) covering data collection, third-party sharing, storage/retention, and which tools read vs. mutate a connected MyAnimeList account, linked from the README ([d380b9a](https://github.com/Grinv/mal-mcp/commit/d380b9a)).
+- Add a security policy (`SECURITY.md`) covering tool tiers, write-tool blast radius, host configuration, and credential redaction, linked from the README ([ffa2868](https://github.com/Grinv/mal-mcp/commit/ffa2868)).
+- Add a custom icon for the MCPB submission: an original kawaii creature head in MyAnimeList's brand blue ([bf9d6ec](https://github.com/Grinv/mal-mcp/commit/bf9d6ec), [cfecd36](https://github.com/Grinv/mal-mcp/commit/cfecd36), [83eafd3](https://github.com/Grinv/mal-mcp/commit/83eafd3)).
+
+### Fixed
+
+- Make README's and manifest.json's `docs/` links absolute so they still resolve from an installed extension, not just on GitHub ([2c51eec](https://github.com/Grinv/mal-mcp/commit/2c51eec)).
+- Fix a 404'ing Privacy Policy link on npm (`PRIVACY.md` was missing from the published files) and shrink the `.mcpb` bundle to runtime-only files ([4580a74](https://github.com/Grinv/mal-mcp/commit/4580a74), [8e513f6](https://github.com/Grinv/mal-mcp/commit/8e513f6)).
+- Fix the same 404 for the README's Security link (`SECURITY.md` was likewise missing from the published npm files).
+
 ### Security
 
 - Redact `access_token`/`refresh_token`/`client_secret`/`client_id` in JSON-shaped (`"key":"value"`) log text, not just `key=value` ([59297f4](https://github.com/Grinv/mal-mcp/commit/59297f4)).
