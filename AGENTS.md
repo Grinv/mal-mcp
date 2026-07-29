@@ -44,7 +44,8 @@ src/
   prompts.ts      # registerPrompts(server, jikan) — clients get threaded in as needed,
                   # e.g. for completable() autocomplete on recommend_similar's title
   __tests__/      # node:test (*.test.ts) + helpers.ts
-scripts/          # build-tests.mjs, run-tests.mjs, check-api.mjs, sync-version.mjs
+scripts/          # build-tests.mjs, run-tests.mjs, check-api.mjs, sync-version.mjs,
+                  # preversion-check.mjs (npm version gate — see skills/release/SKILL.md)
 skills/           # reusable agent workflows for this repo (e.g. live-audit/) —
                   # plain Markdown with a YAML frontmatter name/description,
                   # not tied to any one tool's orchestration features, per
