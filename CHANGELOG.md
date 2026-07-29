@@ -14,6 +14,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Pin `@modelcontextprotocol/server`/`client` to the stable `2.0.0` release ([0341418](https://github.com/Grinv/mal-mcp/commit/0341418)).
 
+### Fixed
+
+- Reject unknown/misspelled tool parameters instead of silently dropping them — every `inputSchema` is now `.strict()`, so a typo no longer passes validation and, on a mutation tool, can no longer be paired with a real field to mutate the account unexpectedly ([b078608](https://github.com/Grinv/mal-mcp/commit/b078608)).
+
 ## [0.7.3] - 2026-07-27
 
 ### Fixed
