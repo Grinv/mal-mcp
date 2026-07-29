@@ -13,6 +13,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - Pin `@modelcontextprotocol/server`/`client` to the stable `2.0.0` release ([0341418](https://github.com/Grinv/mal-mcp/commit/0341418)).
+- Sharpen several tool descriptions: list all four of `get_top_manga`'s `filter` values, cross-reference `get_seasonal_anime`/`get_upcoming_season` in both directions, clarify which characters' `voice_actors` carry a `mal_id`, cover the same-machine-but-busy-port case in `login_mal`, and state `get_my_anime_list`'s sort directions ([1458de2](https://github.com/Grinv/mal-mcp/commit/1458de2)).
 
 ### Fixed
 
@@ -21,6 +22,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Reject whitespace-only search queries and usernames instead of sending them to the upstream API ([bf8f2cf](https://github.com/Grinv/mal-mcp/commit/bf8f2cf)).
 - Advertise `get_anime_reviews`/`get_manga_reviews`'s default `limit` of 5 and `get_anime_schedule`'s default of 25 in the tool's own schema, so clients that read it directly (not just the description) see the default ([bf8f2cf](https://github.com/Grinv/mal-mcp/commit/bf8f2cf)).
 - Reject calendar-invalid `start_date`/`finish_date` values (e.g. `2024-02-30`) instead of only checking the `YYYY-MM-DD` shape ([bf8f2cf](https://github.com/Grinv/mal-mcp/commit/bf8f2cf)).
+- Surface `broadcast` (JST air time) in every anime summary, not just `get_anime`'s detailed view — `get_anime_schedule`'s own description promised it but the field was silently dropped ([bd42963](https://github.com/Grinv/mal-mcp/commit/bd42963)).
 
 ## [0.7.3] - 2026-07-27
 
