@@ -51,13 +51,30 @@ jobs:
         with:
           files: mal-mcp.mcpb
           body_path: RELEASE_NOTES.md
-      # Trusted Publishing (OIDC): no token. Requires npm >= 11.5.1. Pin a known
-      # -good version rather than `@latest`: npm 12.0.0 ships a broken provenance
-      # path ("Cannot find module 'sigstore'"), which fails `--provenance`. 11.18.0
-      # is the version that published v0.2.0 successfully and has working provenance.
+      # Idempotency guard: npm rejects re-publishing an existing version outright,
+      # which would otherwise abort this job before the MCP Registry steps below
+      # ever run (e.g. a tag re-run, or a version published manually as a
+      # one-time bootstrap before Trusted Publishing was configured).
+      - name: Check if this version is already published to npm
+        id: npm_check
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if npm view "mal-mcp@${PKG_VERSION}" version >/dev/null 2>&1; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+      # Trusted Publishing (OIDC): no token. Requires npm >= 11.5.1. Pin an
+      # exact, verified-good version rather than floating `@latest` — matches
+      # every other tool in this workflow being pinned to an exact commit/tag
+      # (checkout/setup-node/gh-release above). npm 12.0.0 shipped a broken
+      # provenance path ("Cannot find module 'sigstore'", npm/cli#9722); fixed
+      # in 12.0.1 (npm/cli#9740, released 2026-07-10) — verified live via
+      # `npm view npm version` that 12.0.1 is the current `latest` dist-tag.
       - name: Install npm for trusted publishing
-        run: npm install -g npm@11.18.0
+        run: npm install -g npm@12.0.1
       - name: Publish to npm (trusted publishing + provenance)
+        if: steps.npm_check.outputs.already_published != 'true'
         run: npm publish --provenance --access public
 
       # Publish to the official MCP Registry (registry.modelcontextprotocol.io).
