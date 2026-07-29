@@ -6,6 +6,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Let a 2026-07-28-era MCP client cache `tools/list`, `prompts/list`, and `server/discover` for an hour instead of treating them as immediately stale ([14fc657](https://github.com/Grinv/mal-mcp/commit/14fc657)).
+
 ### Changed
 
 - Pin `@modelcontextprotocol/server`/`client` to the stable `2.0.0` release ([0341418](https://github.com/Grinv/mal-mcp/commit/0341418)).
