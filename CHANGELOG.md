@@ -18,6 +18,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Reject unknown/misspelled tool parameters instead of silently dropping them — every `inputSchema` is now `.strict()`, so a typo no longer passes validation and, on a mutation tool, can no longer be paired with a real field to mutate the account unexpectedly ([b078608](https://github.com/Grinv/mal-mcp/commit/b078608)).
 - Validate `search_anime`/`search_manga`'s `genres` parameter against its documented comma-separated-digits format instead of accepting any string and failing confusingly against the upstream API ([943f127](https://github.com/Grinv/mal-mcp/commit/943f127)).
+- Trim whitespace-only search queries and usernames before validating, default `get_anime_reviews`/`get_manga_reviews`/`get_anime_schedule`'s `limit` in-schema instead of in code, and validate `start_date`/`finish_date` against the real calendar instead of just the `YYYY-MM-DD` shape ([bf8f2cf](https://github.com/Grinv/mal-mcp/commit/bf8f2cf)).
 
 ## [0.7.3] - 2026-07-27
 
