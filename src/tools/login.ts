@@ -38,8 +38,9 @@ export function registerLoginTools(server: McpServer, mal: MalClient): void {
         "https://myanimelist.net/apiconfig with Redirect URI set to this server's " +
         "localhost callback, and set MAL_CLIENT_ID in the server env. Calling this returns " +
         "an authorization URL: open it, log in, and click Allow. If your browser is on the " +
-        "same machine as the server, login completes automatically; if it's remote (SSH/" +
-        "headless), copy the URL you land on and pass it to submit_mal_redirect.",
+        "same machine as the server and the callback port is free, login completes " +
+        "automatically; otherwise (a remote/headless host, or the port is busy) copy the URL " +
+        "you land on and pass it to submit_mal_redirect.",
       inputSchema: z.object({}).strict(),
       outputSchema: startLoginResultSchema,
       annotations: { readOnlyHint: false, openWorldHint: true },

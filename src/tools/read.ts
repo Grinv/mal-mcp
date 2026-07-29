@@ -332,7 +332,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       title: "Get top manga",
       description:
         "Get manga ranked by all-time score/popularity, not tied to any release window. Use " +
-        "`filter` for special rankings (bypopularity, favorite). If Jikan is unavailable and " +
+        "`filter` for special rankings (publishing, upcoming, bypopularity, favorite). If Jikan is unavailable and " +
         "MAL_CLIENT_ID is set, transparently retries via the official API — `type`/`filter` are " +
         "merged into one best-effort ranking, and `themes`/`demographics` come back empty.",
       inputSchema: z
@@ -358,7 +358,8 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       title: "Get seasonal anime",
       description:
         "List anime from a given season — supply both `year` and `season` together, or omit both " +
-        "for the current season; supplying only one is treated as omitting both. If Jikan is " +
+        "for the current season; supplying only one is treated as omitting both. For next " +
+        "season's lineup use get_upcoming_season instead. If Jikan is " +
         "unavailable and MAL_CLIENT_ID is set, transparently retries via the official API — " +
         "`themes`/`demographics` come back empty, and an explicit `sfw: true` is enforced " +
         "client-side (a filtered page can come back shorter than `limit`).",
@@ -545,7 +546,8 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "Get full details for one person by mal_id: bio, their anime/manga staff positions and " +
         "voiced roles (capped to the first 50 for prolific people, in whatever order the " +
         "upstream API returns them — not necessarily their most notable roles). Obtain the " +
-        "mal_id from search_people or a character's voice_actors.",
+        "mal_id from search_people, or from get_character's voice_actors (which include each " +
+        "actor's mal_id — get_anime_characters' voice_actors are names only, with no id).",
       inputSchema: z.object({ id: malId }).strict(),
       outputSchema: personEntitySchema,
       annotations: READ_ONLY,

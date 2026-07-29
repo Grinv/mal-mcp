@@ -88,7 +88,10 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
           status: animeListStatus.optional(),
           sort: z
             .enum(["list_score", "list_updated_at", "anime_title", "anime_start_date"])
-            .describe("Sort order.")
+            .describe(
+              "Sort order. list_score/list_updated_at return highest/most-recent first; " +
+                "anime_title returns A-Z.",
+            )
             .optional(),
           limit: listLimit.optional(),
           offset: offset.optional(),
