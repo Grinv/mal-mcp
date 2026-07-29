@@ -21,6 +21,12 @@ test("redact removes bearer tokens and credential params", () => {
   assert.ok(!redact("access_token=TOK").includes("TOK"));
 });
 
+test("redact removes JSON-style credential fields", () => {
+  assert.ok(!redact('{"client_secret":"SECRET123"}').includes("SECRET123"));
+  assert.ok(!redact('{"access_token":"TOK","refresh_token":"REF"}').includes("TOK"));
+  assert.ok(!redact('{"access_token":"TOK","refresh_token":"REF"}').includes("REF"));
+});
+
 test("ApiError carries an optional hint that defaults to undefined", () => {
   const plain = new ApiError({ code: "server_error", message: "boom" });
   assert.equal(plain.hint, undefined);
