@@ -1,0 +1,26 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- mal-mcp icon — original vector design source, for humans/future editors.
+       Shape: a bookmark/tag silhouette ("saved to your list") — an original
+       shape, not MyAnimeList's own logo mark. Color is MAL's real brand blue,
+       pulled directly from MyAnimeList's own favicon.svg
+       (cdn.myanimelist.net/images/favicon.svg, class .st1 = #2f52a2) and
+       cross-checked against a pixel sample of apple-touch-icon-256.png
+       (46,81,162 — same color, PNG-palette rounding) — verified live
+       2026-07-29, not guessed from memory.
+
+       This file is NOT what actually produced assets/icon.png: a naive
+       SVG->PNG render (a browser screenshot, macOS Quick Look's SVG
+       thumbnailer, etc.) silently composites the transparent background
+       against opaque white, which Anthropic's MCPB icon spec explicitly
+       requires ("PNG with transparency"). The real rasterization pipeline is
+       generate-icon.py in this same directory: it draws the same geometry
+       directly with Pillow at 4x supersampling (rounded top corners via
+       ImageDraw.rounded_rectangle's per-corner `corners` option, sharp
+       bottom corners, a punched-out V notch), then downsamples with
+       LANCZOS for anti-aliased edges — giving real per-pixel alpha with no
+       compositing step to lose it. Keep this file's geometry/color in sync
+       with generate-icon.py by hand if you ever edit one; there's no
+       automated link between the two. -->
+  <path d="M178,96 L334,96 A34,34 0 0 1 368,130 L368,416 L256,340 L144,416 L144,130 A34,34 0 0 1 178,96 Z"
+        fill="#2f52a2"/>
+</svg>
