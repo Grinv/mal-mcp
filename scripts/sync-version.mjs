@@ -7,7 +7,7 @@
 // replacement — not JSON re-serialization — to preserve each file's exact
 // formatting.
 import { readFileSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -27,6 +27,24 @@ function patch(rel, edits) {
 // The leading quote means this never matches `"manifest_version"` in manifest.json.
 const versionField = /("version":\s*")[^"]*(")/;
 
+// Shared with preversion-check.mjs's checkChangelog(): does CHANGELOG.md's
+// [Unreleased] section (everything up to the next "## [" heading) contain a
+// real bullet? Checks for an actual bullet (`- `) rather than just "is a
+// heading immediately next" — robust to stray blank lines. Exported so both
+// scripts encode this one rule exactly once instead of two independently
+// drifting regexes.
+export function unreleasedHasBullets(text) {
+  const marker = "## [Unreleased]\n";
+  const idx = text.indexOf(marker);
+  if (idx === -1) {
+    throw new Error(`sync-version: '${marker.trim()}' heading not found in CHANGELOG.md`);
+  }
+  const afterMarker = text.slice(idx + marker.length);
+  const bodyMatch = /^([\s\S]*?)(?=\n## \[|$)/.exec(afterMarker);
+  const body = bodyMatch ? bodyMatch[1] : afterMarker;
+  return /^-\s/m.test(body.trim());
+}
+
 // Rename CHANGELOG.md's `## [Unreleased]` heading to this version (the release
 // workflow's CHANGELOG extraction step matches on `## [<version>]` verbatim —
 // a repo-history incident on 2026-07-29 shipped a v0.8.0 release commit/tag
@@ -35,7 +53,20 @@ const versionField = /("version":\s*")[^"]*(")/;
 // the tag). Reopens a fresh, empty [Unreleased] section above it, and rolls
 // the trailing compare-link block forward the same way. Pure string -> string
 // (no file I/O) so it's directly unit-testable.
+//
+// Idempotent: if this version's own heading already exists, returns the text
+// unchanged — a safe no-op on a re-run after a partial failure (e.g. `npm
+// version` completing this rewrite but a later step in the same run
+// crashing). A no-bullets [Unreleased] still gets its own heading (with a
+// placeholder note under it) rather than being silently skipped — the
+// release workflow's "empty RELEASE_NOTES.md" guard needs every real release
+// to have a non-empty section, including a CONFIRM_EMPTY_CHANGELOG=1
+// dependency-only release.
 export function renderChangelogRelease(text, version, date) {
+  if (text.includes(`## [${version}] - `)) {
+    return text;
+  }
+
   const unreleasedHeading = "## [Unreleased]";
   if (!text.includes(unreleasedHeading)) {
     throw new Error(
@@ -43,10 +74,11 @@ export function renderChangelogRelease(text, version, date) {
         "heading format changed and this script needs updating.",
     );
   }
-  const withHeading = text.replace(
-    unreleasedHeading,
-    `${unreleasedHeading}\n\n## [${version}] - ${date}`,
-  );
+  const hasBullets = unreleasedHasBullets(text);
+  const newHeading = hasBullets
+    ? `${unreleasedHeading}\n\n## [${version}] - ${date}`
+    : `${unreleasedHeading}\n\n## [${version}] - ${date}\n\n_No user-facing changes in this release._`;
+  const withHeading = text.replace(unreleasedHeading, newHeading);
 
   const unreleasedLinkPattern = /\[Unreleased\]: (\S+)\/compare\/(v[^.]+\.[^.]+\.\S+)\.\.\.HEAD/;
   const linkMatch = withHeading.match(unreleasedLinkPattern);
@@ -85,6 +117,13 @@ function main() {
 }
 
 // Only run as a script (not when version.test.ts imports renderChangelogRelease).
-if (import.meta.url === `file://${process.argv[1]}`) {
+// `process.argv[1]` is a raw OS path (backslash-separated on Windows) with no
+// URL scheme, while `import.meta.url` is always a well-formed `file://` URL —
+// naively concatenating `file://` + the path can never string-equal it on
+// Windows, so this guard used to silently never match there. pathToFileURL()
+// normalizes both sides to the same URL form. The `process.argv[1] &&` guard
+// matters too: it's undefined for a no-script invocation (e.g. `node -e`),
+// and pathToFileURL(undefined) throws rather than just failing to match.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }
