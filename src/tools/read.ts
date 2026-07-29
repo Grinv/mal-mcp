@@ -52,6 +52,11 @@ const malId = z.number().int().positive().describe("MyAnimeList numeric ID.");
 const genreFilter = z
   .enum(["genres", "explicit_genres", "themes", "demographics"])
   .describe("Restrict to one kind of tag. Omit to list all.");
+const genreIds = (lookupTool: string) =>
+  z
+    .string()
+    .regex(/^\d+(,\d+)*$/, "Comma-separated numeric genre IDs, e.g. '1,4' — no other format.")
+    .describe(`Comma-separated Jikan genre IDs, e.g. '1,4'. Look up the IDs with ${lookupTool}.`);
 
 /** Run a client call and wrap its result (or any failure) as a tool result. */
 const reply = (fn: () => Promise<Record<string, unknown>>): Promise<ToolResult> =>
@@ -78,12 +83,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
           q: z.string().min(1).describe("Search query, e.g. an anime title."),
           type: animeType.optional(),
           status: animeStatus.optional(),
-          genres: z
-            .string()
-            .describe(
-              "Comma-separated Jikan genre IDs, e.g. '1,4'. Look up the IDs with get_anime_genres.",
-            )
-            .optional(),
+          genres: genreIds("get_anime_genres").optional(),
           order_by: z
             .enum([
               "title",
@@ -129,12 +129,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
           q: z.string().min(1).describe("Search query, e.g. a manga title."),
           type: mangaType.optional(),
           status: mangaStatus.optional(),
-          genres: z
-            .string()
-            .describe(
-              "Comma-separated Jikan genre IDs, e.g. '1,4'. Look up the IDs with get_manga_genres.",
-            )
-            .optional(),
+          genres: genreIds("get_manga_genres").optional(),
           order_by: z
             .enum([
               "title",

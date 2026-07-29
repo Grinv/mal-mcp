@@ -153,6 +153,36 @@ test("unknown/misspelled parameters are rejected, not silently dropped", async (
   assert.equal(mock.calls.length, 0);
 });
 
+test("search_anime/search_manga reject a malformed genres parameter", async (t) => {
+  const mock = mockFetch(() =>
+    jsonResponse({ data: [{ mal_id: 1, title: "Bebop", score: 8.7 }], pagination: {} }),
+  );
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const anime = await client.callTool({
+    name: "search_anime",
+    arguments: { q: "bebop", genres: "1, 4" },
+  });
+  assert.equal(anime.isError, true);
+  assert.equal(mock.calls.length, 0);
+
+  const manga = await client.callTool({
+    name: "search_manga",
+    arguments: { q: "bebop", genres: "abc" },
+  });
+  assert.equal(manga.isError, true);
+  assert.equal(mock.calls.length, 0);
+
+  // The documented format (digits, comma-separated, no spaces) still works.
+  const ok = await client.callTool({
+    name: "search_anime",
+    arguments: { q: "bebop", genres: "1,4" },
+  });
+  assert.notEqual(ok.isError, true);
+});
+
 test("the server advertises all expected tools", async (t) => {
   const { client, close } = await connectServer({});
   t.after(close);
