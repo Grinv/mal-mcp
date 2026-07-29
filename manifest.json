@@ -19,7 +19,11 @@
   },
   "license": "MIT",
   "keywords": ["mcp", "myanimelist", "mal", "jikan", "anime", "manga"],
-  "privacy_policies": ["https://myanimelist.net/about/privacy_policy", "https://jikan.moe"],
+  "privacy_policies": [
+    "https://github.com/Grinv/mal-mcp/blob/main/PRIVACY.md",
+    "https://myanimelist.net/about/privacy_policy",
+    "https://jikan.moe"
+  ],
   "server": {
     "type": "node",
     "entry_point": "dist/index.js",

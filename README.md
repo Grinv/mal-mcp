@@ -287,6 +287,13 @@ MAL API; please respect its rate limits. Personal-list operations use the offici
 own account and token. Use is subject to the
 [MyAnimeList Terms of Service](https://myanimelist.net/about/terms_of_use).
 
+## Privacy Policy
+
+`mal-mcp` runs locally on your machine and has no telemetry of its own — see
+[PRIVACY.md](PRIVACY.md) for exactly what data it handles (including what the
+personal-list tools can read and change on your real MyAnimeList account),
+what it sends to Jikan/MyAnimeList, and what (if anything) it stores on disk.
+
 ## License
 
 [MIT](LICENSE) © Grinv
