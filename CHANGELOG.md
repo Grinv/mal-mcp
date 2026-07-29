@@ -42,12 +42,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.7.1] - 2026-07-22
 
+Everything below is one commit: [8474b7f](https://github.com/Grinv/mal-mcp/commit/8474b7f).
+
 ### Fixed
 
 - Fix `get_anime_statistics`'s official-API fallback throwing a raw validation error instead of a result — the official API sends watch-status counts as numeric strings, which were passed through unconverted.
 - `update_my_anime_status`/`update_my_manga_status` now reject a call with only `anime_id`/`manga_id` and no other field, instead of silently creating a `watching`/`reading` entry with MAL's defaults.
 
 ## [0.7.0] - 2026-07-22
+
+Everything below is one commit: [4187549](https://github.com/Grinv/mal-mcp/commit/4187549).
 
 ### Added
 
@@ -70,6 +74,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.6.0] - 2026-07-20
 
+Everything below is one commit: [906cf76](https://github.com/Grinv/mal-mcp/commit/906cf76).
+
 ### Added
 
 - `get_anime_recommendations`/`get_manga_recommendations` fall back to the official MAL API's own `recommendations` field (via `MAL_CLIENT_ID`, no OAuth needed) when Jikan fails, joining the existing search/top/seasonal fallback.
@@ -81,6 +87,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Cross-reference `get_my_user_info`/`get_user_profile` and disclose that `get_my_user_info` has no manga statistics at all (the official API has no such field).
 
 ## [0.5.0] - 2026-07-18
+
+Everything below is one commit: [e06eb9b](https://github.com/Grinv/mal-mcp/commit/e06eb9b).
 
 ### Added
 
