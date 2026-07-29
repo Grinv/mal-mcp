@@ -93,6 +93,7 @@ export const animeSummarySchema = z
     synopsis: z.string().optional(),
     url: z.string().optional(),
     image_url: z.string().optional(),
+    broadcast: z.string().optional(),
   })
   .strict();
 
@@ -110,7 +111,6 @@ export const animeDetailSchema = animeSummarySchema
     title_japanese: z.string().optional(),
     source: z.string().optional(),
     duration: z.string().optional(),
-    broadcast: z.string().optional(),
     scored_by: z.number().optional(),
     favorites: z.number().optional(),
     background: z.string().optional(),

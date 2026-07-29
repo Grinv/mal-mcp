@@ -392,7 +392,8 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       title: "Get broadcast schedule",
       description:
         "Get the anime broadcast schedule (air times in JST), optionally for a single weekday. " +
-        "Defaults to 25 results if `limit` is omitted.",
+        "`broadcast` is only present for currently-airing shows. Defaults to 25 results if " +
+        "`limit` is omitted.",
       inputSchema: z
         .object({
           day: z

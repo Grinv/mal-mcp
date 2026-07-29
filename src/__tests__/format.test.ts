@@ -84,8 +84,21 @@ test("summarizeAnime surfaces detailed /full fields (duration, broadcast, traile
 
 test("summarizeAnime omits the detailed /full fields in list mode", () => {
   const s = summarizeAnime({ ...anime, duration: "24 min per ep", publishing: undefined });
-  for (const k of ["duration", "broadcast", "trailer", "opening_themes", "licensors"])
+  for (const k of ["duration", "trailer", "opening_themes", "licensors"])
     assert.ok(!(k in s), `${k} should not appear in list mode`);
+});
+
+test("summarizeAnime includes broadcast in list mode too, not just detailed", () => {
+  const s = summarizeAnime({
+    ...anime,
+    broadcast: {
+      day: "Fridays",
+      time: "23:00",
+      timezone: "Asia/Tokyo",
+      string: "Fridays at 23:00 (JST)",
+    },
+  });
+  assert.equal(s["broadcast"], "Fridays at 23:00 (JST)");
 });
 
 test("summarizeAnime treats a score of 0 as absent", () => {

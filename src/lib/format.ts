@@ -176,6 +176,7 @@ export interface AnimeSummaryFields {
   synopsis?: string;
   url?: string;
   image_url?: string;
+  broadcast?: string;
 }
 
 export function projectAnimeSummary(f: AnimeSummaryFields): z.infer<typeof animeSummarySchema> {
@@ -257,6 +258,9 @@ export function summarizeAnime(
     synopsis: trimSynopsis(a.synopsis, detailed),
     url: a.url,
     image_url: imageUrl(a.images),
+    // Broadcast slot for currently-airing shows; `.string` is the human form
+    // (e.g. "Fridays at 23:00 (JST)"). Only present/meaningful while airing.
+    broadcast: a.broadcast?.string ?? undefined,
   };
   const base = projectAnimeSummary(fields);
   if (!detailed) return base;
@@ -266,9 +270,6 @@ export function summarizeAnime(
       title_japanese: a.title_japanese ?? undefined,
       source: a.source ?? undefined,
       duration: a.duration ?? undefined,
-      // Broadcast slot for currently-airing shows; `.string` is the human form
-      // (e.g. "Fridays at 23:00 (JST)"). Only present/meaningful while airing.
-      broadcast: a.broadcast?.string ?? undefined,
       scored_by: a.scored_by ?? undefined,
       favorites: a.favorites ?? undefined,
       background: a.background ?? undefined,
