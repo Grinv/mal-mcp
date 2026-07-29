@@ -15,6 +15,14 @@ import { registerLoginTools } from "./tools/login.js";
 import { registerPrompts } from "./prompts.js";
 import { VERSION } from "./version.js";
 
+// Our tool/prompt catalog is fixed for the lifetime of a running process (no
+// dynamic registration) and isn't user-specific, so a 2026-07-28 client is
+// free to cache these operations' results publicly for a while. We have no
+// MCP Resources, so `resources/*` isn't given a hint here. `server/discover`
+// shares the tool/prompt list's TTL since it's the same "what does this
+// server offer" catalog answer. Ignored entirely by 2025-era connections.
+export const CACHE_HINT = { ttlMs: 60 * 60 * 1000, cacheScope: "public" } as const;
+
 const INSTRUCTIONS = [
   "MyAnimeList tools. Reads (search/details/rankings/seasons/characters/reviews/profiles) are",
   "served via the public Jikan API and need no credentials. Personal-list tools (get_my_*,",
@@ -39,7 +47,14 @@ export function buildServer(config: Config, logger: Logger): McpServer {
 
   const server = new McpServer(
     { name: "mal-mcp", title: "MAL MCP Server", version: VERSION },
-    { instructions: INSTRUCTIONS },
+    {
+      instructions: INSTRUCTIONS,
+      cacheHints: {
+        "tools/list": CACHE_HINT,
+        "prompts/list": CACHE_HINT,
+        "server/discover": CACHE_HINT,
+      },
+    },
   );
 
   registerReadTools(server, jikan);

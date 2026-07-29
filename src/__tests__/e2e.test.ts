@@ -7,6 +7,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { Client } from "@modelcontextprotocol/client";
 import { toolText } from "./helpers.js";
 import { VERSION } from "../version.js";
+import { CACHE_HINT } from "../server.js";
 
 // The unit suite exercises the code via an in-memory transport against src (see
 // helpers.ts's connectServer()) — that only ever drives a bare McpServer, never
@@ -124,17 +125,49 @@ describe("e2e (real built bundle over stdio)", () => {
         version: VERSION,
       });
 
-      const { tools } = await client.listTools();
+      const toolsResult = await client.listTools();
       assert.equal(
-        tools.length,
+        toolsResult.tools.length,
         EXPECTED_TOOLS,
         "every tool should register in the modern era too",
       );
+      // buildServer()'s cacheHints (src/server.ts) should surface on every
+      // cacheable-operation result the modern era adds these fields to.
+      const cacheFields = (r: unknown) => {
+        const { ttlMs, cacheScope } = r as { ttlMs?: number; cacheScope?: string };
+        return { ttlMs, cacheScope };
+      };
+      assert.deepEqual(cacheFields(toolsResult), CACHE_HINT);
+      assert.deepEqual(cacheFields(await client.listPrompts()), CACHE_HINT);
+      assert.deepEqual(cacheFields(await client.discover()), CACHE_HINT);
 
       // A real tool call over the modern-era envelope/dispatch path, not just the handshake.
       const res = await client.callTool({ name: "get_my_user_info", arguments: {} });
       assert.equal(res.isError, true);
       assert.match(toolText(res), /needs a MyAnimeList login/i);
+
+      // A zod schema rejection — happens before any network call, so it's
+      // deterministic regardless of live Jikan's mood — proving the modern-era
+      // dispatch path still surfaces input validation errors as isError results.
+      const badInput = await client.callTool({ name: "get_anime", arguments: { id: -1 } });
+      assert.equal(badInput.isError, true);
+      assert.match(toolText(badInput), />0|positive/i);
+
+      // A live successful read, to see real structuredContent flow back over the
+      // modern-era wire format (the client auto-validates it against get_anime's
+      // outputSchema once tools/list is cached — see connectServer()'s comment in
+      // helpers.ts for the same reasoning). mal_id=1 (Cowboy Bebop) is a cached-DB
+      // lookup, not a live search pass-through — the route least exposed to
+      // Jikan's documented flakiness (notes/jikan-reliability.md) — but still
+      // tolerate a transient upstream 5xx rather than fail this suite on Jikan's
+      // own mood, matching check-api.mjs's "transient — not blocking" convention.
+      const anime = await client.callTool({ name: "get_anime", arguments: { id: 1 } });
+      if (anime.isError) {
+        console.warn(`  (skipping structuredContent check — upstream issue: ${toolText(anime)})`);
+      } else {
+        assert.ok(anime.structuredContent, "get_anime should return structuredContent");
+        assert.equal((anime.structuredContent as { mal_id?: number }).mal_id, 1);
+      }
     } finally {
       await client.close();
       rmSync(sandbox, { recursive: true, force: true });
