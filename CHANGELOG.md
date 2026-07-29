@@ -6,6 +6,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- Redact `access_token`/`refresh_token`/`client_secret`/`client_id` in JSON-shaped (`"key":"value"`) log text, not just `key=value` ([59297f4](https://github.com/Grinv/mal-mcp/commit/59297f4)).
+
 ## [0.8.0] - 2026-07-29
 
 ### Added
