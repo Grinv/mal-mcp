@@ -9,6 +9,7 @@ import { z } from "zod";
 import type { MalClient } from "../clients/mal.js";
 import { jsonResult } from "../lib/result.js";
 import { guard } from "./guard.js";
+import { defineTool } from "./spec.js";
 
 const startLoginResultSchema = z
   .object({
@@ -28,9 +29,9 @@ const submitRedirectResultSchema = z
   .strict();
 
 export function registerLoginTools(server: McpServer, mal: MalClient): void {
-  server.registerTool(
-    "login_mal",
-    {
+  const tools = [
+    defineTool({
+      name: "login_mal",
       title: "Log in to MyAnimeList",
       description:
         "Authorize the personal-list tools with your MyAnimeList account (one-time). " +
@@ -44,30 +45,27 @@ export function registerLoginTools(server: McpServer, mal: MalClient): void {
       inputSchema: z.object({}).strict(),
       outputSchema: startLoginResultSchema,
       annotations: { readOnlyHint: false, openWorldHint: true },
-    },
-    () =>
-      guard(async () => {
-        const { authorizeUrl, redirectUri, listening } = await mal.startLogin();
-        return jsonResult(
-          startLoginResultSchema.parse({
-            authorize_url: authorizeUrl,
-            redirect_uri: redirectUri,
-            auto_capture: listening,
-            instructions: listening
-              ? "Open authorize_url, log in and click Allow. Login then completes automatically — " +
-                "call get_my_user_info to confirm. If the browser is on a different machine than " +
-                "this server, instead copy the URL it redirects you to and pass it to submit_mal_redirect."
-              : "Open authorize_url, log in and click Allow, then copy the full URL your browser is " +
-                "redirected to (it contains ?code=...) and pass it to submit_mal_redirect. " +
-                `(The local auto-capture on ${redirectUri} was unavailable — likely the port is busy.)`,
-          }),
-        );
-      }),
-  );
-
-  server.registerTool(
-    "submit_mal_redirect",
-    {
+      handler: () =>
+        guard(async () => {
+          const { authorizeUrl, redirectUri, listening } = await mal.startLogin();
+          return jsonResult(
+            startLoginResultSchema.parse({
+              authorize_url: authorizeUrl,
+              redirect_uri: redirectUri,
+              auto_capture: listening,
+              instructions: listening
+                ? "Open authorize_url, log in and click Allow. Login then completes automatically — " +
+                  "call get_my_user_info to confirm. If the browser is on a different machine than " +
+                  "this server, instead copy the URL it redirects you to and pass it to submit_mal_redirect."
+                : "Open authorize_url, log in and click Allow, then copy the full URL your browser is " +
+                  "redirected to (it contains ?code=...) and pass it to submit_mal_redirect. " +
+                  `(The local auto-capture on ${redirectUri} was unavailable — likely the port is busy.)`,
+            }),
+          );
+        }),
+    }),
+    defineTool({
+      name: "submit_mal_redirect",
       title: "Finish MyAnimeList login",
       description:
         "Complete a login started with login_mal by submitting the URL your browser was " +
@@ -84,18 +82,33 @@ export function registerLoginTools(server: McpServer, mal: MalClient): void {
         .strict(),
       outputSchema: submitRedirectResultSchema,
       annotations: { readOnlyHint: false, openWorldHint: true },
-    },
-    ({ redirect_url }) =>
-      guard(async () => {
-        await mal.submitRedirect(redirect_url);
-        const info = await mal.getMyUserInfo();
-        return jsonResult(
-          submitRedirectResultSchema.parse({
-            logged_in: true,
-            user: info.name,
-            message: "MyAnimeList login complete. The token is stored and refreshes automatically.",
-          }),
-        );
-      }),
-  );
+      handler: ({ redirect_url }) =>
+        guard(async () => {
+          await mal.submitRedirect(redirect_url);
+          const info = await mal.getMyUserInfo();
+          return jsonResult(
+            submitRedirectResultSchema.parse({
+              logged_in: true,
+              user: info.name,
+              message:
+                "MyAnimeList login complete. The token is stored and refreshes automatically.",
+            }),
+          );
+        }),
+    }),
+  ];
+
+  for (const tool of tools) {
+    server.registerTool(
+      tool.name,
+      {
+        title: tool.title,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+        outputSchema: tool.outputSchema,
+        annotations: tool.annotations,
+      },
+      tool.handler,
+    );
+  }
 }

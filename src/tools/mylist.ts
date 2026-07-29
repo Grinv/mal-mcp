@@ -16,6 +16,7 @@ import {
 import { errorResult, jsonResult, type ToolResult } from "../lib/result.js";
 import { ApiError } from "../lib/errors.js";
 import { guard } from "./guard.js";
+import { defineTool } from "./spec.js";
 
 const NEEDS_TOKEN =
   "This tool needs a MyAnimeList login, which isn't set up yet. Register a MAL API " +
@@ -58,9 +59,9 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
   const requireToken = (fn: () => Promise<ToolResult>): Promise<ToolResult> =>
     mal.isConfigured() ? guard(fn) : Promise.resolve(errorResult(NEEDS_TOKEN));
 
-  server.registerTool(
-    "get_my_user_info",
-    {
+  const tools = [
+    defineTool({
+      name: "get_my_user_info",
       title: "Get my MAL profile",
       description:
         "Get the logged-in user's MyAnimeList profile and anime watch-status statistics. " +
@@ -71,13 +72,10 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
       inputSchema: z.object({}).strict(),
       outputSchema: MyUserInfoSchema,
       annotations: { readOnlyHint: true, openWorldHint: true },
-    },
-    () => requireToken(async () => jsonResult(await mal.getMyUserInfo())),
-  );
-
-  server.registerTool(
-    "get_my_anime_list",
-    {
+      handler: () => requireToken(async () => jsonResult(await mal.getMyUserInfo())),
+    }),
+    defineTool({
+      name: "get_my_anime_list",
       title: "Get my anime list",
       description:
         "Get the authenticated user's own anime list, with each entry's status, score and progress. " +
@@ -99,13 +97,10 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         .strict(),
       outputSchema: myListSchema,
       annotations: { readOnlyHint: true, openWorldHint: true },
-    },
-    (args) => requireToken(async () => jsonResult(await mal.getMyAnimeList(args))),
-  );
-
-  server.registerTool(
-    "get_my_manga_list",
-    {
+      handler: (args) => requireToken(async () => jsonResult(await mal.getMyAnimeList(args))),
+    }),
+    defineTool({
+      name: "get_my_manga_list",
       title: "Get my manga list",
       description:
         "Get the authenticated user's own manga list, with status, score and progress. Requires " +
@@ -124,13 +119,10 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         .strict(),
       outputSchema: myListSchema,
       annotations: { readOnlyHint: true, openWorldHint: true },
-    },
-    (args) => requireToken(async () => jsonResult(await mal.getMyMangaList(args))),
-  );
-
-  server.registerTool(
-    "update_my_anime_status",
-    {
+      handler: (args) => requireToken(async () => jsonResult(await mal.getMyMangaList(args))),
+    }),
+    defineTool({
+      name: "update_my_anime_status",
       title: "Update my anime status",
       description:
         "Add or update an anime on the authenticated user's list (status, score, watched episodes, " +
@@ -168,22 +160,19 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         idempotentHint: true,
         openWorldHint: true,
       },
-    },
-    ({ anime_id, ...update }) =>
-      requireToken(async () => {
-        if (Object.keys(update).length === 0) {
-          throw new ApiError({
-            code: "bad_request",
-            message: "Provide at least one field besides anime_id.",
-          });
-        }
-        return jsonResult(await mal.updateMyAnimeStatus(anime_id, update));
-      }),
-  );
-
-  server.registerTool(
-    "update_my_manga_status",
-    {
+      handler: ({ anime_id, ...update }) =>
+        requireToken(async () => {
+          if (Object.keys(update).length === 0) {
+            throw new ApiError({
+              code: "bad_request",
+              message: "Provide at least one field besides anime_id.",
+            });
+          }
+          return jsonResult(await mal.updateMyAnimeStatus(anime_id, update));
+        }),
+    }),
+    defineTool({
+      name: "update_my_manga_status",
       title: "Update my manga status",
       description:
         "Add or update a manga on the authenticated user's list (status, score, chapters/volumes " +
@@ -212,22 +201,19 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         idempotentHint: true,
         openWorldHint: true,
       },
-    },
-    ({ manga_id, ...update }) =>
-      requireToken(async () => {
-        if (Object.keys(update).length === 0) {
-          throw new ApiError({
-            code: "bad_request",
-            message: "Provide at least one field besides manga_id.",
-          });
-        }
-        return jsonResult(await mal.updateMyMangaStatus(manga_id, update));
-      }),
-  );
-
-  server.registerTool(
-    "delete_my_anime_list_item",
-    {
+      handler: ({ manga_id, ...update }) =>
+        requireToken(async () => {
+          if (Object.keys(update).length === 0) {
+            throw new ApiError({
+              code: "bad_request",
+              message: "Provide at least one field besides manga_id.",
+            });
+          }
+          return jsonResult(await mal.updateMyMangaStatus(manga_id, update));
+        }),
+    }),
+    defineTool({
+      name: "delete_my_anime_list_item",
       title: "Remove anime from my list",
       description:
         "Remove an anime entry from the authenticated user's list. This cannot be undone. " +
@@ -244,14 +230,11 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         idempotentHint: true,
         openWorldHint: true,
       },
-    },
-    ({ anime_id }) =>
-      requireToken(async () => jsonResult(await mal.deleteMyAnimeListItem(anime_id))),
-  );
-
-  server.registerTool(
-    "delete_my_manga_list_item",
-    {
+      handler: ({ anime_id }) =>
+        requireToken(async () => jsonResult(await mal.deleteMyAnimeListItem(anime_id))),
+    }),
+    defineTool({
+      name: "delete_my_manga_list_item",
       title: "Remove manga from my list",
       description:
         "Remove a manga entry from the authenticated user's list. This cannot be undone. " +
@@ -268,8 +251,22 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         idempotentHint: true,
         openWorldHint: true,
       },
-    },
-    ({ manga_id }) =>
-      requireToken(async () => jsonResult(await mal.deleteMyMangaListItem(manga_id))),
-  );
+      handler: ({ manga_id }) =>
+        requireToken(async () => jsonResult(await mal.deleteMyMangaListItem(manga_id))),
+    }),
+  ];
+
+  for (const tool of tools) {
+    server.registerTool(
+      tool.name,
+      {
+        title: tool.title,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+        outputSchema: tool.outputSchema,
+        annotations: tool.annotations,
+      },
+      tool.handler,
+    );
+  }
 }
