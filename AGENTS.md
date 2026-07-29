@@ -45,7 +45,9 @@ src/
                   # e.g. for completable() autocomplete on recommend_similar's title
   __tests__/      # node:test (*.test.ts) + helpers.ts
 scripts/          # build-tests.mjs, run-tests.mjs, check-api.mjs, sync-version.mjs,
-                  # preversion-check.mjs (npm version gate — see skills/release/SKILL.md)
+                  # preversion-check.mjs (npm version gate — see skills/release/SKILL.md),
+                  # check-changelog-coverage.mjs (see docs-consistency-check skill),
+                  # check-chainable-optional-fields.mjs (see tool-description-check skill)
 skills/           # reusable agent workflows for this repo (e.g. live-audit/) —
                   # plain Markdown with a YAML frontmatter name/description,
                   # not tied to any one tool's orchestration features, per

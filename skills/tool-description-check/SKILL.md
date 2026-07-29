@@ -205,7 +205,16 @@ Purpose — double-check those two first on any new or edited tool.
   fixtures that were already silently wrong, unnoticed until the field
   became required. When reviewing a new or edited description, explicitly
   ask this question for every "obtain/use/chain" claim it makes, rather
-  than waiting for it to resurface a third time.
+  than waiting for it to resurface a third time. Run
+  `node scripts/check-chainable-optional-fields.mjs` for a heuristic first
+  pass — it greps descriptions for chainability-promise phrases, resolves
+  the tool's `outputSchema` (including one level into a nested `z.array()`
+  item schema, e.g. `get_seasons_list`'s `seasonEntrySchema`), and lists
+  every optional field for you to eyeball. It's not proof either way —
+  matching "does this prose promise chainability" is a judgment call the
+  script can't make — but it narrows the search instead of re-deriving it
+  from scratch, and it caught both the `mal_id` and `year` cases when
+  tested against their pre-fix state.
 
 ### Conciseness, title, and structure
 
