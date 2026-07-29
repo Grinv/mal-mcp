@@ -91,6 +91,15 @@ npm run check:api      # live upstream health-check (network)
   `ListStatusUpdateResponseSchema`) are deliberately `.passthrough()` instead —
   they validate raw upstream responses forwarded near-verbatim (MAL may extend
   them later). Don't unify the two styles.
+- `.optional()` in a raw `Raw*` input type (format.ts) is correct defensiveness —
+  JSON off the wire is never guaranteed. Don't let that same `.optional()` carry
+  through unexamined into the paired **output** schema in `format.schemas.ts`: if
+  any tool's description promises a field is chainable ("obtain the mal_id from
+  X," "pick a valid argument for Y"), that field must be required there, backed
+  by a test that feeds a fully-populated fixture through the shaper. See the
+  `tool-description-check` skill's "Reads — behavioral transparency" section for
+  the full rationale and the 2026-07-30 `mal_id`/`get_seasons_list` `year`
+  incidents that motivated it.
 - Known upstream gotcha ([typescript-sdk#2464](https://github.com/modelcontextprotocol/typescript-sdk/issues/2464),
   open as of 2026-07-29): the SDK's Zod-v4-to-JSON-Schema conversion mishandles
   three patterns — raw `z.date()` throws and crashes `tools/list` entirely; a

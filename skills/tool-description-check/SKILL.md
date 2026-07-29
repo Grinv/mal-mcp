@@ -181,6 +181,31 @@ Purpose — double-check those two first on any new or edited tool.
   50-role cap), ordering, and which nested fields a specific tool omits that
   a same-shaped sibling includes. This is the same rigor as `outputSchema`'s
   own `.describe()` text, not just the top-level description's prose.
+- **Any output field a description promises is chainable — "obtain the
+  mal_id from X," "use this to pick a valid argument for Y" — must be
+  `.strict()`-required (not `.optional()`) in `format.schemas.ts`, with a
+  test that feeds a fully-populated fixture through the shaper and asserts
+  the field survives.** `.optional()` is the correct default for a field's
+  _raw_ upstream type (JSON off the wire is never guaranteed), but that
+  defensiveness gets copy-pasted into the _output_ schema with zero
+  additional thought — nothing short-circuits it, since an optional field
+  silently going missing fails no type check, no `.strict()` check (that
+  only catches _extra_ keys), and usually no test either (shared/generic
+  test mocks tend to satisfy the simplest endpoints' flat fields while
+  quietly feeding the wrong shape to any endpoint that reads a nested
+  field — `.mal_id`, `.character.mal_id`, `.entry.mal_id` all look
+  identical to an assertion that only checks `isError !== true` and "the
+  array key exists"). Confirmed twice on 2026-07-30 in the same audit
+  pass: `mal_id` was `.optional()` in every entity schema except
+  anime/manga summaries despite being exactly what `get_character`/
+  `get_person`/`search_anime`'s `genres` param/etc. tell the caller to
+  chain elsewhere, and `get_seasons_list`'s `year` was `.optional()`
+  despite the tool's own description saying its whole purpose is handing
+  the caller a valid `get_seasonal_anime` argument — both had test
+  fixtures that were already silently wrong, unnoticed until the field
+  became required. When reviewing a new or edited description, explicitly
+  ask this question for every "obtain/use/chain" claim it makes, rather
+  than waiting for it to resurface a third time.
 
 ### Conciseness, title, and structure
 
