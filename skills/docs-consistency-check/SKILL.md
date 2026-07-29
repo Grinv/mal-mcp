@@ -36,3 +36,18 @@ Check every one of these, not just a sample:
   Jikan quirk or reliability data point, log it there with a date, the same
   way past passes have; don't let a fresh finding live only in this
   conversation's transcript.
+- `PRIVACY.md` and `SECURITY.md`: re-verify every specific claim against the
+  actual current code, don't just skim for plausibility — which credentials
+  exist and how each is transmitted/redacted (e.g. `src/lib/errors.ts`'s
+  `redact()` actually covering both `key=value` and JSON `"key":"value"`
+  shapes, and the `tokens.json` store's `0600`/`0700` permissions), what is
+  and isn't cached (incl. cache key/TTL — cross-check the "deliberately not
+  cached" list against `src/lib/cache.ts` call sites), the current list of
+  read-only vs. OAuth/write tools, and the host-allowlist statement (`config.ts`'s
+  Zod validation vs. an actual fixed allowlist — there isn't one). This class
+  of drift is easy to miss because it reads fine on its own and only breaks
+  against the code: a sibling repo's `SECURITY.md`/`PRIVACY.md` both claimed
+  "player-specific data is never cached" after a later feature added exactly
+  that caching, and a separate claim conflated an actually-cached field with
+  a similarly-named never-cached one — neither doc was self-evidently wrong,
+  both required re-reading the client code to catch.
