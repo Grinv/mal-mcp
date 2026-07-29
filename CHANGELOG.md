@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-07-29
+
 ### Added
 
 - Let a 2026-07-28-era MCP client cache `tools/list`, `prompts/list`, and `server/discover` for an hour instead of treating them as immediately stale ([14fc657](https://github.com/Grinv/mal-mcp/commit/14fc657)).
@@ -198,7 +200,8 @@ No user-facing changes — docs and release-process updates only.
 - Add in-memory TTL caching, polite Jikan rate limiting, and retries with backoff ([494d2c8](https://github.com/Grinv/mal-mcp/commit/494d2c8)).
 - Add `.mcpb` bundle packaging and `server.json` metadata for the MCP Registry ([494d2c8](https://github.com/Grinv/mal-mcp/commit/494d2c8)).
 
-[Unreleased]: https://github.com/Grinv/mal-mcp/compare/v0.7.3...HEAD
+[Unreleased]: https://github.com/Grinv/mal-mcp/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/Grinv/mal-mcp/compare/v0.7.3...v0.8.0
 [0.7.3]: https://github.com/Grinv/mal-mcp/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/Grinv/mal-mcp/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/Grinv/mal-mcp/compare/v0.7.0...v0.7.1
