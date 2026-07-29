@@ -18,6 +18,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Clarify that only `get_character`'s `voice_actors` carry a `mal_id`; `get_anime_characters`'s are names only ([1458de2](https://github.com/Grinv/mal-mcp/commit/1458de2)).
 - Cover the same-machine-but-busy-port case in `login_mal`'s description, not just remote/local ([1458de2](https://github.com/Grinv/mal-mcp/commit/1458de2)).
 - State `get_my_anime_list`'s sort direction for `list_score`, `list_updated_at`, and `anime_title` ([1458de2](https://github.com/Grinv/mal-mcp/commit/1458de2)).
+- Disclose that `broadcast` comes back empty during `search_anime`/`get_top_anime`/`get_seasonal_anime`/`get_upcoming_season`'s official-API fallback, matching the existing `themes`/`demographics` caveat ([b6cfc98](https://github.com/Grinv/mal-mcp/commit/b6cfc98)).
 
 ### Fixed
 
