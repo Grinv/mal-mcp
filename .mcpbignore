@@ -7,11 +7,25 @@ scripts/
 dist-tests/
 docs/
 coverage/
+notes/
+TODO.md
+
+# Agent/contributor tooling — dev-only, irrelevant to an installed extension.
+# .agents/skills and .claude/skills are symlinks to skills/; mcpb pack
+# resolves symlinks to real files, so without these the same skill docs were
+# shipping three times over.
+.claude/
+.agents/
+skills/
+AGENTS.md
+CLAUDE.md
 
 # Tooling / config
 tsconfig.json
 tsup.config.ts
 eslint.config.js
+.prettierrc.json
+.gitattributes
 .nvmrc
 .gitignore
 .mcpbignore
@@ -22,6 +36,12 @@ eslint.config.js
 # Tests & sourcemaps
 **/*.test.*
 **/*.map
+
+# Icon regeneration source (dev-only, needs Python/Pillow — not runtime
+# assets). manifest.json's icon field only needs assets/icon.png, which
+# stays included.
+assets/icon-source.svg
+assets/generate-icon.py
 
 # OS
 .DS_Store
