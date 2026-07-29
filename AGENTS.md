@@ -90,6 +90,23 @@ npm run check:api      # live upstream health-check (network)
   `ListStatusUpdateResponseSchema`) are deliberately `.passthrough()` instead —
   they validate raw upstream responses forwarded near-verbatim (MAL may extend
   them later). Don't unify the two styles.
+- Known upstream gotcha ([typescript-sdk#2464](https://github.com/modelcontextprotocol/typescript-sdk/issues/2464),
+  open as of 2026-07-29): the SDK's Zod-v4-to-JSON-Schema conversion mishandles
+  three patterns — raw `z.date()` throws and crashes `tools/list` entirely; a
+  `.default()` on an **output** schema field still lists it in the advertised
+  `required`, which the SDK's own client then uses to reject a response that
+  omitted it in reliance on the default; and a plain (neither `.strict()` nor
+  `.passthrough()`) **output** object gets `additionalProperties: false`
+  advertised even though a lenient `z.object()` actually tolerates extras at
+  parse time. None of these currently reproduce here — we use `z.iso.date()`
+  (a string schema) instead of `z.date()`, every `.default()` we use is on an
+  **input** field (confirmed unaffected: verified via both a raw
+  `z.toJSONSchema` call and a live `tools/list` round-trip that a defaulted
+  input field is correctly omitted from `required`), and every output schema
+  is consistently `.strict()` or `.passthrough()` per the rule above (no
+  lenient output object exists to trigger the third symptom). Re-check this
+  note before adding `z.date()` anywhere, or a `.default()` to any schema in
+  `format.schemas.ts`/`clients/mal.ts`.
 - Write tool `description`s and per-field `.describe()` text for the calling
   model: explain when to use a tool and what each parameter means. Check new
   or edited descriptions against the `tool-description-check` skill (Glama's
