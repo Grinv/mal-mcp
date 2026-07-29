@@ -7,8 +7,14 @@ description: Cut a release of mal-mcp — draft CHANGELOG entries, check docs/me
 
 `package.json` is the **single source of truth** for the version. The npm
 `version` lifecycle hook runs `scripts/sync-version.mjs`, which propagates it to
-`src/version.ts`, `manifest.json` and `server.json` (incl. the `.mcpb` release-asset
-URL); `version.test.ts` guards that they never drift.
+`src/version.ts`, `manifest.json`, `server.json` (incl. the `.mcpb` release-asset
+URL), **and `CHANGELOG.md`** — it renames `## [Unreleased]` to `## [<version>] -
+<date>` and reopens a fresh, empty `## [Unreleased]` above it, rolling the
+trailing compare-link block forward the same way; `version.test.ts` guards
+that the derived files never drift, and unit-tests the CHANGELOG rename
+directly (`renderChangelogRelease`). You do **not** need to rename the
+heading yourself — don't hand-edit it back to `[Unreleased]` after running
+`npm version`.
 
 A `preversion` hook (`scripts/preversion-check.mjs`) runs first — it's a
 presence-only safety net, not a substitute for actually running the skill
@@ -24,18 +30,30 @@ genuinely has no user-facing changes, e.g. a pure dependency bump.)
 don't rely on the `preversion` hook alone to catch a skipped one:
 
 1. Invoke the `changelog-style` skill against the commits since the last tag;
-   write/fix the `[Unreleased]` entries per its style rules.
+   write/fix the `[Unreleased]` entries per its style rules (heading rename
+   happens later, automatically — see above).
 2. Run the `docs-consistency-check` skill.
 3. Commit all of the above.
 4. `npm version <patch|minor|major>` — preversion gate, then bumps + syncs
-   every file + commits `"release: vX.Y.Z"` + tags `vX.Y.Z`.
+   every file (including the CHANGELOG rename) + commits `"release: vX.Y.Z"`
+   - tags `vX.Y.Z`.
 5. `git push --follow-tags` — pushing the tag triggers `.github/workflows/release.yml`.
+   **Verify the tag actually reached the remote**: `git ls-remote --tags origin | grep vX.Y.Z`.
+   `--follow-tags` only pushes **annotated** tags (`npm version`'s default) reachable
+   from what's being pushed — if you ever re-tag by hand (e.g. `git tag -f vX.Y.Z
+<commit>` to fix something before pushing), that recreates it as a lightweight
+   tag, which `--follow-tags` silently skips; push it explicitly instead
+   (`git push origin vX.Y.Z`) and re-verify with `git ls-remote`. (Confirmed
+   live 2026-07-29: a `git tag -f` without `-a` produced exactly this silent
+   no-op.)
 
 The tag push (`v*`) runs the **Release** workflow: `check:api` gate → build → test
 → pack `.mcpb` → GitHub Release → `npm publish` (OIDC trusted publishing, with
 provenance — no token) → **publish to the official MCP Registry** (`mcp-publisher`,
-GitHub OIDC). Never hand-edit the version in the derived files; bump `package.json`
-via `npm version` and let the hook sync the rest.
+GitHub OIDC). The workflow's CHANGELOG-extraction step fails loudly (not silently)
+if it can't find a `## [<version>]` section, as a backstop if the heading rename
+above is somehow bypassed. Never hand-edit the version in the derived files; bump
+`package.json` via `npm version` and let the hook sync the rest.
 
 ## MCP Registry
 

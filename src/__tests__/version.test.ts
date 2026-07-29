@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { VERSION } from "../version.js";
 import { CREDENTIAL_ENV_VARS } from "../config.js";
+import { renderChangelogRelease } from "../../scripts/sync-version.mjs";
 
 // Tests run from the dist-tests/ working directory; the repo root is one level up.
 const root = join(process.cwd(), "..");
@@ -90,4 +91,34 @@ test("manifest.json user_config and server.json environmentVariables match confi
         e.description.length <= 100,
         `${e.name} description is ${e.description.length} > 100`,
       );
+});
+
+// A 2026-07-29 incident shipped a release commit/tag with CHANGELOG.md's heading
+// still saying "Unreleased" (renaming it to the version was a manual step nobody
+// remembered), which would have produced an empty GitHub Release body — the
+// workflow's extraction step matches on `## [<version>]` verbatim. sync-version.mjs
+// now does this rename itself; these tests guard the pure string-transform it uses.
+test("renderChangelogRelease renames Unreleased, reopens it, and rolls the compare links forward", () => {
+  const fixture =
+    "## [Unreleased]\n\n### Fixed\n\n- Something ([abc1234](https://example.com)).\n\n" +
+    "## [0.7.3] - 2026-07-27\n\n### Fixed\n\n- Old thing.\n\n" +
+    "[Unreleased]: https://github.com/o/r/compare/v0.7.3...HEAD\n" +
+    "[0.7.3]: https://github.com/o/r/compare/v0.7.2...v0.7.3\n";
+
+  const out = renderChangelogRelease(fixture, "0.8.0", "2026-07-29");
+
+  assert.match(out, /## \[Unreleased\]\n\n## \[0\.8\.0\] - 2026-07-29\n/);
+  assert.match(out, /## \[0\.8\.0\][\s\S]*- Something/);
+  assert.match(out, /\[Unreleased\]: https:\/\/github\.com\/o\/r\/compare\/v0\.8\.0\.\.\.HEAD/);
+  assert.match(out, /\[0\.8\.0\]: https:\/\/github\.com\/o\/r\/compare\/v0\.7\.3\.\.\.v0\.8\.0/);
+  // The prior version's own link line is untouched.
+  assert.match(out, /\[0\.7\.3\]: https:\/\/github\.com\/o\/r\/compare\/v0\.7\.2\.\.\.v0\.7\.3/);
+});
+
+test("renderChangelogRelease throws if the Unreleased heading is already gone", () => {
+  assert.throws(() => renderChangelogRelease("## [0.8.0] - 2026-07-29\n", "0.9.0", "2026-08-01"));
+});
+
+test("renderChangelogRelease throws if the Unreleased compare-link line is missing", () => {
+  assert.throws(() => renderChangelogRelease("## [Unreleased]\n\n- x.\n", "0.8.0", "2026-07-29"));
 });

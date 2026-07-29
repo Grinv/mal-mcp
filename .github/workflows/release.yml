@@ -37,6 +37,15 @@ jobs:
             flag {print}
           ' CHANGELOG.md > RELEASE_NOTES.md
           echo "----- release notes for $VERSION -----"; cat RELEASE_NOTES.md
+          # Fail loudly instead of shipping an empty GitHub Release body — this
+          # exact failure happened on 2026-07-29: the tagged commit's CHANGELOG.md
+          # still said "## [Unreleased]" instead of "## [$VERSION]", so this awk
+          # matched nothing. sync-version.mjs now renames the heading itself, but
+          # this is the safety net for whatever slips past that.
+          if [ ! -s RELEASE_NOTES.md ] || ! grep -q '[^[:space:]]' RELEASE_NOTES.md; then
+            echo "::error::No CHANGELOG.md section found for '## [$VERSION]' — RELEASE_NOTES.md is empty. Check that CHANGELOG.md's heading was renamed from '## [Unreleased]'."
+            exit 1
+          fi
       - name: Create GitHub Release
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         with:
