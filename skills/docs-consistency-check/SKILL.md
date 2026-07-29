@@ -50,4 +50,8 @@ Check every one of these, not just a sample:
   "player-specific data is never cached" after a later feature added exactly
   that caching, and a separate claim conflated an actually-cached field with
   a similarly-named never-cached one — neither doc was self-evidently wrong,
-  both required re-reading the client code to catch.
+  both required re-reading the client code to catch. Also confirm every
+  root-level doc a README link points to (`PRIVACY.md`, `SECURITY.md`, …) is
+  actually in `package.json`'s `files` array — a new one added there without
+  updating `files` 404s on the npm tarball (bit `PRIVACY.md` once already,
+  then recurred for `SECURITY.md`).
