@@ -294,6 +294,11 @@ own account and token. Use is subject to the
 personal-list tools can read and change on your real MyAnimeList account),
 what it sends to Jikan/MyAnimeList, and what (if anything) it stores on disk.
 
+## Security
+
+See [SECURITY.md](SECURITY.md) for the read/write tool distinction, token
+storage, credential redaction, and how to report a vulnerability.
+
 ## License
 
 [MIT](LICENSE) © Grinv
