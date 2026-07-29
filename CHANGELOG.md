@@ -18,6 +18,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Fix a 404'ing Privacy Policy link on npm (`PRIVACY.md` was missing from the published files) and shrink the `.mcpb` bundle to runtime-only files ([4580a74](https://github.com/Grinv/mal-mcp/commit/4580a74), [8e513f6](https://github.com/Grinv/mal-mcp/commit/8e513f6)).
 - Fix the same 404 for the README's Security link (`SECURITY.md` was likewise missing from the published npm files).
 - Reject a shaped response missing `mal_id` for characters, people, producers, genres, recommendations, staff, and personal-list items, instead of silently shipping a record the caller can't chain into another tool ([900aa45](https://github.com/Grinv/mal-mcp/commit/900aa45)).
+- Reject a `get_seasons_list` entry missing `year`, instead of silently shipping one the caller can't pass to `get_seasonal_anime` ([acdf72d](https://github.com/Grinv/mal-mcp/commit/acdf72d)).
 
 ### Security
 
