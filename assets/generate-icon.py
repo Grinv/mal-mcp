@@ -25,41 +25,45 @@ SIZE = 512
 SCALE = 4  # supersample then downsample for anti-aliased edges (Pillow's
            # ImageDraw has no native AA)
 
-# Bookmark/tag silhouette: a "saved to your list" glyph — an original shape
-# (not MyAnimeList's own logo mark), colored in MAL's real brand blue.
-# Geometry matches icon-source.svg's <path> 1:1.
-LEFT, TOP, RIGHT, BOTTOM = 144, 96, 368, 416
-RADIUS = 34  # top corners only; bottom corners stay sharp (the bookmark's two legs)
-NOTCH_APEX = (256, 340)  # the V cut into the bottom edge
+# Generic "kawaii creature" head: round face + two round ears + simple dot
+# eyes. Deliberately generic (no belly markings, no whiskers, no
+# character-specific ear shape) — evokes anime-mascot cuteness in general,
+# not any one copyrighted character. Geometry matches icon-source.svg 1:1.
+HEAD_CENTER = (256, 300)
+HEAD_R = 148
+EAR_CENTERS = [(158, 178), (354, 178)]
+EAR_R = 70
+EYE_CENTERS = [(206, 290), (306, 290)]
+EYE_R = 20
 
 # MAL's own brand blue, pulled directly from MyAnimeList's official favicon.svg
 # (cdn.myanimelist.net/images/favicon.svg, fill class .st1) and cross-checked
 # against a pixel sample of apple-touch-icon-256.png (46,81,162 — same color,
 # PNG-palette rounding) — verified live 2026-07-29, not guessed from memory.
 MAL_BLUE = (0x2F, 0x52, 0xA2)
+WHITE = (0xFF, 0xFF, 0xFF)
 
 
 def main():
     w = h = SIZE * SCALE
-    left, top, right, bottom = (v * SCALE for v in (LEFT, TOP, RIGHT, BOTTOM))
-    radius = RADIUS * SCALE
-    apex = (NOTCH_APEX[0] * SCALE, NOTCH_APEX[1] * SCALE)
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
 
-    mask = Image.new("L", (w, h), 0)
-    d = ImageDraw.Draw(mask)
-    # Rounded top corners, sharp bottom corners.
-    d.rounded_rectangle(
-        [left, top, right, bottom], radius=radius, fill=255, corners=(True, True, False, False)
-    )
-    # Punch the V-notch out of the bottom edge, from corner to corner, leaving
-    # the two pointed "legs" — the classic bookmark silhouette.
-    d.polygon([(left, bottom), apex, (right, bottom)], fill=0)
+    for cx, cy in EAR_CENTERS:
+        cx, cy = cx * SCALE, cy * SCALE
+        r = EAR_R * SCALE
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(*MAL_BLUE, 255))
 
-    big = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    solid = Image.new("RGB", (w, h), MAL_BLUE)
-    big.paste(solid, (0, 0), mask)
+    hx, hy = HEAD_CENTER[0] * SCALE, HEAD_CENTER[1] * SCALE
+    hr = HEAD_R * SCALE
+    d.ellipse([hx - hr, hy - hr, hx + hr, hy + hr], fill=(*MAL_BLUE, 255))
 
-    out = big.resize((SIZE, SIZE), Image.LANCZOS)
+    er = EYE_R * SCALE
+    for ex, ey in EYE_CENTERS:
+        ex, ey = ex * SCALE, ey * SCALE
+        d.ellipse([ex - er, ey - er, ex + er, ey + er], fill=(*WHITE, 255))
+
+    out = img.resize((SIZE, SIZE), Image.LANCZOS)
     out.save(OUT)
     print(f"wrote {OUT} ({out.size[0]}x{out.size[1]}, mode={out.mode})")
 
