@@ -19,7 +19,10 @@ test("search_anime tool returns structured results end-to-end", async (t) => {
 });
 
 test("new read tools are wired and return structured content end-to-end", async (t) => {
-  // A generic list payload satisfies every list-shaped endpoint these tools hit.
+  // A generic list payload satisfies every list-shaped endpoint these tools hit — except
+  // get_manga_characters/get_anime_staff/get_manga_recommendations, which read a nested
+  // character/person/entry.mal_id (see the dedicated test below) rather than this shape's flat
+  // mal_id.
   const mock = mockFetch(() =>
     jsonResponse({ data: [{ mal_id: 1, name: "Action", title: "T" }], pagination: {} }),
   );
@@ -30,12 +33,9 @@ test("new read tools are wired and return structured content end-to-end", async 
     ["get_anime_genres", {}, "genres"],
     ["get_manga_genres", { filter: "themes" }, "genres"],
     ["get_anime_episodes", { id: 1 }, "episodes"],
-    ["get_manga_characters", { id: 1 }, "characters"],
-    ["get_manga_recommendations", { id: 1 }, "recommendations"],
     ["get_manga_reviews", { id: 1 }, "reviews"],
     ["search_characters", { q: "spike" }, "results"],
     ["search_people", { q: "ito" }, "results"],
-    ["get_anime_staff", { id: 1 }, "staff"],
     ["get_producers", {}, "results"],
     ["get_top_characters", {}, "results"],
     ["get_upcoming_season", {}, "results"],
@@ -50,6 +50,44 @@ test("new read tools are wired and return structured content end-to-end", async 
       `${name} missing ${key}`,
     );
   }
+});
+
+test("get_manga_characters/get_anime_staff/get_manga_recommendations return structured content with their real nested shape", async (t) => {
+  const mock = mockFetch((url) => {
+    if (url.includes("/characters")) {
+      return jsonResponse({
+        data: [{ character: { mal_id: 1, name: "Spike", url: "u" }, role: "Main" }],
+      });
+    }
+    if (url.includes("/recommendations")) {
+      return jsonResponse({
+        data: [{ entry: { mal_id: 3, title: "Berserk", url: "u" }, votes: 5 }],
+      });
+    }
+    return jsonResponse({
+      data: [{ person: { mal_id: 2, name: "Watanabe", url: "u" }, positions: ["Director"] }],
+    });
+  });
+  installFetch(t, mock);
+  const { client, close } = await connectServer({ JIKAN_MIN_INTERVAL_MS: "0", CACHE_TTL_MS: "0" });
+  t.after(close);
+
+  const characters = await client.callTool({ name: "get_manga_characters", arguments: { id: 1 } });
+  assert.notEqual(characters.isError, true);
+  const characterList = (characters.structuredContent as { characters: { mal_id: number }[] })
+    .characters;
+  assert.equal(characterList[0]!.mal_id, 1);
+
+  const staff = await client.callTool({ name: "get_anime_staff", arguments: { id: 1 } });
+  assert.notEqual(staff.isError, true);
+  const staffList = (staff.structuredContent as { staff: { mal_id: number }[] }).staff;
+  assert.equal(staffList[0]!.mal_id, 2);
+
+  const recs = await client.callTool({ name: "get_manga_recommendations", arguments: { id: 1 } });
+  assert.notEqual(recs.isError, true);
+  const recsList = (recs.structuredContent as { recommendations: { mal_id: number }[] })
+    .recommendations;
+  assert.equal(recsList[0]!.mal_id, 3);
 });
 
 test("personal-list tool without a token returns an actionable error", async (t) => {
