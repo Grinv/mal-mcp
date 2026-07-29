@@ -49,6 +49,10 @@ function routedResponse(url: string): Response {
     body = { data: { username: "bob", url: "u", joined: "2010", statistics: {} } };
   } else if (url.includes("/full")) {
     body = { data: { mal_id: 1, title: "Detail" } };
+  } else if (/\/seasons(\?|$)/.test(url)) {
+    // The bare seasons-list endpoint (distinct from /seasons/{year}/{season} and /seasons/now,
+    // which return the generic list shape below and don't hit this branch).
+    body = { data: [{ year: 2024, seasons: ["winter", "spring"] }] };
   } else {
     body = { data: [{ mal_id: 1, title: "Item" }], pagination: { current_page: 1 } };
   }
@@ -109,6 +113,7 @@ test("Tier 1-3 methods hit their endpoints and shape the response", async (t) =>
     if (/\/statistics$/.test(url)) return obj({ watching: 5, completed: 10, total: 15 });
     if (/\/full$/.test(url)) return obj({ mal_id: 1, name: "X", anime: [], manga: [], voices: [] });
     if (/\/random\//.test(url)) return obj({ mal_id: 1, title: "T" });
+    if (/\/seasons(\?|$)/.test(url)) return obj([{ year: 2024, seasons: ["winter", "spring"] }]);
     return new Response(
       JSON.stringify({
         data: [{ mal_id: 1, name: "X", title: "T", person: { mal_id: 2, name: "P" } }],

@@ -396,9 +396,10 @@ export const producerSchema = z
 
 // ---- summarizeSeasonsList -----------------------------------------------------------
 
-const seasonEntrySchema = z
-  .object({ year: z.number().optional(), seasons: z.array(z.string()) })
-  .strict();
+// year required — get_seasons_list's own description says its whole purpose is picking a
+// valid `year` argument for get_seasonal_anime; an entry missing it can't serve that purpose.
+// Same reasoning as mal_id in the entity schemas above.
+const seasonEntrySchema = z.object({ year: z.number(), seasons: z.array(z.string()) }).strict();
 
 export const seasonsListSchema = z.object({ seasons: z.array(seasonEntrySchema) }).strict();
 

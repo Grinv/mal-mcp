@@ -20,9 +20,9 @@ test("search_anime tool returns structured results end-to-end", async (t) => {
 
 test("new read tools are wired and return structured content end-to-end", async (t) => {
   // A generic list payload satisfies every list-shaped endpoint these tools hit — except
-  // get_manga_characters/get_anime_staff/get_manga_recommendations, which read a nested
-  // character/person/entry.mal_id (see the dedicated test below) rather than this shape's flat
-  // mal_id.
+  // get_manga_characters/get_anime_staff/get_manga_recommendations/get_seasons_list, which read
+  // a nested character/person/entry.mal_id or a year (see the dedicated test below) rather than
+  // this shape's flat mal_id.
   const mock = mockFetch(() =>
     jsonResponse({ data: [{ mal_id: 1, name: "Action", title: "T" }], pagination: {} }),
   );
@@ -39,7 +39,6 @@ test("new read tools are wired and return structured content end-to-end", async 
     ["get_producers", {}, "results"],
     ["get_top_characters", {}, "results"],
     ["get_upcoming_season", {}, "results"],
-    ["get_seasons_list", {}, "seasons"],
     ["get_anime_news", { id: 1 }, "results"],
   ];
   for (const [name, args, key] of cases) {
@@ -52,7 +51,7 @@ test("new read tools are wired and return structured content end-to-end", async 
   }
 });
 
-test("get_manga_characters/get_anime_staff/get_manga_recommendations return structured content with their real nested shape", async (t) => {
+test("get_manga_characters/get_anime_staff/get_manga_recommendations/get_seasons_list return structured content with their real nested shape", async (t) => {
   const mock = mockFetch((url) => {
     if (url.includes("/characters")) {
       return jsonResponse({
@@ -63,6 +62,9 @@ test("get_manga_characters/get_anime_staff/get_manga_recommendations return stru
       return jsonResponse({
         data: [{ entry: { mal_id: 3, title: "Berserk", url: "u" }, votes: 5 }],
       });
+    }
+    if (/\/seasons(\?|$)/.test(url)) {
+      return jsonResponse({ data: [{ year: 2024, seasons: ["winter", "spring"] }] });
     }
     return jsonResponse({
       data: [{ person: { mal_id: 2, name: "Watanabe", url: "u" }, positions: ["Director"] }],
@@ -82,6 +84,11 @@ test("get_manga_characters/get_anime_staff/get_manga_recommendations return stru
   assert.notEqual(staff.isError, true);
   const staffList = (staff.structuredContent as { staff: { mal_id: number }[] }).staff;
   assert.equal(staffList[0]!.mal_id, 2);
+
+  const seasons = await client.callTool({ name: "get_seasons_list", arguments: {} });
+  assert.notEqual(seasons.isError, true);
+  const seasonsList = (seasons.structuredContent as { seasons: { year: number }[] }).seasons;
+  assert.equal(seasonsList[0]!.year, 2024);
 
   const recs = await client.callTool({ name: "get_manga_recommendations", arguments: { id: 1 } });
   assert.notEqual(recs.isError, true);
