@@ -158,6 +158,12 @@ export interface OfficialAnimeNode {
   nsfw?: string | null;
 }
 
+// The single source of truth for which animeSummarySchema fields this fallback can never
+// populate — read.ts's tool descriptions render this list instead of hardcoding it, and
+// formatOfficial.test.ts asserts summarizeOfficialAnime actually leaves exactly these fields
+// (and no others) empty against a fully-populated node, so the two can't drift apart silently.
+export const ANIME_LIST_FALLBACK_GAPS = ["themes", "demographics", "broadcast"] as const;
+
 export function summarizeOfficialAnime(
   n: OfficialAnimeNode,
 ): ReturnType<typeof projectAnimeSummary> {
@@ -191,9 +197,19 @@ export function summarizeOfficialAnime(
 
 // Detail-mode fallback for get_anime: the official API covers most of Jikan's `detailed: true`
 // extras (title_japanese, source, duration, broadcast, background, relations, scored_by), but
-// producers/licensors/streaming/opening+ending themes/trailer/favorites have no official-API
-// equivalent at all and are simply absent during a fallback — a degraded-mode trade-off, same
-// spirit as the search/season fallback's dropped filters.
+// these have no official-API equivalent at all and are simply absent during a fallback — a
+// degraded-mode trade-off, same spirit as the search/season fallback's dropped filters. See
+// ANIME_LIST_FALLBACK_GAPS above for how this list stays honest against the real function.
+export const ANIME_DETAIL_FALLBACK_GAPS = [
+  "producers",
+  "licensors",
+  "streaming",
+  "opening_themes",
+  "ending_themes",
+  "trailer",
+  "favorites",
+] as const;
+
 export function summarizeOfficialAnimeDetailed(
   n: OfficialAnimeNode,
 ): z.infer<typeof animeDetailSchema> {
@@ -280,7 +296,10 @@ export interface OfficialAnimeStatistics {
 }
 
 // Covers Jikan's watch-status counts, but the official API has no score-distribution histogram
-// at all — `scores` is simply absent during this fallback, not approximated.
+// at all — `scores` is simply absent during this fallback, not approximated. See
+// ANIME_LIST_FALLBACK_GAPS above for how this list stays honest against the real function.
+export const ANIME_STATISTICS_FALLBACK_GAPS = ["scores"] as const;
+
 export function summarizeOfficialAnimeStatistics(
   s: OfficialAnimeStatistics | undefined,
 ): z.infer<typeof statisticsSchema> {
@@ -297,6 +316,9 @@ export function summarizeOfficialAnimeStatistics(
     }),
   );
 }
+
+// See ANIME_LIST_FALLBACK_GAPS above for how this list stays honest against the real function.
+export const MANGA_LIST_FALLBACK_GAPS = ["themes", "demographics"] as const;
 
 export function summarizeOfficialManga(
   n: OfficialMangaNode,
@@ -329,6 +351,8 @@ export function summarizeOfficialManga(
 
 // Detail-mode fallback for get_manga — see summarizeOfficialAnimeDetailed's comment for the
 // scope of what the official API can and can't reproduce from Jikan's `detailed: true` output.
+export const MANGA_DETAIL_FALLBACK_GAPS = ["favorites"] as const;
+
 export function summarizeOfficialMangaDetailed(
   n: OfficialMangaNode,
 ): z.infer<typeof mangaDetailSchema> {
