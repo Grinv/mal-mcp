@@ -60,7 +60,8 @@ don't rely on the `preversion` hook alone to catch a skipped one:
 The tag push (`v*`) runs the **Release** workflow: `check:api` gate → build → test
 → pack `.mcpb` → GitHub Release → `npm publish` (OIDC trusted publishing, with
 provenance — no token) → **publish to the official MCP Registry** (`mcp-publisher`,
-GitHub OIDC). The workflow's CHANGELOG-extraction step fails loudly (not silently)
+GitHub OIDC; the binary is pinned to an exact version + verified SHA-256 rather
+than `latest`). The workflow's CHANGELOG-extraction step fails loudly (not silently)
 if it can't find a `## [<version>]` section, as a backstop if the heading rename
 above is somehow bypassed. The `npm publish` step is itself pinned to an exact
 verified-good npm version — no token — and is skipped without failing the job
