@@ -6,6 +6,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Upgrade `@modelcontextprotocol/server`/`client` from the `2.0.0-beta.5` prerelease to the stable `2.0.0` release, and pin both to an exact version ([0341418](https://github.com/Grinv/mal-mcp/commit/0341418)).
+
+## [0.7.3] - 2026-07-27
+
 ### Fixed
 
 - Fix `get_anime_episodes` crashing with an unhelpful error, and skipping retry/fallback, when Jikan reports its own failure inside an HTTP 200 response ([4d253e9](https://github.com/Grinv/mal-mcp/commit/4d253e9)).
