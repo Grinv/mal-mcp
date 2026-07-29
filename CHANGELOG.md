@@ -16,9 +16,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- Reject unknown/misspelled tool parameters instead of silently dropping them — every `inputSchema` is now `.strict()`, so a typo no longer passes validation and, on a mutation tool, can no longer be paired with a real field to mutate the account unexpectedly ([b078608](https://github.com/Grinv/mal-mcp/commit/b078608)).
+- Reject unknown/misspelled tool parameters instead of silently accepting them — on a mutation tool, this previously let a typo'd field ride along with a real one and apply unintentionally ([b078608](https://github.com/Grinv/mal-mcp/commit/b078608)).
 - Validate `search_anime`/`search_manga`'s `genres` parameter against its documented comma-separated-digits format instead of accepting any string and failing confusingly against the upstream API ([943f127](https://github.com/Grinv/mal-mcp/commit/943f127)).
-- Trim whitespace-only search queries and usernames before validating, default `get_anime_reviews`/`get_manga_reviews`/`get_anime_schedule`'s `limit` in-schema instead of in code, and validate `start_date`/`finish_date` against the real calendar instead of just the `YYYY-MM-DD` shape ([bf8f2cf](https://github.com/Grinv/mal-mcp/commit/bf8f2cf)).
+- Reject whitespace-only search queries and usernames instead of sending them to the upstream API ([bf8f2cf](https://github.com/Grinv/mal-mcp/commit/bf8f2cf)).
+- Advertise `get_anime_reviews`/`get_manga_reviews`'s default `limit` of 5 and `get_anime_schedule`'s default of 25 in the tool's own schema, so clients that read it directly (not just the description) see the default ([bf8f2cf](https://github.com/Grinv/mal-mcp/commit/bf8f2cf)).
+- Reject calendar-invalid `start_date`/`finish_date` values (e.g. `2024-02-30`) instead of only checking the `YYYY-MM-DD` shape ([bf8f2cf](https://github.com/Grinv/mal-mcp/commit/bf8f2cf)).
 
 ## [0.7.3] - 2026-07-27
 
@@ -181,7 +183,15 @@ No user-facing changes — docs and release-process updates only.
 - Add in-memory TTL caching, polite Jikan rate limiting, and retries with backoff ([494d2c8](https://github.com/Grinv/mal-mcp/commit/494d2c8)).
 - Add `.mcpb` bundle packaging and `server.json` metadata for the MCP Registry ([494d2c8](https://github.com/Grinv/mal-mcp/commit/494d2c8)).
 
-[Unreleased]: https://github.com/Grinv/mal-mcp/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Grinv/mal-mcp/compare/v0.7.3...HEAD
+[0.7.3]: https://github.com/Grinv/mal-mcp/compare/v0.7.2...v0.7.3
+[0.7.2]: https://github.com/Grinv/mal-mcp/compare/v0.7.1...v0.7.2
+[0.7.1]: https://github.com/Grinv/mal-mcp/compare/v0.7.0...v0.7.1
+[0.7.0]: https://github.com/Grinv/mal-mcp/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/Grinv/mal-mcp/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/Grinv/mal-mcp/compare/v0.4.1...v0.5.0
+[0.4.1]: https://github.com/Grinv/mal-mcp/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/Grinv/mal-mcp/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Grinv/mal-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Grinv/mal-mcp/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/Grinv/mal-mcp/compare/v0.1.1...v0.1.2
