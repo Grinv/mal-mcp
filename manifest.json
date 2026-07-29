@@ -226,14 +226,14 @@
     "mal_client_id": {
       "type": "string",
       "title": "MyAnimeList Client ID",
-      "description": "Optional. Makes 11 read tools more resilient (no login needed). Also required for personal-list tools — run login_mal after setting this. Register an app of type 'other' at myanimelist.net/apiconfig. See docs/auth.md.",
+      "description": "Optional. Makes 11 read tools more resilient (no login needed). Also required for personal-list tools — run login_mal after setting this. Register an app of type 'other' at myanimelist.net/apiconfig. See https://github.com/Grinv/mal-mcp/blob/main/docs/auth.md.",
       "required": false,
       "sensitive": true
     },
     "mal_refresh_token": {
       "type": "string",
       "title": "MyAnimeList Refresh Token (advanced)",
-      "description": "Optional. Pre-supply a refresh token instead of running login_mal; enables silent auto-refresh. From the OAuth in docs/auth.md.",
+      "description": "Optional. Pre-supply a refresh token instead of running login_mal; enables silent auto-refresh. From the OAuth in https://github.com/Grinv/mal-mcp/blob/main/docs/auth.md.",
       "required": false,
       "sensitive": true
     },

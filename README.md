@@ -153,8 +153,8 @@ error until you log in. To enable them, set `MAL_CLIENT_ID` and run the
 **`login_mal`** tool once (a one-time browser authorization; the token is then
 stored and refreshed automatically). The server does not read a `.env` file, so
 pass config via this `env` block (or your shell environment). See
-[docs/auth.md](docs/auth.md) for the full login walkthrough and
-[docs/clients.md](docs/clients.md) for more clients.
+[docs/auth.md](https://github.com/Grinv/mal-mcp/blob/main/docs/auth.md) for the full login walkthrough and
+[docs/clients.md](https://github.com/Grinv/mal-mcp/blob/main/docs/clients.md) for more clients.
 
 ## Connect your MyAnimeList account (for the personal-list tools)
 
@@ -208,7 +208,7 @@ and refreshed automatically from now on — you won't need to log in again.
 
 > **Prefer no interactive step?** You can instead pre-set `MAL_REFRESH_TOKEN`
 > (with `MAL_CLIENT_ID`) or a standalone `MAL_ACCESS_TOKEN`. See
-> [docs/auth.md](docs/auth.md) for how to obtain them by hand.
+> [docs/auth.md](https://github.com/Grinv/mal-mcp/blob/main/docs/auth.md) for how to obtain them by hand.
 
 ## Configuration
 
@@ -217,11 +217,11 @@ the read tools still work. For the personal-list tools, set `MAL_CLIENT_ID` and 
 the `login_mal` tool once; the access token is then fetched and refreshed
 automatically. (mal-mcp is a public PKCE client — there is **no client secret**.)
 
-| Variable            | Purpose                                                                                                                                                                                            |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MAL_CLIENT_ID`     | Your MyAnimeList Client ID — see [Connect your MyAnimeList account](#connect-your-myanimelist-account-for-the-personal-list-tools) for how to get one (it's free, ~2 minutes, no coding involved). |
-| `MAL_REFRESH_TOKEN` | _Advanced, optional._ Skips the interactive `login_mal` step by pre-supplying a token directly. Most people won't need this — see [docs/auth.md](docs/auth.md) if you do.                          |
-| `MAL_ACCESS_TOKEN`  | _Advanced, optional._ A standalone token that works ~30 days without refreshing. See [docs/auth.md](docs/auth.md).                                                                                 |
+| Variable            | Purpose                                                                                                                                                                                                              |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MAL_CLIENT_ID`     | Your MyAnimeList Client ID — see [Connect your MyAnimeList account](#connect-your-myanimelist-account-for-the-personal-list-tools) for how to get one (it's free, ~2 minutes, no coding involved).                   |
+| `MAL_REFRESH_TOKEN` | _Advanced, optional._ Skips the interactive `login_mal` step by pre-supplying a token directly. Most people won't need this — see [docs/auth.md](https://github.com/Grinv/mal-mcp/blob/main/docs/auth.md) if you do. |
+| `MAL_ACCESS_TOKEN`  | _Advanced, optional._ A standalone token that works ~30 days without refreshing. See [docs/auth.md](https://github.com/Grinv/mal-mcp/blob/main/docs/auth.md).                                                        |
 
 ### Tuning (rarely needed)
 
@@ -240,9 +240,9 @@ token.
 | `JIKAN_BASE_URL`, `MAL_BASE_URL`, `MAL_OAUTH_BASE_URL` | Override upstream base URLs (e.g. a self-hosted Jikan instance).                                                                                                                                                                                                        |
 
 Provide these in your MCP client config's `env` block (the server does **not**
-read a `.env` file). See [docs/auth.md](docs/auth.md) for how to obtain the
+read a `.env` file). See [docs/auth.md](https://github.com/Grinv/mal-mcp/blob/main/docs/auth.md) for how to obtain the
 credentials, and
-[docs/clients.md](docs/clients.md) for client configuration snippets.
+[docs/clients.md](https://github.com/Grinv/mal-mcp/blob/main/docs/clients.md) for client configuration snippets.
 
 ## NSFW content
 
