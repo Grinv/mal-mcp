@@ -18,13 +18,23 @@ heading yourself — don't hand-edit it back to `[Unreleased]` after running
 
 A `preversion` hook (`scripts/preversion-check.mjs`) runs first — it's a
 presence-only safety net, not a substitute for actually running the skill
-below as a real judgment step. It blocks `npm version` if `CHANGELOG.md`'s
-`[Unreleased]` section is empty: run the `changelog-style` skill against the
-commits since the last tag first — it's what actually makes the entries
-short, self-describing, free of implementation detail, and linked to their
-commits; the hook only confirms _something_ is there, not that it follows
-that style. (Or re-run with `CONFIRM_EMPTY_CHANGELOG=1` if this release
-genuinely has no user-facing changes, e.g. a pure dependency bump.)
+below as a real judgment step. It runs two checks, in order:
+
+- **Unpushed-tag race**: if the current `package.json` version already has a
+  local git tag, it blocks unless that tag is also on `origin` — this is the
+  exact race that once orphaned a version in a sibling repo (`npm version`
+  run twice within minutes, the first tag/commit never pushed, silently
+  buried under the second). Push the dangling tag (`git push origin
+vX.Y.Z`) or delete it if it was a mistake (`git tag -d vX.Y.Z`), then
+  retry.
+- **Empty changelog**: it blocks `npm version` if `CHANGELOG.md`'s
+  `[Unreleased]` section is empty: run the `changelog-style` skill against
+  the commits since the last tag first — it's what actually makes the
+  entries short, self-describing, free of implementation detail, and linked
+  to their commits; the hook only confirms _something_ is there, not that it
+  follows that style. (Or re-run with `CONFIRM_EMPTY_CHANGELOG=1` if this
+  release genuinely has no user-facing changes, e.g. a pure dependency
+  bump.)
 
 **When invoked as this skill**, run these as explicit steps, not optional —
 don't rely on the `preversion` hook alone to catch a skipped one:
@@ -52,7 +62,12 @@ The tag push (`v*`) runs the **Release** workflow: `check:api` gate → build �
 provenance — no token) → **publish to the official MCP Registry** (`mcp-publisher`,
 GitHub OIDC). The workflow's CHANGELOG-extraction step fails loudly (not silently)
 if it can't find a `## [<version>]` section, as a backstop if the heading rename
-above is somehow bypassed. Never hand-edit the version in the derived files; bump
+above is somehow bypassed. The `npm publish` step is itself pinned to an exact
+verified-good npm version — no token — and is skipped without failing the job
+if this version is already on npm, so a re-run after a partial failure doesn't
+abort. The `.mcpb` SHA-256 injection into `server.json` likewise fails loudly if
+the injection didn't actually match a package, instead of silently leaving a
+stale hash. Never hand-edit the version in the derived files; bump
 `package.json` via `npm version` and let the hook sync the rest.
 
 ## MCP Registry
