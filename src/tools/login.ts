@@ -40,7 +40,7 @@ export function registerLoginTools(server: McpServer, mal: MalClient): void {
         "an authorization URL: open it, log in, and click Allow. If your browser is on the " +
         "same machine as the server, login completes automatically; if it's remote (SSH/" +
         "headless), copy the URL you land on and pass it to submit_mal_redirect.",
-      inputSchema: {},
+      inputSchema: z.object({}).strict(),
       outputSchema: startLoginResultSchema,
       annotations: { readOnlyHint: false, openWorldHint: true },
     },
@@ -73,12 +73,14 @@ export function registerLoginTools(server: McpServer, mal: MalClient): void {
         "redirected to after clicking Allow (the one containing ?code=...). Use this when " +
         "login didn't complete automatically — e.g. the server runs on a remote/headless host. " +
         "A bare code string is also accepted.",
-      inputSchema: {
-        redirect_url: z
-          .string()
-          .min(1)
-          .describe("The full redirected URL (contains ?code=...), or just the code value."),
-      },
+      inputSchema: z
+        .object({
+          redirect_url: z
+            .string()
+            .min(1)
+            .describe("The full redirected URL (contains ?code=...), or just the code value."),
+        })
+        .strict(),
       outputSchema: submitRedirectResultSchema,
       annotations: { readOnlyHint: false, openWorldHint: true },
     },

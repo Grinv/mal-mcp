@@ -126,6 +126,33 @@ test("update_my_anime_status/update_my_manga_status reject a bare id with no oth
   assert.equal(mock.calls.length, 0);
 });
 
+test("unknown/misspelled parameters are rejected, not silently dropped", async (t) => {
+  const mock = mockFetch(() =>
+    jsonResponse({ data: [{ mal_id: 1, title: "Bebop", score: 8.7 }], pagination: {} }),
+  );
+  installFetch(t, mock);
+  const { client, close } = await connectServer({ MAL_ACCESS_TOKEN: "tok" });
+  t.after(close);
+
+  // A typo'd param on a read tool must error, not be silently ignored.
+  const read = await client.callTool({
+    name: "search_anime",
+    arguments: { q: "bebop", paeg: 2 },
+  });
+  assert.equal(read.isError, true);
+  assert.equal(mock.calls.length, 0);
+
+  // The exact shape that caused a live incident during this audit: a bogus
+  // field alongside a real one on a mutation tool must reject the whole call
+  // rather than silently drop the bogus field and apply the real one.
+  const mutate = await client.callTool({
+    name: "update_my_anime_status",
+    arguments: { anime_id: 1, status: "watching", bogus_field: "x" },
+  });
+  assert.equal(mutate.isError, true);
+  assert.equal(mock.calls.length, 0);
+});
+
 test("the server advertises all expected tools", async (t) => {
   const { client, close } = await connectServer({});
   t.after(close);

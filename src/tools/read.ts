@@ -73,34 +73,36 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "unrelated anime instead of an empty result (a quirk of the official search endpoint " +
         "itself, not a mal-mcp bug; don't treat a nonsense-query result as a real match during " +
         "a fallback).",
-      inputSchema: {
-        q: z.string().min(1).describe("Search query, e.g. an anime title."),
-        type: animeType.optional(),
-        status: animeStatus.optional(),
-        genres: z
-          .string()
-          .describe(
-            "Comma-separated Jikan genre IDs, e.g. '1,4'. Look up the IDs with get_anime_genres.",
-          )
-          .optional(),
-        order_by: z
-          .enum([
-            "title",
-            "start_date",
-            "score",
-            "rank",
-            "popularity",
-            "members",
-            "favorites",
-            "episodes",
-          ])
-          .describe("Field to order by.")
-          .optional(),
-        sort: sortDir.optional(),
-        sfw: sfw.optional(),
-        limit: limit.optional(),
-        page: page.optional(),
-      },
+      inputSchema: z
+        .object({
+          q: z.string().min(1).describe("Search query, e.g. an anime title."),
+          type: animeType.optional(),
+          status: animeStatus.optional(),
+          genres: z
+            .string()
+            .describe(
+              "Comma-separated Jikan genre IDs, e.g. '1,4'. Look up the IDs with get_anime_genres.",
+            )
+            .optional(),
+          order_by: z
+            .enum([
+              "title",
+              "start_date",
+              "score",
+              "rank",
+              "popularity",
+              "members",
+              "favorites",
+              "episodes",
+            ])
+            .describe("Field to order by.")
+            .optional(),
+          sort: sortDir.optional(),
+          sfw: sfw.optional(),
+          limit: limit.optional(),
+          page: page.optional(),
+        })
+        .strict(),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
     },
@@ -122,35 +124,37 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "unrelated manga instead of an empty result (a quirk of the official search endpoint " +
         "itself, not a mal-mcp bug; don't treat a nonsense-query result as a real match during " +
         "a fallback).",
-      inputSchema: {
-        q: z.string().min(1).describe("Search query, e.g. a manga title."),
-        type: mangaType.optional(),
-        status: mangaStatus.optional(),
-        genres: z
-          .string()
-          .describe(
-            "Comma-separated Jikan genre IDs, e.g. '1,4'. Look up the IDs with get_manga_genres.",
-          )
-          .optional(),
-        order_by: z
-          .enum([
-            "title",
-            "start_date",
-            "score",
-            "rank",
-            "popularity",
-            "members",
-            "favorites",
-            "chapters",
-            "volumes",
-          ])
-          .describe("Field to order by.")
-          .optional(),
-        sort: sortDir.optional(),
-        sfw: sfw.optional(),
-        limit: limit.optional(),
-        page: page.optional(),
-      },
+      inputSchema: z
+        .object({
+          q: z.string().min(1).describe("Search query, e.g. a manga title."),
+          type: mangaType.optional(),
+          status: mangaStatus.optional(),
+          genres: z
+            .string()
+            .describe(
+              "Comma-separated Jikan genre IDs, e.g. '1,4'. Look up the IDs with get_manga_genres.",
+            )
+            .optional(),
+          order_by: z
+            .enum([
+              "title",
+              "start_date",
+              "score",
+              "rank",
+              "popularity",
+              "members",
+              "favorites",
+              "chapters",
+              "volumes",
+            ])
+            .describe("Field to order by.")
+            .optional(),
+          sort: sortDir.optional(),
+          sfw: sfw.optional(),
+          limit: limit.optional(),
+          page: page.optional(),
+        })
+        .strict(),
       outputSchema: listPageSchema(mangaSummarySchema),
       annotations: READ_ONLY,
     },
@@ -167,7 +171,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "Jikan is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
         "API, which omits `producers`/`licensors`/`streaming`/`opening_themes`/`ending_themes`/" +
         "`trailer`/`favorites` (no equivalent fields there).",
-      inputSchema: { id: malId },
+      inputSchema: z.object({ id: malId }).strict(),
       outputSchema: animeDetailSchema,
       annotations: READ_ONLY,
     },
@@ -183,7 +187,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "serialization, and related entries. Obtain the mal_id from search_manga first. If " +
         "Jikan is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
         "API, which omits `favorites` (no equivalent field there).",
-      inputSchema: { id: malId },
+      inputSchema: z.object({ id: malId }).strict(),
       outputSchema: mangaDetailSchema,
       annotations: READ_ONLY,
     },
@@ -197,7 +201,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "List the characters of an anime (by mal_id) with their roles and Japanese voice actors. " +
         "Get the mal_id from search_anime.",
-      inputSchema: { id: malId },
+      inputSchema: z.object({ id: malId }).strict(),
       outputSchema: charactersSchema,
       annotations: READ_ONLY,
     },
@@ -210,7 +214,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       title: "Get manga characters",
       description:
         "List the characters of a manga (by mal_id) with their roles. Get the mal_id from search_manga.",
-      inputSchema: { id: malId },
+      inputSchema: z.object({ id: malId }).strict(),
       outputSchema: charactersSchema,
       annotations: READ_ONLY,
     },
@@ -224,7 +228,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "List an anime's episodes (by mal_id) with titles, air dates and filler/recap flags. " +
         "Paginated (~100 per page); use `page` for long-running series. Get the mal_id from search_anime.",
-      inputSchema: { id: malId, page: page.optional() },
+      inputSchema: z.object({ id: malId, page: page.optional() }).strict(),
       outputSchema: episodesSchema,
       annotations: READ_ONLY,
     },
@@ -242,7 +246,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "Jikan is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
         "API's own recommendations field (same output shape, but ordering/counts may differ " +
         "slightly from Jikan's).",
-      inputSchema: { id: malId },
+      inputSchema: z.object({ id: malId }).strict(),
       outputSchema: recommendationsSchema,
       annotations: READ_ONLY,
     },
@@ -257,7 +261,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "Get user reviews for one anime (by mal_id), including score and review text (truncated " +
         "to 1200 characters). Defaults to 5 reviews if `limit` is omitted. Get the mal_id from " +
         "search_anime.",
-      inputSchema: { id: malId, limit: limit.optional() },
+      inputSchema: z.object({ id: malId, limit: limit.optional() }).strict(),
       outputSchema: reviewsSchema,
       annotations: READ_ONLY,
     },
@@ -275,7 +279,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "Jikan is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
         "API's own recommendations field (same output shape, but ordering/counts may differ " +
         "slightly from Jikan's).",
-      inputSchema: { id: malId },
+      inputSchema: z.object({ id: malId }).strict(),
       outputSchema: recommendationsSchema,
       annotations: READ_ONLY,
     },
@@ -290,7 +294,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "Get user reviews for one manga (by mal_id), including score and review text (truncated " +
         "to 1200 characters). Defaults to 5 reviews if `limit` is omitted. Get the mal_id from " +
         "search_manga.",
-      inputSchema: { id: malId, limit: limit.optional() },
+      inputSchema: z.object({ id: malId, limit: limit.optional() }).strict(),
       outputSchema: reviewsSchema,
       annotations: READ_ONLY,
     },
@@ -307,18 +311,20 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "lineup use get_seasonal_anime or get_upcoming_season instead. If Jikan is unavailable " +
         "and MAL_CLIENT_ID is set, transparently retries via the official API — `type`/`filter` " +
         "are merged into one best-effort ranking, and `themes`/`demographics` come back empty.",
-      inputSchema: {
-        type: z
-          .enum(["tv", "movie", "ova", "special", "ona", "music"])
-          .describe("Restrict to a media type.")
-          .optional(),
-        filter: z
-          .enum(["airing", "upcoming", "bypopularity", "favorite"])
-          .describe("Special ranking filter.")
-          .optional(),
-        limit: limit.optional(),
-        page: page.optional(),
-      },
+      inputSchema: z
+        .object({
+          type: z
+            .enum(["tv", "movie", "ova", "special", "ona", "music"])
+            .describe("Restrict to a media type.")
+            .optional(),
+          filter: z
+            .enum(["airing", "upcoming", "bypopularity", "favorite"])
+            .describe("Special ranking filter.")
+            .optional(),
+          limit: limit.optional(),
+          page: page.optional(),
+        })
+        .strict(),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
     },
@@ -334,15 +340,17 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "`filter` for special rankings (bypopularity, favorite). If Jikan is unavailable and " +
         "MAL_CLIENT_ID is set, transparently retries via the official API — `type`/`filter` are " +
         "merged into one best-effort ranking, and `themes`/`demographics` come back empty.",
-      inputSchema: {
-        type: mangaType.optional(),
-        filter: z
-          .enum(["publishing", "upcoming", "bypopularity", "favorite"])
-          .describe("Special ranking filter.")
-          .optional(),
-        limit: limit.optional(),
-        page: page.optional(),
-      },
+      inputSchema: z
+        .object({
+          type: mangaType.optional(),
+          filter: z
+            .enum(["publishing", "upcoming", "bypopularity", "favorite"])
+            .describe("Special ranking filter.")
+            .optional(),
+          limit: limit.optional(),
+          page: page.optional(),
+        })
+        .strict(),
       outputSchema: listPageSchema(mangaSummarySchema),
       annotations: READ_ONLY,
     },
@@ -359,19 +367,24 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "unavailable and MAL_CLIENT_ID is set, transparently retries via the official API — " +
         "`themes`/`demographics` come back empty, and an explicit `sfw: true` is enforced " +
         "client-side (a filtered page can come back shorter than `limit`).",
-      inputSchema: {
-        year: z
-          .number()
-          .int()
-          .min(1900)
-          .max(2100)
-          .describe("Four-digit year, e.g. 2024.")
-          .optional(),
-        season: z.enum(["winter", "spring", "summer", "fall"]).describe("Season name.").optional(),
-        sfw: sfw.optional(),
-        limit: limit.optional(),
-        page: page.optional(),
-      },
+      inputSchema: z
+        .object({
+          year: z
+            .number()
+            .int()
+            .min(1900)
+            .max(2100)
+            .describe("Four-digit year, e.g. 2024.")
+            .optional(),
+          season: z
+            .enum(["winter", "spring", "summer", "fall"])
+            .describe("Season name.")
+            .optional(),
+          sfw: sfw.optional(),
+          limit: limit.optional(),
+          page: page.optional(),
+        })
+        .strict(),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
     },
@@ -385,13 +398,15 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "Get the anime broadcast schedule (air times in JST), optionally for a single weekday. " +
         "Defaults to 25 results if `limit` is omitted.",
-      inputSchema: {
-        day: z
-          .enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"])
-          .describe("Weekday to filter by. Omit for the whole week.")
-          .optional(),
-        limit: limit.optional(),
-      },
+      inputSchema: z
+        .object({
+          day: z
+            .enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"])
+            .describe("Weekday to filter by. Omit for the whole week.")
+            .optional(),
+          limit: limit.optional(),
+        })
+        .strict(),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
     },
@@ -407,7 +422,9 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "for any username, including your own, with no login needed. Use get_my_user_info " +
         "instead when you're already logged in via login_mal and want the authenticated " +
         "user's data specifically (though that tool only covers anime stats, not manga).",
-      inputSchema: { username: z.string().min(1).describe("MyAnimeList username.") },
+      inputSchema: z
+        .object({ username: z.string().min(1).describe("MyAnimeList username.") })
+        .strict(),
       outputSchema: userSchema,
       annotations: READ_ONLY,
     },
@@ -420,7 +437,9 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       title: "Get user favorites",
       description:
         "Get a public MyAnimeList user's favorite anime, manga, characters and people by username.",
-      inputSchema: { username: z.string().min(1).describe("MyAnimeList username.") },
+      inputSchema: z
+        .object({ username: z.string().min(1).describe("MyAnimeList username.") })
+        .strict(),
       outputSchema: favoritesSchema,
       annotations: READ_ONLY,
     },
@@ -434,7 +453,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "List anime genres/themes/demographics with their Jikan IDs. Use this to discover the " +
         "numeric IDs that the `genres` parameter of search_anime expects.",
-      inputSchema: { filter: genreFilter.optional() },
+      inputSchema: z.object({ filter: genreFilter.optional() }).strict(),
       outputSchema: genresSchema,
       annotations: READ_ONLY,
     },
@@ -448,7 +467,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "List manga genres/themes/demographics with their Jikan IDs. Use this to discover the " +
         "numeric IDs that the `genres` parameter of search_manga expects.",
-      inputSchema: { filter: genreFilter.optional() },
+      inputSchema: z.object({ filter: genreFilter.optional() }).strict(),
       outputSchema: genresSchema,
       annotations: READ_ONLY,
     },
@@ -465,13 +484,18 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "Search MyAnimeList characters by name. Returns compact summaries and the mal_id needed " +
         "by get_character. Use get_anime_characters instead if you already have an anime's " +
         "mal_id and want its full cast.",
-      inputSchema: {
-        q: z.string().min(1).describe("Character name."),
-        order_by: z.enum(["mal_id", "name", "favorites"]).describe("Field to order by.").optional(),
-        sort: sortDir.optional(),
-        limit: limit.optional(),
-        page: page.optional(),
-      },
+      inputSchema: z
+        .object({
+          q: z.string().min(1).describe("Character name."),
+          order_by: z
+            .enum(["mal_id", "name", "favorites"])
+            .describe("Field to order by.")
+            .optional(),
+          sort: sortDir.optional(),
+          limit: limit.optional(),
+          page: page.optional(),
+        })
+        .strict(),
       outputSchema: listPageSchema(characterEntitySchema),
       annotations: READ_ONLY,
     },
@@ -485,7 +509,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "Get full details for one character by mal_id: bio, the anime/manga they appear in, and " +
         "their voice actors. Obtain the mal_id from search_characters or get_anime_characters.",
-      inputSchema: { id: malId },
+      inputSchema: z.object({ id: malId }).strict(),
       outputSchema: characterEntitySchema,
       annotations: READ_ONLY,
     },
@@ -499,16 +523,18 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "Search MyAnimeList people (voice actors, directors, authors) by name. Returns the mal_id " +
         "needed by get_person.",
-      inputSchema: {
-        q: z.string().min(1).describe("Person name."),
-        order_by: z
-          .enum(["mal_id", "name", "birthday", "favorites"])
-          .describe("Field to order by.")
-          .optional(),
-        sort: sortDir.optional(),
-        limit: limit.optional(),
-        page: page.optional(),
-      },
+      inputSchema: z
+        .object({
+          q: z.string().min(1).describe("Person name."),
+          order_by: z
+            .enum(["mal_id", "name", "birthday", "favorites"])
+            .describe("Field to order by.")
+            .optional(),
+          sort: sortDir.optional(),
+          limit: limit.optional(),
+          page: page.optional(),
+        })
+        .strict(),
       outputSchema: listPageSchema(personEntitySchema),
       annotations: READ_ONLY,
     },
@@ -524,7 +550,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "voiced roles (capped to the first 50 for prolific people, in whatever order the " +
         "upstream API returns them — not necessarily their most notable roles). Obtain the " +
         "mal_id from search_people or a character's voice_actors.",
-      inputSchema: { id: malId },
+      inputSchema: z.object({ id: malId }).strict(),
       outputSchema: personEntitySchema,
       annotations: READ_ONLY,
     },
@@ -539,7 +565,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "List the production staff of an anime (by mal_id) — director, composer, etc. — with their " +
         "roles. Complements get_anime_characters (which covers voice actors). " +
         "Get the mal_id from search_anime.",
-      inputSchema: { id: malId },
+      inputSchema: z.object({ id: malId }).strict(),
       outputSchema: staffSchema,
       annotations: READ_ONLY,
     },
@@ -553,7 +579,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     {
       title: "Get a random anime",
       description: "Return one random anime (full details). Good for discovery / suggestions.",
-      inputSchema: {},
+      inputSchema: z.object({}).strict(),
       outputSchema: animeDetailSchema,
       annotations: READ_ONLY,
     },
@@ -565,7 +591,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     {
       title: "Get a random manga",
       description: "Return one random manga (full details). Good for discovery / suggestions.",
-      inputSchema: {},
+      inputSchema: z.object({}).strict(),
       outputSchema: mangaDetailSchema,
       annotations: READ_ONLY,
     },
@@ -581,7 +607,9 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "specific past season. If Jikan is unavailable and MAL_CLIENT_ID is set, transparently " +
         "retries via the official API — `themes`/`demographics` come back empty, and an explicit " +
         "`sfw: true` is enforced client-side (a filtered page can come back shorter than `limit`).",
-      inputSchema: { sfw: sfw.optional(), limit: limit.optional(), page: page.optional() },
+      inputSchema: z
+        .object({ sfw: sfw.optional(), limit: limit.optional(), page: page.optional() })
+        .strict(),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
     },
@@ -597,7 +625,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "Get the mal_id from search_anime. If Jikan is unavailable and MAL_CLIENT_ID is set, " +
         "transparently retries via the official API, which omits the score distribution " +
         "(`scores`) entirely — no equivalent field there.",
-      inputSchema: { id: malId },
+      inputSchema: z.object({ id: malId }).strict(),
       outputSchema: statisticsSchema,
       annotations: READ_ONLY,
     },
@@ -612,7 +640,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "Get read-status counts (reading/completed/…) and the score distribution for a manga by mal_id. " +
         "Get the mal_id from search_manga. Unlike get_anime_statistics, no official-API fallback " +
         "exists for this tool — it always needs Jikan itself to be reachable.",
-      inputSchema: { id: malId },
+      inputSchema: z.object({ id: malId }).strict(),
       outputSchema: statisticsSchema,
       annotations: READ_ONLY,
     },
@@ -627,16 +655,18 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       title: "Get producers/studios",
       description:
         "List or search anime producers and studios with their Jikan IDs and counts. Use `q` to search by name.",
-      inputSchema: {
-        q: z.string().describe("Filter by name.").optional(),
-        order_by: z
-          .enum(["mal_id", "count", "favorites", "established"])
-          .describe("Field to order by.")
-          .optional(),
-        sort: sortDir.optional(),
-        limit: limit.optional(),
-        page: page.optional(),
-      },
+      inputSchema: z
+        .object({
+          q: z.string().describe("Filter by name.").optional(),
+          order_by: z
+            .enum(["mal_id", "count", "favorites", "established"])
+            .describe("Field to order by.")
+            .optional(),
+          sort: sortDir.optional(),
+          limit: limit.optional(),
+          page: page.optional(),
+        })
+        .strict(),
       outputSchema: listPageSchema(producerSchema),
       annotations: READ_ONLY,
     },
@@ -650,7 +680,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "Get the most popular/favorited people (voice actors, staff, authors), ranked overall. " +
         "Use search_people instead to look up a specific person by name.",
-      inputSchema: { limit: limit.optional(), page: page.optional() },
+      inputSchema: z.object({ limit: limit.optional(), page: page.optional() }).strict(),
       outputSchema: listPageSchema(personEntitySchema),
       annotations: READ_ONLY,
     },
@@ -664,7 +694,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "Get the most popular/favorited characters, ranked overall. Use search_characters instead " +
         "to look up a specific character by name.",
-      inputSchema: { limit: limit.optional(), page: page.optional() },
+      inputSchema: z.object({ limit: limit.optional(), page: page.optional() }).strict(),
       outputSchema: listPageSchema(characterEntitySchema),
       annotations: READ_ONLY,
     },
@@ -680,7 +710,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "List the years and seasons that have anime data, so you can pick valid arguments for " +
         "get_seasonal_anime.",
-      inputSchema: {},
+      inputSchema: z.object({}).strict(),
       outputSchema: seasonsListSchema,
       annotations: READ_ONLY,
     },
@@ -692,7 +722,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     {
       title: "Get a random character",
       description: "Return one random character (full details). Good for discovery / trivia.",
-      inputSchema: {},
+      inputSchema: z.object({}).strict(),
       outputSchema: characterEntitySchema,
       annotations: READ_ONLY,
     },
@@ -706,7 +736,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "Return one random person — voice actor, director, author (full details). Good for " +
         "discovery / trivia.",
-      inputSchema: {},
+      inputSchema: z.object({}).strict(),
       outputSchema: personEntitySchema,
       annotations: READ_ONLY,
     },
@@ -720,7 +750,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "List recent news articles about an anime (by mal_id): headline, date, author and excerpt. " +
         "Useful for 'what's new / any announcements' questions. Get the mal_id from search_anime.",
-      inputSchema: { id: malId, page: page.optional() },
+      inputSchema: z.object({ id: malId, page: page.optional() }).strict(),
       outputSchema: listPageSchema(newsItemSchema),
       annotations: READ_ONLY,
     },

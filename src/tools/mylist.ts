@@ -71,7 +71,7 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         "`MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`). Anime-only — the official API has no manga " +
         "statistics field at all; use get_user_profile with your own username instead for " +
         "manga read stats too (no login needed).",
-      inputSchema: {},
+      inputSchema: z.object({}).strict(),
       outputSchema: MyUserInfoSchema,
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -86,15 +86,17 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         "Get the authenticated user's own anime list, with each entry's status, score and progress. " +
         "Requires MyAnimeList authentication (via `login_mal`, or a pre-supplied " +
         "`MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`).",
-      inputSchema: {
-        status: animeListStatus.optional(),
-        sort: z
-          .enum(["list_score", "list_updated_at", "anime_title", "anime_start_date"])
-          .describe("Sort order.")
-          .optional(),
-        limit: listLimit.optional(),
-        offset: offset.optional(),
-      },
+      inputSchema: z
+        .object({
+          status: animeListStatus.optional(),
+          sort: z
+            .enum(["list_score", "list_updated_at", "anime_title", "anime_start_date"])
+            .describe("Sort order.")
+            .optional(),
+          limit: listLimit.optional(),
+          offset: offset.optional(),
+        })
+        .strict(),
       outputSchema: myListSchema,
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -109,15 +111,17 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         "Get the authenticated user's own manga list, with status, score and progress. Requires " +
         "MyAnimeList authentication (via `login_mal`, or a pre-supplied " +
         "`MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`).",
-      inputSchema: {
-        status: mangaListStatus.optional(),
-        sort: z
-          .enum(["list_score", "list_updated_at", "manga_title", "manga_start_date"])
-          .describe("Sort order.")
-          .optional(),
-        limit: listLimit.optional(),
-        offset: offset.optional(),
-      },
+      inputSchema: z
+        .object({
+          status: mangaListStatus.optional(),
+          sort: z
+            .enum(["list_score", "list_updated_at", "manga_title", "manga_start_date"])
+            .describe("Sort order.")
+            .optional(),
+          limit: listLimit.optional(),
+          offset: offset.optional(),
+        })
+        .strict(),
       outputSchema: myListSchema,
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -133,28 +137,30 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         "dates). Creates the entry if absent; fields you omit are left unchanged on an existing " +
         "entry. Provide at least one field besides anime_id. Requires MyAnimeList authentication " +
         "(via `login_mal`, or a pre-supplied `MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`).",
-      inputSchema: {
-        anime_id: malId,
-        status: animeListStatus.optional(),
-        score: score.optional(),
-        num_watched_episodes: z
-          .number()
-          .int()
-          .min(0)
-          .describe(
-            "Episodes watched. Note: get_my_anime_list returns this same value as " +
-              "`num_episodes_watched` — the field name is intentionally different here.",
-          )
-          .optional(),
-        is_rewatching: z.boolean().describe("Whether currently rewatching.").optional(),
-        num_times_rewatched: z.number().int().min(0).describe("Times rewatched.").optional(),
-        rewatch_value: rewatchValue.optional(),
-        priority: priority.optional(),
-        tags: tags.optional(),
-        start_date: date.optional(),
-        finish_date: date.optional(),
-        comments: z.string().describe("Free-text comments.").optional(),
-      },
+      inputSchema: z
+        .object({
+          anime_id: malId,
+          status: animeListStatus.optional(),
+          score: score.optional(),
+          num_watched_episodes: z
+            .number()
+            .int()
+            .min(0)
+            .describe(
+              "Episodes watched. Note: get_my_anime_list returns this same value as " +
+                "`num_episodes_watched` — the field name is intentionally different here.",
+            )
+            .optional(),
+          is_rewatching: z.boolean().describe("Whether currently rewatching.").optional(),
+          num_times_rewatched: z.number().int().min(0).describe("Times rewatched.").optional(),
+          rewatch_value: rewatchValue.optional(),
+          priority: priority.optional(),
+          tags: tags.optional(),
+          start_date: date.optional(),
+          finish_date: date.optional(),
+          comments: z.string().describe("Free-text comments.").optional(),
+        })
+        .strict(),
       outputSchema: ListStatusUpdateResponseSchema,
       annotations: {
         readOnlyHint: false,
@@ -184,19 +190,21 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         "read). Creates the entry if absent; fields you omit are left unchanged on an existing " +
         "entry. Provide at least one field besides manga_id. Requires MyAnimeList authentication " +
         "(via `login_mal`, or a pre-supplied `MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`).",
-      inputSchema: {
-        manga_id: malId,
-        status: mangaListStatus.optional(),
-        score: score.optional(),
-        num_chapters_read: z.number().int().min(0).describe("Chapters read.").optional(),
-        num_volumes_read: z.number().int().min(0).describe("Volumes read.").optional(),
-        is_rereading: z.boolean().describe("Whether currently rereading.").optional(),
-        num_times_reread: z.number().int().min(0).describe("Times reread.").optional(),
-        reread_value: rewatchValue.optional(),
-        priority: priority.optional(),
-        tags: tags.optional(),
-        comments: z.string().describe("Free-text comments.").optional(),
-      },
+      inputSchema: z
+        .object({
+          manga_id: malId,
+          status: mangaListStatus.optional(),
+          score: score.optional(),
+          num_chapters_read: z.number().int().min(0).describe("Chapters read.").optional(),
+          num_volumes_read: z.number().int().min(0).describe("Volumes read.").optional(),
+          is_rereading: z.boolean().describe("Whether currently rereading.").optional(),
+          num_times_reread: z.number().int().min(0).describe("Times reread.").optional(),
+          reread_value: rewatchValue.optional(),
+          priority: priority.optional(),
+          tags: tags.optional(),
+          comments: z.string().describe("Free-text comments.").optional(),
+        })
+        .strict(),
       outputSchema: ListStatusUpdateResponseSchema,
       annotations: {
         readOnlyHint: false,
@@ -228,7 +236,7 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         "distinguish the two — so success alone isn't proof something existed; check " +
         "get_my_anime_list first if you need to confirm. Requires MyAnimeList authentication " +
         "(via `login_mal`, or a pre-supplied `MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`).",
-      inputSchema: { anime_id: malId },
+      inputSchema: z.object({ anime_id: malId }).strict(),
       outputSchema: deleteAnimeItemSchema,
       annotations: {
         readOnlyHint: false,
@@ -252,7 +260,7 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         "distinguish the two — so success alone isn't proof something existed; check " +
         "get_my_manga_list first if you need to confirm. Requires MyAnimeList authentication " +
         "(via `login_mal`, or a pre-supplied `MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`).",
-      inputSchema: { manga_id: malId },
+      inputSchema: z.object({ manga_id: malId }).strict(),
       outputSchema: deleteMangaItemSchema,
       annotations: {
         readOnlyHint: false,
