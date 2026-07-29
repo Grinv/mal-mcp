@@ -206,3 +206,60 @@ test("the server advertises all expected tools", async (t) => {
   const del = tools.find((tool) => tool.name === "delete_my_anime_list_item");
   assert.equal(del?.annotations?.destructiveHint, true);
 });
+
+test("search queries are trimmed, so a whitespace-only q is rejected", async (t) => {
+  const mock = mockFetch(() =>
+    jsonResponse({ data: [{ mal_id: 1, title: "Bebop" }], pagination: {} }),
+  );
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const res = await client.callTool({ name: "search_anime", arguments: { q: "   " } });
+  assert.equal(res.isError, true);
+  assert.equal(mock.calls.length, 0);
+});
+
+test("get_anime_reviews/get_anime_schedule default their limit when omitted", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const reviews = await client.callTool({ name: "get_anime_reviews", arguments: { id: 1 } });
+  assert.notEqual(reviews.isError, true);
+  assert.match(mock.calls.at(-1)!.url, /limit=5(&|$)/);
+
+  const schedule = await client.callTool({ name: "get_anime_schedule", arguments: {} });
+  assert.notEqual(schedule.isError, true);
+  assert.match(mock.calls.at(-1)!.url, /limit=25(&|$)/);
+
+  // An explicit limit still overrides the default.
+  const explicit = await client.callTool({
+    name: "get_anime_reviews",
+    arguments: { id: 1, limit: 10 },
+  });
+  assert.notEqual(explicit.isError, true);
+  assert.match(mock.calls.at(-1)!.url, /limit=10(&|$)/);
+});
+
+test("update_my_anime_status rejects a calendar-invalid start_date", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ status: "watching" }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({ MAL_ACCESS_TOKEN: "tok" });
+  t.after(close);
+
+  // Right shape (YYYY-MM-DD), but no such day exists.
+  const bad = await client.callTool({
+    name: "update_my_anime_status",
+    arguments: { anime_id: 1, status: "watching", start_date: "2024-02-30" },
+  });
+  assert.equal(bad.isError, true);
+  assert.equal(mock.calls.length, 0);
+
+  const ok = await client.callTool({
+    name: "update_my_anime_status",
+    arguments: { anime_id: 1, status: "watching", start_date: "2024-02-29" },
+  });
+  assert.notEqual(ok.isError, true);
+});

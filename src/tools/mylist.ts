@@ -48,10 +48,7 @@ const tags = z.string().describe("Comma-separated free-text tags.");
 const listLimit = z.number().int().min(1).max(100).describe("Max results (1-100).");
 const offset = z.number().int().min(0).describe("Offset for pagination.");
 const malId = z.number().int().positive().describe("MyAnimeList numeric ID.");
-const date = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .describe("Date as YYYY-MM-DD.");
+const date = z.iso.date().describe("Date as YYYY-MM-DD.");
 
 export function registerMyListTools(server: McpServer, mal: MalClient): void {
   // Run a personal-list operation only when authenticated; otherwise return an

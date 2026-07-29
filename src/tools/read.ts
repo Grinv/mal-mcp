@@ -80,7 +80,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "a fallback).",
       inputSchema: z
         .object({
-          q: z.string().min(1).describe("Search query, e.g. an anime title."),
+          q: z.string().trim().min(1).describe("Search query, e.g. an anime title."),
           type: animeType.optional(),
           status: animeStatus.optional(),
           genres: genreIds("get_anime_genres").optional(),
@@ -126,7 +126,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "a fallback).",
       inputSchema: z
         .object({
-          q: z.string().min(1).describe("Search query, e.g. a manga title."),
+          q: z.string().trim().min(1).describe("Search query, e.g. a manga title."),
           type: mangaType.optional(),
           status: mangaStatus.optional(),
           genres: genreIds("get_manga_genres").optional(),
@@ -256,11 +256,11 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "Get user reviews for one anime (by mal_id), including score and review text (truncated " +
         "to 1200 characters). Defaults to 5 reviews if `limit` is omitted. Get the mal_id from " +
         "search_anime.",
-      inputSchema: z.object({ id: malId, limit: limit.optional() }).strict(),
+      inputSchema: z.object({ id: malId, limit: limit.default(5) }).strict(),
       outputSchema: reviewsSchema,
       annotations: READ_ONLY,
     },
-    ({ id, limit: lim }) => reply(() => jikan.getAnimeReviews(id, lim ?? 5)),
+    ({ id, limit: lim }) => reply(() => jikan.getAnimeReviews(id, lim)),
   );
 
   server.registerTool(
@@ -289,11 +289,11 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "Get user reviews for one manga (by mal_id), including score and review text (truncated " +
         "to 1200 characters). Defaults to 5 reviews if `limit` is omitted. Get the mal_id from " +
         "search_manga.",
-      inputSchema: z.object({ id: malId, limit: limit.optional() }).strict(),
+      inputSchema: z.object({ id: malId, limit: limit.default(5) }).strict(),
       outputSchema: reviewsSchema,
       annotations: READ_ONLY,
     },
-    ({ id, limit: lim }) => reply(() => jikan.getMangaReviews(id, lim ?? 5)),
+    ({ id, limit: lim }) => reply(() => jikan.getMangaReviews(id, lim)),
   );
 
   server.registerTool(
@@ -399,13 +399,13 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
             .enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"])
             .describe("Weekday to filter by. Omit for the whole week.")
             .optional(),
-          limit: limit.optional(),
+          limit: limit.default(25),
         })
         .strict(),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
     },
-    ({ day, limit: lim }) => reply(() => jikan.getSchedule(day, lim ?? 25)),
+    ({ day, limit: lim }) => reply(() => jikan.getSchedule(day, lim)),
   );
 
   server.registerTool(
@@ -418,7 +418,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "instead when you're already logged in via login_mal and want the authenticated " +
         "user's data specifically (though that tool only covers anime stats, not manga).",
       inputSchema: z
-        .object({ username: z.string().min(1).describe("MyAnimeList username.") })
+        .object({ username: z.string().trim().min(1).describe("MyAnimeList username.") })
         .strict(),
       outputSchema: userSchema,
       annotations: READ_ONLY,
@@ -433,7 +433,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "Get a public MyAnimeList user's favorite anime, manga, characters and people by username.",
       inputSchema: z
-        .object({ username: z.string().min(1).describe("MyAnimeList username.") })
+        .object({ username: z.string().trim().min(1).describe("MyAnimeList username.") })
         .strict(),
       outputSchema: favoritesSchema,
       annotations: READ_ONLY,
@@ -481,7 +481,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "mal_id and want its full cast.",
       inputSchema: z
         .object({
-          q: z.string().min(1).describe("Character name."),
+          q: z.string().trim().min(1).describe("Character name."),
           order_by: z
             .enum(["mal_id", "name", "favorites"])
             .describe("Field to order by.")
@@ -520,7 +520,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "needed by get_person.",
       inputSchema: z
         .object({
-          q: z.string().min(1).describe("Person name."),
+          q: z.string().trim().min(1).describe("Person name."),
           order_by: z
             .enum(["mal_id", "name", "birthday", "favorites"])
             .describe("Field to order by.")
