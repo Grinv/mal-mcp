@@ -1,15 +1,19 @@
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <!-- mal-mcp icon — original vector design source, for humans/future editors.
        Shape: an original, generic "kawaii creature" head — a round face
-       with two round ears and simple dot eyes, evoking anime-mascot cuteness
-       in general (not any specific copyrighted character — no belly
-       markings, no whiskers, no character-specific ear shape/proportions;
-       deliberately generic, closer to a simple bear/mouse silhouette than
-       any one IP). Color is MAL's real brand blue, pulled directly from
-       MyAnimeList's own favicon.svg (cdn.myanimelist.net/images/favicon.svg,
-       class .st1 = #2f52a2) and cross-checked against a pixel sample of
+       with two round ears (a lighter-tint inner-ear highlight for depth), a
+       soft lighter-tint belly highlight, and simple dot eyes, evoking
+       anime-mascot cuteness in general (not any specific copyrighted
+       character — no belly *markings*/pattern, no whiskers, no
+       character-specific ear shape/proportions; deliberately generic,
+       closer to a simple bear/mouse silhouette than any one IP). Color is
+       MAL's real brand blue, pulled directly from MyAnimeList's own
+       favicon.svg (cdn.myanimelist.net/images/favicon.svg, class .st1 =
+       #2f52a2) and cross-checked against a pixel sample of
        apple-touch-icon-256.png (46,81,162 — same color, PNG-palette
-       rounding) — verified live 2026-07-29, not guessed from memory.
+       rounding) — verified live 2026-07-29, not guessed from memory. The
+       inner-ear/belly highlight is a lighter tint of that same blue, not an
+       unrelated color.
 
        This file is NOT what actually produced assets/icon.png: a naive
        SVG->PNG render (a browser screenshot, macOS Quick Look's SVG
@@ -25,6 +29,9 @@
   <circle cx="158" cy="178" r="70" fill="#2f52a2"/>
   <circle cx="354" cy="178" r="70" fill="#2f52a2"/>
   <circle cx="256" cy="300" r="148" fill="#2f52a2"/>
-  <circle cx="206" cy="290" r="20" fill="#ffffff"/>
-  <circle cx="306" cy="290" r="20" fill="#ffffff"/>
+  <circle cx="168" cy="188" r="38" fill="#6a87c7"/>
+  <circle cx="344" cy="188" r="38" fill="#6a87c7"/>
+  <ellipse cx="256" cy="372" rx="84" ry="62" fill="#6a87c7"/>
+  <circle cx="206" cy="288" r="20" fill="#ffffff"/>
+  <circle cx="306" cy="288" r="20" fill="#ffffff"/>
 </svg>

@@ -25,15 +25,20 @@ SIZE = 512
 SCALE = 4  # supersample then downsample for anti-aliased edges (Pillow's
            # ImageDraw has no native AA)
 
-# Generic "kawaii creature" head: round face + two round ears + simple dot
-# eyes. Deliberately generic (no belly markings, no whiskers, no
+# Generic "kawaii creature" head: round face + two round ears (with an
+# inner-ear tint for depth) + a soft belly highlight + simple dot eyes.
+# Deliberately generic (no belly *markings*/pattern, no whiskers, no
 # character-specific ear shape) — evokes anime-mascot cuteness in general,
 # not any one copyrighted character. Geometry matches icon-source.svg 1:1.
 HEAD_CENTER = (256, 300)
 HEAD_R = 148
 EAR_CENTERS = [(158, 178), (354, 178)]
 EAR_R = 70
-EYE_CENTERS = [(206, 290), (306, 290)]
+INNER_EAR_CENTERS = [(168, 188), (344, 188)]
+INNER_EAR_R = 38
+BELLY_CENTER = (256, 372)
+BELLY_RX, BELLY_RY = 84, 62
+EYE_CENTERS = [(206, 288), (306, 288)]
 EYE_R = 20
 
 # MAL's own brand blue, pulled directly from MyAnimeList's official favicon.svg
@@ -41,6 +46,9 @@ EYE_R = 20
 # against a pixel sample of apple-touch-icon-256.png (46,81,162 — same color,
 # PNG-palette rounding) — verified live 2026-07-29, not guessed from memory.
 MAL_BLUE = (0x2F, 0x52, 0xA2)
+# A lighter tint of the same hue (not a different color) for the inner-ear
+# and belly highlight — adds dimension without introducing an unrelated color.
+MAL_BLUE_LIGHT = (0x6A, 0x87, 0xC7)
 WHITE = (0xFF, 0xFF, 0xFF)
 
 
@@ -57,6 +65,15 @@ def main():
     hx, hy = HEAD_CENTER[0] * SCALE, HEAD_CENTER[1] * SCALE
     hr = HEAD_R * SCALE
     d.ellipse([hx - hr, hy - hr, hx + hr, hy + hr], fill=(*MAL_BLUE, 255))
+
+    for cx, cy in INNER_EAR_CENTERS:
+        cx, cy = cx * SCALE, cy * SCALE
+        r = INNER_EAR_R * SCALE
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(*MAL_BLUE_LIGHT, 255))
+
+    bx, by = BELLY_CENTER[0] * SCALE, BELLY_CENTER[1] * SCALE
+    brx, bry = BELLY_RX * SCALE, BELLY_RY * SCALE
+    d.ellipse([bx - brx, by - bry, bx + brx, by + bry], fill=(*MAL_BLUE_LIGHT, 255))
 
     er = EYE_R * SCALE
     for ex, ey in EYE_CENTERS:
