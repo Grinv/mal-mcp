@@ -88,6 +88,17 @@ test("getAnimeNews forwards sfw/sfw_strict alongside page", async (t) => {
   assert.match(url, /sfw-strict=true/);
 });
 
+test("getMangaNews hits /manga/{id}/news, not the anime path", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [] }));
+  installFetch(t, mock);
+  await tenrai().getMangaNews(3, 2, true, true);
+  const url = mock.calls[0]!.url;
+  assert.match(url, /\/manga\/3\/news\?/);
+  assert.match(url, /page=2/);
+  assert.match(url, /sfw=true/);
+  assert.match(url, /sfw-strict=true/);
+});
+
 test("getCharacter/getPerson forward sfw/sfw_strict to the /full endpoint", async (t) => {
   const mock = mockFetch(() => jsonResponse({ data: { mal_id: 1, name: "N" } }));
   installFetch(t, mock);

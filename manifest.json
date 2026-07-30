@@ -197,6 +197,10 @@
       "description": "Recent news articles about an anime."
     },
     {
+      "name": "get_manga_news",
+      "description": "Recent news articles about a manga."
+    },
+    {
       "name": "get_news",
       "description": "Site-wide recent MyAnimeList news, not tied to one anime."
     },

@@ -633,8 +633,27 @@ export class TenraiClient {
     sfw?: boolean,
     sfwStrict?: boolean,
   ): Promise<Record<string, unknown>> {
+    return this.#news("anime", id, page, sfw, sfwStrict);
+  }
+
+  async getMangaNews(
+    id: number,
+    page?: number,
+    sfw?: boolean,
+    sfwStrict?: boolean,
+  ): Promise<Record<string, unknown>> {
+    return this.#news("manga", id, page, sfw, sfwStrict);
+  }
+
+  #news(
+    kind: "anime" | "manga",
+    id: number,
+    page?: number,
+    sfw?: boolean,
+    sfwStrict?: boolean,
+  ): Promise<Record<string, unknown>> {
     return this.#list<RawNewsItem>(
-      `anime/${id}/news`,
+      `${kind}/${id}/news`,
       { page, sfw, ...sfwStrictQuery(sfwStrict) },
       summarizeNewsItem,
     );

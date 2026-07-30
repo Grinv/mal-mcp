@@ -975,12 +975,33 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         reply(() => tenrai.getAnimeNews(id, pg, s, ss)),
     }),
     defineTool({
+      name: "get_manga_news",
+      title: "Get manga news",
+      description:
+        "List recent news articles about a manga (by mal_id): headline, date, author and excerpt. " +
+        "Useful for 'what's new / any announcements' questions. Get the mal_id from search_manga. " +
+        "Use get_news instead for a site-wide feed not tied to one manga. `sfw`/`sfw_strict` " +
+        "filter out articles for an NSFW/adult-adjacent manga — verified live this can cut the " +
+        "result down sharply (not necessarily to zero) rather than being a no-op.",
+      inputSchema: z.strictObject({
+        id: malId,
+        page: page.optional(),
+        sfw: sfw.optional(),
+        sfw_strict: sfwStrict.optional(),
+      }),
+      outputSchema: listPageSchema(newsItemSchema),
+      annotations: READ_ONLY,
+      handler: ({ id, page: pg, sfw: s, sfw_strict: ss }) =>
+        reply(() => tenrai.getMangaNews(id, pg, s, ss)),
+    }),
+    defineTool({
       name: "get_news",
       title: "Get anime/manga news",
       description:
         "List recent MyAnimeList news articles site-wide (headline, date, author, excerpt) — " +
-        "not tied to one anime. Use `q` to search by keyword or `tag` to filter by topic tag. " +
-        "Use get_anime_news instead for news about one specific anime by mal_id.",
+        "not tied to one anime or manga. Use `q` to search by keyword or `tag` to filter by " +
+        "topic tag. Use get_anime_news/get_manga_news instead for news about one specific " +
+        "anime/manga by mal_id.",
       inputSchema: z.strictObject({
         q: z
           .string()
