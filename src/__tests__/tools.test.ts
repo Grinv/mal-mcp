@@ -462,6 +462,36 @@ test("search_anime rejects a page past Tenrai's own 1000-page ceiling", async (t
   assert.equal(mock.calls.length, 0);
 });
 
+test("get_anime_episodes also rejects a page past 1000 — Tenrai enforces this ceiling almost everywhere, verified live", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [] }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const res = await client.callTool({
+    name: "get_anime_episodes",
+    arguments: { id: 1, page: 1001 },
+  });
+  assert.equal(res.isError, true);
+  assert.equal(mock.calls.length, 0);
+});
+
+test("get_top_anime/get_top_characters accept a page past 1000 — verified live that these two (unlike everything else) serve real data well beyond it", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const anime = await client.callTool({ name: "get_top_anime", arguments: { page: 1001 } });
+  assert.notEqual(anime.isError, true);
+  const characters = await client.callTool({
+    name: "get_top_characters",
+    arguments: { page: 1001 },
+  });
+  assert.notEqual(characters.isError, true);
+  assert.equal(mock.calls.length, 2);
+});
+
 test("get_seasonal_anime/get_upcoming_season accept kids/continuing/unapproved/order_by", async (t) => {
   const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
   installFetch(t, mock);

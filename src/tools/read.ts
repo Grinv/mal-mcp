@@ -82,7 +82,12 @@ const limit = z.int().min(1).max(50).describe("Max results per page (1-50).");
 // A handful of Tenrai list endpoints (magazines, the two site-wide recommendation feeds) have a
 // 100 (not 50) per-page ceiling.
 const limit100 = z.int().min(1).max(100).describe("Max results per page (1-100).");
+// Verified live against every page-taking endpoint: Tenrai rejects page > 1000 with a 400
+// ("Page must be 1000 or lower") everywhere except get_top_anime/get_top_manga/get_top_people/
+// get_top_characters, which serve real data well past it (their own catalogs run into the tens
+// of thousands of entries) — see `pageUnbounded` below for those four.
 const page = z.int().min(1).max(1000).describe("1-based page number for pagination.");
+const pageUnbounded = z.int().min(1).describe("1-based page number for pagination.");
 const sfw = z
   .boolean()
   .describe(
@@ -96,6 +101,9 @@ const sfwStrict = z
     "If true, exclude adult/explicit-rated entries AND anything tagged with the Ecchi genre, " +
       "even otherwise-mainstream/safely-rated shows. Stricter than `sfw` alone. Defaults to false.",
   );
+/** Spread into any inputSchema that takes both content-filter flags — every such tool takes the
+ *  identical pair, so this keeps them from drifting independently. */
+const sfwParams = { sfw: sfw.optional(), sfw_strict: sfwStrict.optional() };
 const malId = z.int().positive().describe("MyAnimeList numeric ID.");
 const genreFilter = z
   .enum(GENRE_FILTERS)
@@ -213,8 +221,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         letter: letterFilter.optional(),
         order_by: z.enum(ANIME_ORDER_BY).describe("Field to order by.").optional(),
         sort: sortDir.optional(),
-        sfw: sfw.optional(),
-        sfw_strict: sfwStrict.optional(),
+        ...sfwParams,
         limit: limit.optional(),
         page: page.optional(),
       }),
@@ -269,8 +276,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         letter: letterFilter.optional(),
         order_by: z.enum(MANGA_ORDER_BY).describe("Field to order by.").optional(),
         sort: sortDir.optional(),
-        sfw: sfw.optional(),
-        sfw_strict: sfwStrict.optional(),
+        ...sfwParams,
         limit: limit.optional(),
         page: page.optional(),
       }),
@@ -294,12 +300,11 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "equivalent fields there) and ignores `sfw`/`sfw_strict` entirely.",
       inputSchema: z.strictObject({
         id: malId,
-        sfw: sfw.optional(),
-        sfw_strict: sfwStrict.optional(),
+        ...sfwParams,
       }),
       outputSchema: animeDetailSchema,
       annotations: READ_ONLY,
-      handler: ({ id, sfw: s, sfw_strict: ss }) => reply(() => tenrai.getAnime(id, s, ss)),
+      handler: ({ id, sfw, sfw_strict }) => reply(() => tenrai.getAnime(id, sfw, sfw_strict)),
     }),
     defineTool({
       name: "get_manga",
@@ -315,12 +320,11 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "and ignores `sfw`/`sfw_strict` entirely.",
       inputSchema: z.strictObject({
         id: malId,
-        sfw: sfw.optional(),
-        sfw_strict: sfwStrict.optional(),
+        ...sfwParams,
       }),
       outputSchema: mangaDetailSchema,
       annotations: READ_ONLY,
-      handler: ({ id, sfw: s, sfw_strict: ss }) => reply(() => tenrai.getManga(id, s, ss)),
+      handler: ({ id, sfw, sfw_strict }) => reply(() => tenrai.getManga(id, sfw, sfw_strict)),
     }),
     defineTool({
       name: "get_anime_characters",
@@ -383,13 +387,12 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "slightly from Tenrai's, and `sfw`/`sfw_strict` are ignored entirely).",
       inputSchema: z.strictObject({
         id: malId,
-        sfw: sfw.optional(),
-        sfw_strict: sfwStrict.optional(),
+        ...sfwParams,
       }),
       outputSchema: recommendationsSchema,
       annotations: READ_ONLY,
-      handler: ({ id, sfw: s, sfw_strict: ss }) =>
-        reply(() => tenrai.getAnimeRecommendations(id, s, ss)),
+      handler: ({ id, sfw, sfw_strict }) =>
+        reply(() => tenrai.getAnimeRecommendations(id, sfw, sfw_strict)),
     }),
     defineTool({
       name: "get_recent_anime_recommendations",
@@ -401,8 +404,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "mal_id. No official-API fallback exists for this tool — it always needs Tenrai itself " +
         "to be reachable.",
       inputSchema: z.strictObject({
-        sfw: sfw.optional(),
-        sfw_strict: sfwStrict.optional(),
+        ...sfwParams,
         limit: limit100.optional(),
         page: page.optional(),
       }),
@@ -452,13 +454,12 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "slightly from Tenrai's, and `sfw`/`sfw_strict` are ignored entirely).",
       inputSchema: z.strictObject({
         id: malId,
-        sfw: sfw.optional(),
-        sfw_strict: sfwStrict.optional(),
+        ...sfwParams,
       }),
       outputSchema: recommendationsSchema,
       annotations: READ_ONLY,
-      handler: ({ id, sfw: s, sfw_strict: ss }) =>
-        reply(() => tenrai.getMangaRecommendations(id, s, ss)),
+      handler: ({ id, sfw, sfw_strict }) =>
+        reply(() => tenrai.getMangaRecommendations(id, sfw, sfw_strict)),
     }),
     defineTool({
       name: "get_recent_manga_recommendations",
@@ -470,8 +471,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "mal_id. No official-API fallback exists for this tool — it always needs Tenrai itself " +
         "to be reachable.",
       inputSchema: z.strictObject({
-        sfw: sfw.optional(),
-        sfw_strict: sfwStrict.optional(),
+        ...sfwParams,
         limit: limit100.optional(),
         page: page.optional(),
       }),
@@ -523,10 +523,9 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         type: z.array(animeType).min(1).describe("Restrict to one or more media types.").optional(),
         filter: z.enum(ANIME_TOP_FILTERS).describe("Special ranking filter.").optional(),
         rating: ratingFilter.optional(),
-        sfw: sfw.optional(),
-        sfw_strict: sfwStrict.optional(),
+        ...sfwParams,
         limit: limit.optional(),
-        page: page.optional(),
+        page: pageUnbounded.optional(),
       }),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
@@ -549,10 +548,9 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
           .describe("Restrict to one or more publication types.")
           .optional(),
         filter: z.enum(MANGA_TOP_FILTERS).describe("Special ranking filter.").optional(),
-        sfw: sfw.optional(),
-        sfw_strict: sfwStrict.optional(),
+        ...sfwParams,
         limit: limit.optional(),
-        page: page.optional(),
+        page: pageUnbounded.optional(),
       }),
       outputSchema: listPageSchema(mangaSummarySchema),
       annotations: READ_ONLY,
@@ -593,8 +591,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
           .describe("Field to order by. Defaults to members.")
           .optional(),
         sort: sortDir.optional(),
-        sfw: sfw.optional(),
-        sfw_strict: sfwStrict.optional(),
+        ...sfwParams,
         limit: limit.optional(),
         page: page.optional(),
       }),
@@ -618,8 +615,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
               "slot. Omit for the whole week.",
           )
           .optional(),
-        sfw: sfw.optional(),
-        sfw_strict: sfwStrict.optional(),
+        ...sfwParams,
         kids: kidsFlag.optional(),
         unapproved: unapproved.optional(),
         limit: limit.default(25),
@@ -627,13 +623,13 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       }),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
-      handler: ({ day, limit: lim, sfw: s, sfw_strict: ss, kids, unapproved: u, page: pg }) =>
+      handler: ({ day, limit: lim, sfw, sfw_strict, kids, unapproved: u, page: pg }) =>
         reply(() =>
           tenrai.getSchedule({
             day,
             limit: lim,
-            sfw: s,
-            sfw_strict: ss,
+            sfw,
+            sfw_strict,
             kids,
             unapproved: u,
             page: pg,
@@ -694,12 +690,11 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "anime/manga appearance lists (verified live) rather than affecting the character itself.",
       inputSchema: z.strictObject({
         id: malId,
-        sfw: sfw.optional(),
-        sfw_strict: sfwStrict.optional(),
+        ...sfwParams,
       }),
       outputSchema: characterEntitySchema,
       annotations: READ_ONLY,
-      handler: ({ id, sfw: s, sfw_strict: ss }) => reply(() => tenrai.getCharacter(id, s, ss)),
+      handler: ({ id, sfw, sfw_strict }) => reply(() => tenrai.getCharacter(id, sfw, sfw_strict)),
     }),
     defineTool({
       name: "search_people",
@@ -732,12 +727,11 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "anime/manga credit lists (verified live) rather than affecting the person themselves.",
       inputSchema: z.strictObject({
         id: malId,
-        sfw: sfw.optional(),
-        sfw_strict: sfwStrict.optional(),
+        ...sfwParams,
       }),
       outputSchema: personEntitySchema,
       annotations: READ_ONLY,
-      handler: ({ id, sfw: s, sfw_strict: ss }) => reply(() => tenrai.getPerson(id, s, ss)),
+      handler: ({ id, sfw, sfw_strict }) => reply(() => tenrai.getPerson(id, sfw, sfw_strict)),
     }),
     defineTool({
       name: "get_anime_staff",
@@ -761,10 +755,10 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "Return one random anime (full details). Good for discovery / suggestions. No " +
         "official-API fallback exists for this tool — it always needs Tenrai itself to be " +
         "reachable.",
-      inputSchema: z.strictObject({ sfw: sfw.optional(), sfw_strict: sfwStrict.optional() }),
+      inputSchema: z.strictObject({ ...sfwParams }),
       outputSchema: animeDetailSchema,
       annotations: READ_ONLY,
-      handler: ({ sfw: s, sfw_strict: ss }) => reply(() => tenrai.getRandomAnime(s, ss)),
+      handler: ({ sfw, sfw_strict }) => reply(() => tenrai.getRandomAnime(sfw, sfw_strict)),
     }),
     defineTool({
       name: "get_random_manga",
@@ -773,10 +767,10 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "Return one random manga (full details). Good for discovery / suggestions. No " +
         "official-API fallback exists for this tool — it always needs Tenrai itself to be " +
         "reachable.",
-      inputSchema: z.strictObject({ sfw: sfw.optional(), sfw_strict: sfwStrict.optional() }),
+      inputSchema: z.strictObject({ ...sfwParams }),
       outputSchema: mangaDetailSchema,
       annotations: READ_ONLY,
-      handler: ({ sfw: s, sfw_strict: ss }) => reply(() => tenrai.getRandomManga(s, ss)),
+      handler: ({ sfw, sfw_strict }) => reply(() => tenrai.getRandomManga(sfw, sfw_strict)),
     }),
     defineTool({
       name: "get_upcoming_season",
@@ -810,8 +804,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
           .describe("Field to order by. Defaults to members.")
           .optional(),
         sort: sortDir.optional(),
-        sfw: sfw.optional(),
-        sfw_strict: sfwStrict.optional(),
+        ...sfwParams,
         limit: limit.optional(),
         page: page.optional(),
       }),
@@ -903,7 +896,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       description:
         "Get the most popular/favorited people (voice actors, staff, authors), ranked overall. " +
         "Use search_people instead to look up a specific person by name.",
-      inputSchema: z.strictObject({ limit: limit.optional(), page: page.optional() }),
+      inputSchema: z.strictObject({ limit: limit.optional(), page: pageUnbounded.optional() }),
       outputSchema: listPageSchema(personEntitySchema),
       annotations: READ_ONLY,
       handler: (args) => reply(() => tenrai.getTopPeople(args)),
@@ -914,7 +907,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       description:
         "Get the most popular/favorited characters, ranked overall. Use search_characters instead " +
         "to look up a specific character by name.",
-      inputSchema: z.strictObject({ limit: limit.optional(), page: page.optional() }),
+      inputSchema: z.strictObject({ limit: limit.optional(), page: pageUnbounded.optional() }),
       outputSchema: listPageSchema(characterEntitySchema),
       annotations: READ_ONLY,
       handler: (args) => reply(() => tenrai.getTopCharacters(args)),
@@ -966,13 +959,12 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       inputSchema: z.strictObject({
         id: malId,
         page: page.optional(),
-        sfw: sfw.optional(),
-        sfw_strict: sfwStrict.optional(),
+        ...sfwParams,
       }),
       outputSchema: listPageSchema(newsItemSchema),
       annotations: READ_ONLY,
-      handler: ({ id, page: pg, sfw: s, sfw_strict: ss }) =>
-        reply(() => tenrai.getAnimeNews(id, pg, s, ss)),
+      handler: ({ id, page: pg, sfw, sfw_strict }) =>
+        reply(() => tenrai.getAnimeNews(id, pg, sfw, sfw_strict)),
     }),
     defineTool({
       name: "get_manga_news",
@@ -986,13 +978,12 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       inputSchema: z.strictObject({
         id: malId,
         page: page.optional(),
-        sfw: sfw.optional(),
-        sfw_strict: sfwStrict.optional(),
+        ...sfwParams,
       }),
       outputSchema: listPageSchema(newsItemSchema),
       annotations: READ_ONLY,
-      handler: ({ id, page: pg, sfw: s, sfw_strict: ss }) =>
-        reply(() => tenrai.getMangaNews(id, pg, s, ss)),
+      handler: ({ id, page: pg, sfw, sfw_strict }) =>
+        reply(() => tenrai.getMangaNews(id, pg, sfw, sfw_strict)),
     }),
     defineTool({
       name: "get_news",
