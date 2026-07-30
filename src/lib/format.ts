@@ -52,14 +52,18 @@ interface DateRange {
   string?: string | null;
 }
 
-export interface AnimeMangaRaw {
+// Fields Tenrai returns for both anime and manga entries alike — verified against what
+// summarizeAnime/summarizeManga actually read (not just inherited from how the two were
+// originally grouped in comments; that grouping had drifted: `relations` was previously
+// filed under "anime-only" even though summarizeManga's detailed branch reads it too, and
+// `rating`/`source` were filed as shared even though only summarizeAnime ever reads them).
+interface AnimeMangaRawBase {
   mal_id: number;
   url?: string;
   title?: string;
   title_english?: string | null;
   title_japanese?: string | null;
   type?: string | null;
-  source?: string | null;
   status?: string | null;
   score?: number | null;
   scored_by?: number | null;
@@ -69,12 +73,16 @@ export interface AnimeMangaRaw {
   favorites?: number | null;
   synopsis?: string | null;
   background?: string | null;
-  rating?: string | null;
   images?: RawImages;
   genres?: NamedRef[];
   themes?: NamedRef[];
   demographics?: NamedRef[];
-  // anime-only
+  relations?: { relation?: string; entry?: NamedRef[] }[];
+}
+
+export interface RawAnime extends AnimeMangaRawBase {
+  source?: string | null;
+  rating?: string | null;
   episodes?: number | null;
   airing?: boolean;
   aired?: DateRange;
@@ -93,8 +101,9 @@ export interface AnimeMangaRaw {
   producers?: NamedRef[];
   licensors?: NamedRef[];
   streaming?: NamedRef[];
-  relations?: { relation?: string; entry?: NamedRef[] }[];
-  // manga-only
+}
+
+export interface RawManga extends AnimeMangaRawBase {
   chapters?: number | null;
   volumes?: number | null;
   publishing?: boolean;
@@ -252,13 +261,10 @@ const _mangaSummaryFieldsMatchSchema: KeysMatch<
 // Overloads narrow the return type on the literal `detailed` argument — plain
 // `boolean` alone can't discriminate the union for callers (and tests) that
 // pass a literal `true`/`false`.
-export function summarizeAnime(a: AnimeMangaRaw, detailed: true): z.infer<typeof animeDetailSchema>;
+export function summarizeAnime(a: RawAnime, detailed: true): z.infer<typeof animeDetailSchema>;
+export function summarizeAnime(a: RawAnime, detailed?: false): z.infer<typeof animeSummarySchema>;
 export function summarizeAnime(
-  a: AnimeMangaRaw,
-  detailed?: false,
-): z.infer<typeof animeSummarySchema>;
-export function summarizeAnime(
-  a: AnimeMangaRaw,
+  a: RawAnime,
   detailed = false,
 ): z.infer<typeof animeSummarySchema> | z.infer<typeof animeDetailSchema> {
   const fields: AnimeSummaryFields = {
@@ -315,13 +321,10 @@ export function summarizeAnime(
   );
 }
 
-export function summarizeManga(m: AnimeMangaRaw, detailed: true): z.infer<typeof mangaDetailSchema>;
+export function summarizeManga(m: RawManga, detailed: true): z.infer<typeof mangaDetailSchema>;
+export function summarizeManga(m: RawManga, detailed?: false): z.infer<typeof mangaSummarySchema>;
 export function summarizeManga(
-  m: AnimeMangaRaw,
-  detailed?: false,
-): z.infer<typeof mangaSummarySchema>;
-export function summarizeManga(
-  m: AnimeMangaRaw,
+  m: RawManga,
   detailed = false,
 ): z.infer<typeof mangaSummarySchema> | z.infer<typeof mangaDetailSchema> {
   const fields: MangaSummaryFields = {

@@ -22,7 +22,8 @@ import {
   summarizeProducer,
   summarizeSeasonsList,
   summarizeNewsItem,
-  type AnimeMangaRaw,
+  type RawAnime,
+  type RawManga,
   type RawPagination,
   type RawCharacter,
   type RawRecommendation,
@@ -165,7 +166,7 @@ export class TenraiClient {
       this.#fallback,
       "anime search",
       () =>
-        this.#list<AnimeMangaRaw>(
+        this.#list<RawAnime>(
           "anime",
           { ...p, type: csv(p.type), rating: csv(p.rating), ...sfwStrictQuery(p.sfw_strict) },
           (a) => summarizeAnime(a),
@@ -189,7 +190,7 @@ export class TenraiClient {
       this.#fallback,
       "manga search",
       () =>
-        this.#list<AnimeMangaRaw>(
+        this.#list<RawManga>(
           "manga",
           { ...p, type: csv(p.type), ...sfwStrictQuery(p.sfw_strict) },
           (m) => summarizeManga(m),
@@ -211,7 +212,7 @@ export class TenraiClient {
         this.#fallback,
         "anime details",
         async () => {
-          const res = await this.#http.getJson<ItemResponse<AnimeMangaRaw>>(`anime/${id}/full`);
+          const res = await this.#http.getJson<ItemResponse<RawAnime>>(`anime/${id}/full`);
           return summarizeAnime(res.data, true);
         },
         () => this.#fallback!.animeDetailsOfficial(id),
@@ -226,7 +227,7 @@ export class TenraiClient {
         this.#fallback,
         "manga details",
         async () => {
-          const res = await this.#http.getJson<ItemResponse<AnimeMangaRaw>>(`manga/${id}/full`);
+          const res = await this.#http.getJson<ItemResponse<RawManga>>(`manga/${id}/full`);
           return summarizeManga(res.data, true);
         },
         () => this.#fallback!.mangaDetailsOfficial(id),
@@ -341,7 +342,7 @@ export class TenraiClient {
       this.#fallback,
       "top anime",
       () =>
-        this.#list<AnimeMangaRaw>(
+        this.#list<RawAnime>(
           "top/anime",
           { ...p, type: csv(p.type), rating: csv(p.rating), ...sfwStrictQuery(p.sfw_strict) },
           (a) => summarizeAnime(a),
@@ -363,7 +364,7 @@ export class TenraiClient {
       this.#fallback,
       "top manga",
       () =>
-        this.#list<AnimeMangaRaw>(
+        this.#list<RawManga>(
           "top/manga",
           { ...p, type: csv(p.type), ...sfwStrictQuery(p.sfw_strict) },
           (m) => summarizeManga(m),
@@ -385,7 +386,7 @@ export class TenraiClient {
       this.#logger,
       this.#fallback,
       "seasonal anime",
-      () => this.#list<AnimeMangaRaw>(path, seasonQuery(p), (a) => summarizeAnime(a)),
+      () => this.#list<RawAnime>(path, seasonQuery(p), (a) => summarizeAnime(a)),
       () => {
         // The official API has no "current season" shortcut — an explicit year+season
         // is required either way, so use the caller's if given, else compute it.
@@ -405,7 +406,7 @@ export class TenraiClient {
       this.#logger,
       this.#fallback,
       "upcoming season",
-      () => this.#list<AnimeMangaRaw>("seasons/upcoming", seasonQuery(p), (a) => summarizeAnime(a)),
+      () => this.#list<RawAnime>("seasons/upcoming", seasonQuery(p), (a) => summarizeAnime(a)),
       () => {
         const { year, season } = nextSeason(new Date());
         return this.#fallback!.seasonOfficial(year, season, {
@@ -418,7 +419,7 @@ export class TenraiClient {
   }
 
   async getSchedule(p: ScheduleParams): Promise<Record<string, unknown>> {
-    return this.#list<AnimeMangaRaw>(
+    return this.#list<RawAnime>(
       "schedules",
       {
         filter: p.day,
@@ -463,14 +464,14 @@ export class TenraiClient {
 
   // Random endpoints are never cached — the whole point is a fresh pick.
   async getRandomAnime(sfw?: boolean, sfwStrict?: boolean): Promise<Record<string, unknown>> {
-    const res = await this.#http.getJson<ItemResponse<AnimeMangaRaw>>("random/anime", {
+    const res = await this.#http.getJson<ItemResponse<RawAnime>>("random/anime", {
       query: { sfw, ...sfwStrictQuery(sfwStrict) },
     });
     return summarizeAnime(res.data, true);
   }
 
   async getRandomManga(sfw?: boolean, sfwStrict?: boolean): Promise<Record<string, unknown>> {
-    const res = await this.#http.getJson<ItemResponse<AnimeMangaRaw>>("random/manga", {
+    const res = await this.#http.getJson<ItemResponse<RawManga>>("random/manga", {
       query: { sfw, ...sfwStrictQuery(sfwStrict) },
     });
     return summarizeManga(res.data, true);

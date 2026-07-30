@@ -16,12 +16,13 @@ import {
   summarizeSeasonsList,
   summarizeNewsItem,
   pageInfo,
-  type AnimeMangaRaw,
+  type RawAnime,
+  type RawManga,
 } from "../lib/format.js";
 
 const longSynopsis = "x".repeat(500);
 
-const anime: AnimeMangaRaw = {
+const anime: RawAnime = {
   mal_id: 1,
   title: "Cowboy Bebop",
   title_english: "Cowboy Bebop",
@@ -54,7 +55,7 @@ test("summarizeAnime keeps the full synopsis in detailed mode", () => {
 });
 
 test("summarizeAnime surfaces detailed /full fields (duration, broadcast, trailer, themes, licensors)", () => {
-  const full: AnimeMangaRaw = {
+  const full: RawAnime = {
     ...anime,
     duration: "24 min per ep",
     broadcast: {
@@ -81,7 +82,7 @@ test("summarizeAnime surfaces detailed /full fields (duration, broadcast, traile
 });
 
 test("summarizeAnime omits the detailed /full fields in list mode", () => {
-  const s = summarizeAnime({ ...anime, duration: "24 min per ep", publishing: undefined });
+  const s = summarizeAnime({ ...anime, duration: "24 min per ep" });
   for (const k of ["duration", "trailer", "opening_themes", "licensors"])
     assert.ok(!(k in s), `${k} should not appear in list mode`);
 });
@@ -107,7 +108,7 @@ test("summarizeAnime treats a score of 0 as absent", () => {
 });
 
 test("summarizeManga maps manga-specific fields", () => {
-  const manga: AnimeMangaRaw = {
+  const manga: RawManga = {
     mal_id: 2,
     title: "Berserk",
     type: "manga",
@@ -122,7 +123,7 @@ test("summarizeManga maps manga-specific fields", () => {
 });
 
 test("summarizeManga surfaces the publishing flag only in detailed mode", () => {
-  const manga: AnimeMangaRaw = { mal_id: 2, title: "Berserk", publishing: true };
+  const manga: RawManga = { mal_id: 2, title: "Berserk", publishing: true };
   assert.ok(!("publishing" in summarizeManga(manga))); // list mode omits it
   assert.equal(summarizeManga(manga, true)["publishing"], true);
   // A finished manga keeps the explicit false (not dropped as nullish).
