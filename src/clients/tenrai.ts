@@ -254,15 +254,17 @@ export class TenraiClient {
   }
 
   // Reviews are not cached: they are paginated and change as users post.
+  // Tenrai's `/{kind}/{id}/reviews` has no `limit` param at all (confirmed against its
+  // OpenAPI spec and live: `?limit=1` and `?limit=2` both still return a full 20-review
+  // page) — `limit` is applied here, client-side, to actually honor the tool's own
+  // documented default/cap instead of silently ignoring it.
   async #reviews(
     kind: "anime" | "manga",
     id: number,
     limit: number,
   ): Promise<Record<string, unknown>> {
-    const res = await this.#http.getJson<ListResponse<RawReview>>(`${kind}/${id}/reviews`, {
-      query: { limit },
-    });
-    return summarizeReviews(res.data);
+    const res = await this.#http.getJson<ListResponse<RawReview>>(`${kind}/${id}/reviews`);
+    return summarizeReviews(res.data.slice(0, limit));
   }
 
   // Not cached: the response is paginated, and the cache key here would not

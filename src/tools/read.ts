@@ -54,7 +54,7 @@ const mangaStatus = z
   .enum(["publishing", "complete", "hiatus", "discontinued", "upcoming"])
   .describe("Filter by publication status.");
 const sortDir = z.enum(["desc", "asc"]).describe("Sort direction.");
-const limit = z.number().int().min(1).max(25).describe("Max results per page (1-25).");
+const limit = z.number().int().min(1).max(50).describe("Max results per page (1-50).");
 const page = z.number().int().min(1).describe("1-based page number for pagination.");
 const sfw = z
   .boolean()

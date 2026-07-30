@@ -265,27 +265,37 @@ test("search queries are trimmed, so a whitespace-only q is rejected", async (t)
   assert.equal(mock.calls.length, 0);
 });
 
-test("get_anime_reviews/get_anime_schedule default their limit when omitted", async (t) => {
+test("get_anime_schedule defaults its limit when omitted", async (t) => {
   const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
   installFetch(t, mock);
   const { client, close } = await connectServer({});
   t.after(close);
 
-  const reviews = await client.callTool({ name: "get_anime_reviews", arguments: { id: 1 } });
-  assert.notEqual(reviews.isError, true);
-  assert.match(mock.calls.at(-1)!.url, /limit=5(&|$)/);
-
   const schedule = await client.callTool({ name: "get_anime_schedule", arguments: {} });
   assert.notEqual(schedule.isError, true);
   assert.match(mock.calls.at(-1)!.url, /limit=25(&|$)/);
+});
 
-  // An explicit limit still overrides the default.
+test("get_anime_reviews applies limit client-side (Tenrai's /reviews has no limit param)", async (t) => {
+  const eightReviews = Array.from({ length: 8 }, (_, i) => ({ mal_id: i, score: 8 }));
+  const mock = mockFetch(() => jsonResponse({ data: eightReviews, pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const defaulted = await client.callTool({ name: "get_anime_reviews", arguments: { id: 1 } });
+  assert.notEqual(defaulted.isError, true);
+  assert.equal((defaulted.structuredContent as { reviews: unknown[] }).reviews.length, 5);
+  // Tenrai has no `limit` query param for this route — confirm we don't send one.
+  assert.doesNotMatch(mock.calls.at(-1)!.url, /limit=/);
+
   const explicit = await client.callTool({
     name: "get_anime_reviews",
     arguments: { id: 1, limit: 10 },
   });
   assert.notEqual(explicit.isError, true);
-  assert.match(mock.calls.at(-1)!.url, /limit=10(&|$)/);
+  // Only 8 reviews exist upstream; asking for 10 doesn't fabricate more.
+  assert.equal((explicit.structuredContent as { reviews: unknown[] }).reviews.length, 8);
 });
 
 test("update_my_anime_status rejects a calendar-invalid start_date", async (t) => {
