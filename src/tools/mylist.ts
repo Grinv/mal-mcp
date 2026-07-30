@@ -16,7 +16,7 @@ import {
 import { errorResult, jsonResult, type ToolResult } from "../lib/result.js";
 import { ApiError } from "../lib/errors.js";
 import { guard } from "./guard.js";
-import { defineTool } from "./spec.js";
+import { defineTool, registerTools } from "./spec.js";
 
 const NEEDS_TOKEN =
   "This tool needs a MyAnimeList login, which isn't set up yet. Register a MAL API " +
@@ -256,17 +256,5 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
     }),
   ];
 
-  for (const tool of tools) {
-    server.registerTool(
-      tool.name,
-      {
-        title: tool.title,
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-        outputSchema: tool.outputSchema,
-        annotations: tool.annotations,
-      },
-      tool.handler,
-    );
-  }
+  registerTools(server, tools);
 }

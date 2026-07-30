@@ -8,7 +8,7 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import type { JikanClient } from "../clients/jikan.js";
 import { jsonResult, type ToolResult } from "../lib/result.js";
 import { guard } from "./guard.js";
-import { defineTool } from "./spec.js";
+import { defineTool, registerTools } from "./spec.js";
 import {
   animeDetailSchema,
   animeSummarySchema,
@@ -667,17 +667,5 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
     }),
   ];
 
-  for (const tool of tools) {
-    server.registerTool(
-      tool.name,
-      {
-        title: tool.title,
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-        outputSchema: tool.outputSchema,
-        annotations: tool.annotations,
-      },
-      tool.handler,
-    );
-  }
+  registerTools(server, tools);
 }

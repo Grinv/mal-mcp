@@ -9,7 +9,7 @@ import { z } from "zod";
 import type { MalClient } from "../clients/mal.js";
 import { jsonResult } from "../lib/result.js";
 import { guard } from "./guard.js";
-import { defineTool } from "./spec.js";
+import { defineTool, registerTools } from "./spec.js";
 
 const startLoginResultSchema = z
   .object({
@@ -98,17 +98,5 @@ export function registerLoginTools(server: McpServer, mal: MalClient): void {
     }),
   ];
 
-  for (const tool of tools) {
-    server.registerTool(
-      tool.name,
-      {
-        title: tool.title,
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-        outputSchema: tool.outputSchema,
-        annotations: tool.annotations,
-      },
-      tool.handler,
-    );
-  }
+  registerTools(server, tools);
 }
