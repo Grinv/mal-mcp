@@ -35,6 +35,7 @@ import { defineTool, registerTools } from "./spec.js";
 import {
   animeDetailSchema,
   animeSummarySchema,
+  animeVideosSchema,
   charactersSchema,
   characterEntitySchema,
   episodesSchema,
@@ -46,7 +47,9 @@ import {
   newsItemSchema,
   personEntitySchema,
   producerSchema,
+  producerDetailSchema,
   recommendationsSchema,
+  recentRecommendationsSchema,
   reviewsSchema,
   seasonsListSchema,
   staffSchema,
@@ -76,8 +79,9 @@ const mangaType = z.enum(MANGA_MEDIA_TYPES).describe("A publication type.");
 const mangaStatus = z.enum(MANGA_STATUSES).describe("Filter by publication status.");
 const sortDir = z.enum(SORT_DIRS).describe("Sort direction.");
 const limit = z.number().int().min(1).max(50).describe("Max results per page (1-50).");
-// /magazines is the one Tenrai list endpoint with a 100 (not 50) per-page ceiling.
-const magazineLimit = z.number().int().min(1).max(100).describe("Max results per page (1-100).");
+// A handful of Tenrai list endpoints (magazines, the two site-wide recommendation feeds) have a
+// 100 (not 50) per-page ceiling.
+const limit100 = z.number().int().min(1).max(100).describe("Max results per page (1-100).");
 const page = z.number().int().min(1).describe("1-based page number for pagination.");
 const sfw = z
   .boolean()
@@ -289,9 +293,10 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "Get full details for one anime by mal_id: synopsis, score, genres, studios, " +
         "streaming links, external links (official site, social media), alternate title " +
         "synonyms, and related entries. `moreinfo` is a free-text field MAL editors sometimes " +
-        "add (e.g. suggested viewing order for a franchise) — usually absent. Obtain the " +
-        "mal_id from search_anime first. If Tenrai is unavailable and MAL_CLIENT_ID is set, " +
-        "transparently retries via the official " +
+        "add (e.g. suggested viewing order for a franchise) — usually absent. Only carries the " +
+        "single main `trailer` URL — use get_anime_videos for every promo/episode-preview/music " +
+        "video. Obtain the mal_id from search_anime first. If Tenrai is unavailable and " +
+        "MAL_CLIENT_ID is set, transparently retries via the official " +
         `API, which omits ${gapList(ANIME_DETAIL_FALLBACK_GAPS)} (no equivalent fields there).`,
       inputSchema: z.object({ id: malId }).strict(),
       outputSchema: animeDetailSchema,
@@ -345,12 +350,28 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       handler: ({ id, page: pg }) => reply(() => tenrai.getAnimeEpisodes(id, pg)),
     }),
     defineTool({
+      name: "get_anime_videos",
+      title: "Get anime videos",
+      description:
+        "List an anime's promotional videos (PVs/trailers), episode preview clips, and music " +
+        "videos (openings/endings), each with a title, watch URL, thumbnail, and view/like " +
+        "counts where available. This is richer than get_anime's single `trailer` field — use " +
+        "this instead when the caller wants every promo, not just the main one. Get the mal_id " +
+        "from search_anime.",
+      inputSchema: z.object({ id: malId }).strict(),
+      outputSchema: animeVideosSchema,
+      annotations: READ_ONLY,
+      handler: ({ id }) => reply(() => tenrai.getAnimeVideos(id)),
+    }),
+    defineTool({
       name: "get_anime_recommendations",
       title: "Get anime recommendations",
       description:
         "Get community recommendations for anime similar to the given mal_id, ordered by votes " +
         "and capped at the top 25 (no pagination). Get the mal_id from search_anime. Use " +
-        "get_top_anime instead for a global popularity/score ranking not tied to one title. If " +
+        "get_top_anime instead for a global popularity/score ranking not tied to one title, or " +
+        "get_recent_anime_recommendations for a site-wide feed of recommendation pairs not tied " +
+        "to this title either. If " +
         "Tenrai is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
         "API's own recommendations field (same output shape, but ordering/counts may differ " +
         "slightly from Tenrai's).",
@@ -358,6 +379,27 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       outputSchema: recommendationsSchema,
       annotations: READ_ONLY,
       handler: ({ id }) => reply(() => tenrai.getAnimeRecommendations(id)),
+    }),
+    defineTool({
+      name: "get_recent_anime_recommendations",
+      title: "Get recent anime recommendations",
+      description:
+        "Get a site-wide feed of recently-submitted anime recommendation pairs (e.g. 'if you " +
+        "liked X, try Y') with the submitting user's own commentary — not tied to any one " +
+        "title. Use get_anime_recommendations instead for recommendations similar to a specific " +
+        "mal_id. No official-API fallback exists for this tool — it always needs Tenrai itself " +
+        "to be reachable.",
+      inputSchema: z
+        .object({
+          sfw: sfw.optional(),
+          sfw_strict: sfwStrict.optional(),
+          limit: limit100.optional(),
+          page: page.optional(),
+        })
+        .strict(),
+      outputSchema: recentRecommendationsSchema,
+      annotations: READ_ONLY,
+      handler: (args) => reply(() => tenrai.getRecentAnimeRecommendations(args)),
     }),
     defineTool({
       name: "get_anime_reviews",
@@ -394,7 +436,9 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       description:
         "Get community recommendations for manga similar to the given mal_id, ordered by votes " +
         "and capped at the top 25 (no pagination). Get the mal_id from search_manga. Use " +
-        "get_top_manga instead for a global popularity/score ranking not tied to one title. If " +
+        "get_top_manga instead for a global popularity/score ranking not tied to one title, or " +
+        "get_recent_manga_recommendations for a site-wide feed of recommendation pairs not tied " +
+        "to this title either. If " +
         "Tenrai is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
         "API's own recommendations field (same output shape, but ordering/counts may differ " +
         "slightly from Tenrai's).",
@@ -402,6 +446,27 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       outputSchema: recommendationsSchema,
       annotations: READ_ONLY,
       handler: ({ id }) => reply(() => tenrai.getMangaRecommendations(id)),
+    }),
+    defineTool({
+      name: "get_recent_manga_recommendations",
+      title: "Get recent manga recommendations",
+      description:
+        "Get a site-wide feed of recently-submitted manga recommendation pairs (e.g. 'if you " +
+        "liked X, try Y') with the submitting user's own commentary — not tied to any one " +
+        "title. Use get_manga_recommendations instead for recommendations similar to a specific " +
+        "mal_id. No official-API fallback exists for this tool — it always needs Tenrai itself " +
+        "to be reachable.",
+      inputSchema: z
+        .object({
+          sfw: sfw.optional(),
+          sfw_strict: sfwStrict.optional(),
+          limit: limit100.optional(),
+          page: page.optional(),
+        })
+        .strict(),
+      outputSchema: recentRecommendationsSchema,
+      annotations: READ_ONLY,
+      handler: (args) => reply(() => tenrai.getRecentMangaRecommendations(args)),
     }),
     defineTool({
       name: "get_manga_reviews",
@@ -789,7 +854,9 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       name: "get_producers",
       title: "Get producers/studios",
       description:
-        "List or search anime producers and studios with their MAL IDs and counts. Use `q` to search by name.",
+        "List or search anime producers and studios with their MAL IDs and counts. Use `q` to " +
+        "search by name, then get_producer for one studio's full profile (about text, external " +
+        "links).",
       inputSchema: z
         .object({
           q: z.string().describe("Filter by name.").optional(),
@@ -805,6 +872,18 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       handler: (args) => reply(() => tenrai.getProducers(args)),
     }),
     defineTool({
+      name: "get_producer",
+      title: "Get producer/studio details",
+      description:
+        "Get full details for one anime producer/studio by mal_id: about text and external " +
+        "links (official site, social media) alongside the fields get_producers already " +
+        "returns. Obtain the mal_id from get_producers.",
+      inputSchema: z.object({ id: malId }).strict(),
+      outputSchema: producerDetailSchema,
+      annotations: READ_ONLY,
+      handler: ({ id }) => reply(() => tenrai.getProducer(id)),
+    }),
+    defineTool({
       name: "get_magazines",
       title: "Get manga magazines",
       description:
@@ -817,7 +896,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
           order_by: z.enum(MAGAZINE_ORDER_BY).describe("Field to order by.").optional(),
           sort: sortDir.optional(),
           letter: letterFilter.optional(),
-          limit: magazineLimit.optional(),
+          limit: limit100.optional(),
           page: page.optional(),
         })
         .strict(),
@@ -886,11 +965,31 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       title: "Get anime news",
       description:
         "List recent news articles about an anime (by mal_id): headline, date, author and excerpt. " +
-        "Useful for 'what's new / any announcements' questions. Get the mal_id from search_anime.",
+        "Useful for 'what's new / any announcements' questions. Get the mal_id from search_anime. " +
+        "Use get_news instead for a site-wide feed not tied to one anime.",
       inputSchema: z.object({ id: malId, page: page.optional() }).strict(),
       outputSchema: listPageSchema(newsItemSchema),
       annotations: READ_ONLY,
       handler: ({ id, page: pg }) => reply(() => tenrai.getAnimeNews(id, pg)),
+    }),
+    defineTool({
+      name: "get_news",
+      title: "Get anime/manga news",
+      description:
+        "List recent MyAnimeList news articles site-wide (headline, date, author, excerpt) — " +
+        "not tied to one anime. Use `q` to search by keyword or `tag` to filter by topic tag. " +
+        "Use get_anime_news instead for news about one specific anime by mal_id.",
+      inputSchema: z
+        .object({
+          q: z.string().describe("Search query, e.g. a keyword or title.").optional(),
+          tag: z.string().describe("Filter by topic tag.").optional(),
+          limit: limit.optional(),
+          page: page.optional(),
+        })
+        .strict(),
+      outputSchema: listPageSchema(newsItemSchema),
+      annotations: READ_ONLY,
+      handler: (args) => reply(() => tenrai.getNews(args)),
     }),
   ];
 

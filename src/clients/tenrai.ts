@@ -12,6 +12,7 @@ import {
   summarizeManga,
   summarizeCharacters,
   summarizeRecommendations,
+  summarizeRecentRecommendations,
   summarizeReviews,
   summarizeEpisodes,
   summarizeGenres,
@@ -21,6 +22,7 @@ import {
   summarizeStatistics,
   summarizeProducer,
   summarizeMagazine,
+  summarizeAnimeVideos,
   summarizeSeasonsList,
   summarizeNewsItem,
   type RawAnime,
@@ -28,6 +30,7 @@ import {
   type RawPagination,
   type RawCharacter,
   type RawRecommendation,
+  type RawRecentRecommendation,
   type RawReview,
   type RawEpisode,
   type RawGenre,
@@ -37,6 +40,7 @@ import {
   type RawStatistics,
   type RawProducer,
   type RawMagazine,
+  type RawAnimeVideos,
   type RawSeasonEntry,
   type RawNewsItem,
 } from "../lib/format.js";
@@ -280,6 +284,34 @@ export class TenraiClient {
     );
   }
 
+  // Site-wide feed, not tied to one title — not cached (paginated/frequently-changing, same
+  // category as reviews/episodes/random picks).
+  async getRecentAnimeRecommendations(p: {
+    page?: number;
+    limit?: number;
+    sfw?: boolean;
+    sfw_strict?: boolean;
+  }): Promise<Record<string, unknown>> {
+    const res = await this.#http.getJson<ListResponse<RawRecentRecommendation>>(
+      "recommendations/anime",
+      { query: { page: p.page, limit: p.limit, sfw: p.sfw, ...sfwStrictQuery(p.sfw_strict) } },
+    );
+    return summarizeRecentRecommendations(res.data, res.pagination);
+  }
+
+  async getRecentMangaRecommendations(p: {
+    page?: number;
+    limit?: number;
+    sfw?: boolean;
+    sfw_strict?: boolean;
+  }): Promise<Record<string, unknown>> {
+    const res = await this.#http.getJson<ListResponse<RawRecentRecommendation>>(
+      "recommendations/manga",
+      { query: { page: p.page, limit: p.limit, sfw: p.sfw, ...sfwStrictQuery(p.sfw_strict) } },
+    );
+    return summarizeRecentRecommendations(res.data, res.pagination);
+  }
+
   async getAnimeReviews(
     id: number,
     limit: number,
@@ -321,6 +353,12 @@ export class TenraiClient {
       query: { page },
     });
     return summarizeEpisodes(res.data, res.pagination);
+  }
+
+  async getAnimeVideos(id: number): Promise<Record<string, unknown>> {
+    return this.#cached<RawAnimeVideos>(`anime-videos:${id}`, `anime/${id}/videos`, (v) =>
+      summarizeAnimeVideos(v),
+    );
   }
 
   async getAnimeGenres(filter?: GenreFilter): Promise<Record<string, unknown>> {
@@ -514,6 +552,12 @@ export class TenraiClient {
     return this.#list<RawProducer>("producers", { ...p }, summarizeProducer);
   }
 
+  async getProducer(id: number): Promise<Record<string, unknown>> {
+    return this.#cached<RawProducer>(`producer:${id}`, `producers/${id}/full`, (p) =>
+      summarizeProducer(p, true),
+    );
+  }
+
   async getMagazines(p: MagazineSearchParams): Promise<Record<string, unknown>> {
     return this.#list<RawMagazine>("magazines", { ...p }, summarizeMagazine);
   }
@@ -545,5 +589,15 @@ export class TenraiClient {
 
   async getAnimeNews(id: number, page?: number): Promise<Record<string, unknown>> {
     return this.#list<RawNewsItem>(`anime/${id}/news`, { page }, summarizeNewsItem);
+  }
+
+  // Site-wide news feed, not tied to one anime — not cached (paginated/frequently-changing).
+  async getNews(p: {
+    q?: string;
+    tag?: string;
+    limit?: number;
+    page?: number;
+  }): Promise<Record<string, unknown>> {
+    return this.#list<RawNewsItem>("news", { ...p }, summarizeNewsItem);
   }
 }

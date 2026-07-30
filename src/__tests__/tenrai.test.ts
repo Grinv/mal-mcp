@@ -221,3 +221,85 @@ test("getAnime caches by id (second call hits cache, no second fetch)", async (t
   assert.equal(mock.calls.length, 1);
   assert.match(mock.calls[0]!.url, /\/anime\/1\/full$/);
 });
+
+test("getProducer hits /producers/{id}/full and surfaces about/external", async (t) => {
+  const mock = mockFetch(() =>
+    jsonResponse({
+      data: {
+        mal_id: 14,
+        titles: [{ type: "Default", title: "Sunrise" }],
+        about: "A Japanese animation studio.",
+        external: [{ name: "Official Site", url: "https://sunrise.example" }],
+      },
+    }),
+  );
+  installFetch(t, mock);
+  const res = (await tenrai().getProducer(14)) as Record<string, unknown>;
+  assert.equal(res["name"], "Sunrise");
+  assert.equal(res["about"], "A Japanese animation studio.");
+  assert.match(mock.calls[0]!.url, /\/producers\/14\/full$/);
+});
+
+test("getAnimeVideos hits /anime/{id}/videos and maps promo/episodes/music_videos", async (t) => {
+  const mock = mockFetch(() =>
+    jsonResponse({
+      data: {
+        promo: [{ title: "PV 1", trailer: { url: "https://youtube.com/watch?v=abc" } }],
+        episodes: [{ mal_id: 1, title: "Ep 1", episode: "Episode 1", url: "u" }],
+        music_videos: [],
+      },
+    }),
+  );
+  installFetch(t, mock);
+  const res = (await tenrai().getAnimeVideos(1)) as { promo: Record<string, unknown>[] };
+  assert.equal(res.promo[0]!["url"], "https://youtube.com/watch?v=abc");
+  assert.match(mock.calls[0]!.url, /\/anime\/1\/videos$/);
+});
+
+test("getRecentAnimeRecommendations/getRecentMangaRecommendations hit the site-wide feed endpoints", async (t) => {
+  const mock = mockFetch(() =>
+    jsonResponse({
+      data: [
+        {
+          entry: [
+            { mal_id: 1, title: "A", url: "u1" },
+            { mal_id: 2, title: "B", url: "u2" },
+          ],
+          content: "Great pair",
+          user: { username: "bob" },
+        },
+      ],
+      pagination: { last_visible_page: 5, has_next_page: true },
+    }),
+  );
+  installFetch(t, mock);
+  const anime = (await tenrai().getRecentAnimeRecommendations({ sfw: true, limit: 50 })) as {
+    results: Record<string, unknown>[];
+  };
+  assert.equal(anime.results[0]!["content"], "Great pair");
+  assert.match(mock.calls[0]!.url, /\/recommendations\/anime\?/);
+  assert.match(mock.calls[0]!.url, /sfw=true/);
+  assert.match(mock.calls[0]!.url, /limit=50/);
+
+  const manga = (await tenrai().getRecentMangaRecommendations({})) as {
+    results: Record<string, unknown>[];
+  };
+  assert.equal(manga.results[0]!["content"], "Great pair");
+  assert.match(mock.calls[1]!.url, /\/recommendations\/manga/);
+});
+
+test("getNews hits the site-wide /news endpoint (not /anime/{id}/news)", async (t) => {
+  const mock = mockFetch(() =>
+    jsonResponse({
+      data: [{ mal_id: 1, url: "u", title: "Big Announcement", date: "2024-01-01" }],
+      pagination: {},
+    }),
+  );
+  installFetch(t, mock);
+  const res = (await tenrai().getNews({ q: "announcement" })) as {
+    results: Record<string, unknown>[];
+  };
+  assert.equal(res.results[0]!["title"], "Big Announcement");
+  assert.match(mock.calls[0]!.url, /\/news\?/);
+  assert.match(mock.calls[0]!.url, /q=announcement/);
+});

@@ -69,8 +69,16 @@
       "description": "List an anime's episodes with air dates and flags."
     },
     {
+      "name": "get_anime_videos",
+      "description": "An anime's promo videos, episode previews, and music videos."
+    },
+    {
       "name": "get_anime_recommendations",
       "description": "Community recommendations for an anime."
+    },
+    {
+      "name": "get_recent_anime_recommendations",
+      "description": "Site-wide feed of recently-submitted anime recommendation pairs."
     },
     {
       "name": "get_anime_reviews",
@@ -79,6 +87,10 @@
     {
       "name": "get_manga_recommendations",
       "description": "Community recommendations for a manga."
+    },
+    {
+      "name": "get_recent_manga_recommendations",
+      "description": "Site-wide feed of recently-submitted manga recommendation pairs."
     },
     {
       "name": "get_manga_reviews",
@@ -153,6 +165,10 @@
       "description": "List or search anime producers/studios."
     },
     {
+      "name": "get_producer",
+      "description": "Get full details for one producer/studio by id."
+    },
+    {
       "name": "get_magazines",
       "description": "List or search manga serialization magazines/publishers."
     },
@@ -179,6 +195,10 @@
     {
       "name": "get_anime_news",
       "description": "Recent news articles about an anime."
+    },
+    {
+      "name": "get_news",
+      "description": "Site-wide recent MyAnimeList news, not tied to one anime."
     },
     {
       "name": "get_my_user_info",

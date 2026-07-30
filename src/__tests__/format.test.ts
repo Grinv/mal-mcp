@@ -16,6 +16,8 @@ import {
   summarizeMagazine,
   summarizeSeasonsList,
   summarizeNewsItem,
+  summarizeAnimeVideos,
+  summarizeRecentRecommendations,
   pageInfo,
   type RawAnime,
   type RawManga,
@@ -166,6 +168,96 @@ test("summarizeManga surfaces the publishing flag only in detailed mode", () => 
   assert.equal(summarizeManga(manga, true)["publishing"], true);
   // A finished manga keeps the explicit false (not dropped as nullish).
   assert.equal(summarizeManga({ ...manga, publishing: false }, true)["publishing"], false);
+});
+
+test("summarizeProducer surfaces about/external in detailed mode only", () => {
+  const producer = {
+    mal_id: 14,
+    titles: [{ type: "Default", title: "Sunrise" }],
+    count: 100,
+    about: "A Japanese animation studio.",
+    external: [{ name: "Official Site", url: "https://sunrise.example" }],
+  };
+  const list = summarizeProducer(producer);
+  assert.ok(!("about" in list));
+  assert.ok(!("external" in list));
+  const detailed = summarizeProducer(producer, true);
+  assert.equal(detailed["about"], "A Japanese animation studio.");
+  assert.deepEqual(detailed["external"], [
+    { name: "Official Site", url: "https://sunrise.example" },
+  ]);
+});
+
+test("summarizeAnimeVideos maps promo/episodes/music_videos, preferring the watch URL and larger thumbnail", () => {
+  const v = summarizeAnimeVideos({
+    promo: [
+      {
+        title: "PV 1",
+        trailer: {
+          url: "https://youtube.com/watch?v=abc",
+          embed_url: "https://youtube-nocookie.com/embed/abc",
+          images: { image_url: "https://img/small.jpg", large_image_url: "https://img/large.jpg" },
+          views: 100,
+          likes: 10,
+        },
+      },
+    ],
+    episodes: [
+      {
+        mal_id: 1,
+        title: "Episode 1",
+        episode: "Episode 1",
+        url: "https://myanimelist.net/anime/1/episode/1",
+        images: { jpg: { image_url: "https://img/ep1.jpg" } },
+      },
+    ],
+    music_videos: [
+      {
+        title: "OP 1",
+        video: { embed_url: "https://youtube-nocookie.com/embed/op1", views: 5, likes: 1 },
+      },
+    ],
+  }) as {
+    promo: Record<string, unknown>[];
+    episodes: Record<string, unknown>[];
+    music_videos: Record<string, unknown>[];
+  };
+  assert.equal(v.promo[0]!["url"], "https://youtube.com/watch?v=abc");
+  assert.equal(v.promo[0]!["image_url"], "https://img/large.jpg");
+  assert.equal(v.promo[0]!["views"], 100);
+  assert.equal(v.episodes[0]!["episode"], "Episode 1");
+  assert.equal(v.episodes[0]!["image_url"], "https://img/ep1.jpg");
+  // No `url`/`embed_url` set for the trailer itself -> falls back to embed_url.
+  assert.equal(v.music_videos[0]!["url"], "https://youtube-nocookie.com/embed/op1");
+});
+
+test("summarizeRecentRecommendations drops a pair where either side has no resolvable mal_id", () => {
+  const res = summarizeRecentRecommendations(
+    [
+      {
+        entry: [
+          { mal_id: 1, title: "A", url: "u1" },
+          { mal_id: 2, title: "B", url: "u2" },
+        ],
+        content: "Great pair",
+        date: "2024-01-01",
+        user: { username: "bob" },
+      },
+      {
+        // Missing mal_id on the second entry — the whole pair should be dropped.
+        entry: [{ mal_id: 3, title: "C" }, { title: "D" }],
+        content: "Broken pair",
+      },
+    ],
+    { current_page: 1 },
+  ) as { results: Record<string, unknown>[]; page: Record<string, unknown> };
+  assert.equal(res.results.length, 1);
+  assert.equal(res.results[0]!["content"], "Great pair");
+  assert.equal(res.results[0]!["user"], "bob");
+  const entries = res.results[0]!["entries"] as Record<string, unknown>[];
+  assert.equal(entries.length, 2);
+  assert.equal(entries[0]!["mal_id"], 1);
+  assert.equal(res.page["current_page"], 1);
 });
 
 test("summarizeCharacters keeps Japanese VAs for anime and omits them for manga", () => {

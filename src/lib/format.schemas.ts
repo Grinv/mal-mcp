@@ -193,6 +193,31 @@ export const recommendationsSchema = z
   .object({ recommendations: z.array(recommendationEntrySchema) })
   .strict();
 
+// ---- summarizeRecentRecommendations -----------------------------------------
+
+// mal_id required on each paired entry — see characterEntrySchema's comment above; the
+// containing row has no chainable id of its own (Tenrai's own id there is a composite
+// "1-30"-style pair id), so only these two entries are exposed.
+const recentRecommendationEntitySchema = z
+  .object({
+    mal_id: z.number(),
+    title: z.string().optional(),
+    url: z.string().optional(),
+    image_url: z.string().optional(),
+  })
+  .strict();
+
+export const recentRecommendationEntrySchema = z
+  .object({
+    entries: z.array(recentRecommendationEntitySchema),
+    content: z.string().optional(),
+    date: z.string().optional(),
+    user: z.string().optional(),
+  })
+  .strict();
+
+export const recentRecommendationsSchema = listPageSchema(recentRecommendationEntrySchema);
+
 // ---- summarizeReviews -----------------------------------------------------------
 
 const reviewEntrySchema = z
@@ -373,6 +398,15 @@ export const producerSchema = z
   })
   .strict();
 
+// summarizeProducer(detailed: true) builds this shape — get_producer (single-producer lookup,
+// /producers/{id}/full) vs. get_producers (list/search, /producers, which has no about/external).
+export const producerDetailSchema = producerSchema
+  .extend({
+    about: z.string().optional(),
+    external: z.array(namedLinkSchema).optional(),
+  })
+  .strict();
+
 // ---- summarizeMagazine -----------------------------------------------------------
 
 // mal_id required — the magazine's own canonical MAL ID; see characterEntrySchema's comment
@@ -384,6 +418,36 @@ export const magazineSchema = z
     name: z.string().optional(),
     count: z.number().optional(),
     url: z.string().optional(),
+  })
+  .strict();
+
+// ---- summarizeAnimeVideos -----------------------------------------------------------
+
+const videoClipEntrySchema = z
+  .object({
+    title: z.string().optional(),
+    url: z.string().optional(),
+    image_url: z.string().optional(),
+    views: z.number().optional(),
+    likes: z.number().optional(),
+  })
+  .strict();
+
+const episodePreviewEntrySchema = z
+  .object({
+    mal_id: z.number().optional(),
+    title: z.string().optional(),
+    episode: z.string().optional(),
+    url: z.string().optional(),
+    image_url: z.string().optional(),
+  })
+  .strict();
+
+export const animeVideosSchema = z
+  .object({
+    promo: z.array(videoClipEntrySchema),
+    episodes: z.array(episodePreviewEntrySchema),
+    music_videos: z.array(videoClipEntrySchema),
   })
   .strict();
 

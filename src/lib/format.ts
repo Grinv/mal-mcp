@@ -27,8 +27,12 @@ import {
   pageSchema,
   personEntitySchema,
   producerSchema,
+  producerDetailSchema,
+  animeVideosSchema,
   recommendationEntrySchema,
   recommendationsSchema,
+  recentRecommendationEntrySchema,
+  recentRecommendationsSchema,
   reviewsSchema,
   seasonEntrySchema,
   seasonsListSchema,
@@ -448,6 +452,39 @@ export function summarizeRecommendations(
   });
 }
 
+// Site-wide feed of recently-submitted recommendation pairs (e.g. "if you liked X, try Y"),
+// distinct from the per-title `entry`/`votes` shape above. The upstream item's own `mal_id` is a
+// composite pair id like "1-30" (not a real, chainable MAL id), so it's deliberately not exposed
+// — only the two `entry` items' own mal_ids are.
+export interface RawRecentRecommendation {
+  entry?: { mal_id?: number; title?: string; url?: string; images?: RawImages }[];
+  content?: string | null;
+  date?: string | null;
+  user?: { username?: string };
+}
+
+/** A recommendation pair where either side has no resolvable mal_id (a malformed/edge-case
+ *  upstream record) is dropped rather than failing the whole list — see `mapLenient`. */
+export function summarizeRecentRecommendations(
+  data: RawRecentRecommendation[],
+  pagination: RawPagination | undefined,
+): z.infer<typeof recentRecommendationsSchema> {
+  return recentRecommendationsSchema.parse({
+    results: mapLenient(data, recentRecommendationEntrySchema, (r) => ({
+      entries: (r.entry ?? []).map((e) => ({
+        mal_id: e.mal_id,
+        title: e.title,
+        url: e.url,
+        image_url: imageUrl(e.images),
+      })),
+      content: r.content ?? undefined,
+      date: r.date ?? undefined,
+      user: r.user?.username,
+    })),
+    page: pageInfo(pagination),
+  });
+}
+
 export interface RawReview {
   user?: { username?: string };
   score?: number;
@@ -697,10 +734,21 @@ export interface RawProducer {
   favorites?: number;
   established?: string | null;
   count?: number;
+  // Only present on /producers/{id}/full, not the /producers list endpoint.
+  about?: string | null;
+  external?: { name?: string; url?: string }[];
 }
-export function summarizeProducer(p: RawProducer): z.infer<typeof producerSchema> {
+export function summarizeProducer(
+  p: RawProducer,
+  detailed: true,
+): z.infer<typeof producerDetailSchema>;
+export function summarizeProducer(p: RawProducer, detailed?: false): z.infer<typeof producerSchema>;
+export function summarizeProducer(
+  p: RawProducer,
+  detailed = false,
+): z.infer<typeof producerSchema> | z.infer<typeof producerDetailSchema> {
   const name = (p.titles ?? []).find((t) => t.type === "Default")?.title ?? p.titles?.[0]?.title;
-  return producerSchema.parse(
+  const base = producerSchema.parse(
     clean({
       mal_id: p.mal_id,
       name,
@@ -709,6 +757,14 @@ export function summarizeProducer(p: RawProducer): z.infer<typeof producerSchema
       established: p.established ?? undefined,
       url: p.url,
       image_url: imageUrl(p.images),
+    }),
+  );
+  if (!detailed) return base;
+  return producerDetailSchema.parse(
+    clean({
+      ...base,
+      about: p.about ?? undefined,
+      external: (p.external ?? []).map((e) => clean({ name: e.name, url: e.url })),
     }),
   );
 }
@@ -729,6 +785,65 @@ export function summarizeMagazine(m: RawMagazine): z.infer<typeof magazineSchema
       url: m.url,
     }),
   );
+}
+
+// ---- Anime videos (promos, episode previews, music videos) ----
+interface RawVideoClip {
+  youtube_id?: string | null;
+  url?: string | null;
+  embed_url?: string | null;
+  images?: { image_url?: string | null; large_image_url?: string | null };
+  title?: string | null;
+  views?: number | null;
+  likes?: number | null;
+}
+export interface RawAnimeVideos {
+  promo?: { title?: string; trailer?: RawVideoClip }[];
+  episodes?: {
+    mal_id?: number;
+    title?: string;
+    episode?: string;
+    url?: string;
+    images?: RawImages;
+  }[];
+  music_videos?: { title?: string; video?: RawVideoClip }[];
+}
+function clipUrl(clip: RawVideoClip | undefined): string | undefined {
+  return clip?.url ?? clip?.embed_url ?? undefined;
+}
+function clipImageUrl(clip: RawVideoClip | undefined): string | undefined {
+  return clip?.images?.large_image_url ?? clip?.images?.image_url ?? undefined;
+}
+export function summarizeAnimeVideos(v: RawAnimeVideos): z.infer<typeof animeVideosSchema> {
+  return animeVideosSchema.parse({
+    promo: (v.promo ?? []).map((p) =>
+      clean({
+        title: p.title,
+        url: clipUrl(p.trailer),
+        image_url: clipImageUrl(p.trailer),
+        views: p.trailer?.views ?? undefined,
+        likes: p.trailer?.likes ?? undefined,
+      }),
+    ),
+    episodes: (v.episodes ?? []).map((e) =>
+      clean({
+        mal_id: e.mal_id,
+        title: e.title,
+        episode: e.episode,
+        url: e.url,
+        image_url: imageUrl(e.images),
+      }),
+    ),
+    music_videos: (v.music_videos ?? []).map((m) =>
+      clean({
+        title: m.title,
+        url: clipUrl(m.video),
+        image_url: clipImageUrl(m.video),
+        views: m.video?.views ?? undefined,
+        likes: m.video?.likes ?? undefined,
+      }),
+    ),
+  });
 }
 
 // ---- Seasons list & news ----

@@ -243,12 +243,17 @@ test("the server advertises all expected tools", async (t) => {
   assert.ok(names.includes("search_people"));
   assert.ok(names.includes("get_random_anime"));
   assert.ok(names.includes("get_producers"));
+  assert.ok(names.includes("get_producer"));
   assert.ok(names.includes("get_magazines"));
+  assert.ok(names.includes("get_anime_videos"));
+  assert.ok(names.includes("get_recent_anime_recommendations"));
+  assert.ok(names.includes("get_recent_manga_recommendations"));
+  assert.ok(names.includes("get_news"));
   assert.ok(names.includes("get_seasons_list"));
   assert.ok(names.includes("get_anime_news"));
   assert.ok(names.includes("login_mal"));
   assert.ok(names.includes("submit_mal_redirect"));
-  assert.equal(names.length, 44);
+  assert.equal(names.length, 49);
   // Destructive hint is set on deletions.
   const del = tools.find((tool) => tool.name === "delete_my_anime_list_item");
   assert.equal(del?.annotations?.destructiveHint, true);
@@ -544,6 +549,104 @@ test("get_magazines' limit cap is 100, not 50 (Tenrai's own per-page ceiling for
   });
   assert.notEqual(orderBy.isError, true);
   assert.match(mock.calls.at(-1)!.url, /order_by=count/);
+});
+
+test("get_producer returns full details including about/external", async (t) => {
+  const mock = mockFetch(() =>
+    jsonResponse({
+      data: {
+        mal_id: 14,
+        titles: [{ type: "Default", title: "Sunrise" }],
+        about: "A Japanese animation studio.",
+        external: [{ name: "Official Site", url: "https://sunrise.example" }],
+      },
+    }),
+  );
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const res = await client.callTool({ name: "get_producer", arguments: { id: 14 } });
+  assert.notEqual(res.isError, true);
+  const s = res.structuredContent as Record<string, unknown>;
+  assert.equal(s["name"], "Sunrise");
+  assert.equal(s["about"], "A Japanese animation studio.");
+  assert.match(mock.calls[0]!.url, /\/producers\/14\/full$/);
+});
+
+test("get_anime_videos returns promo/episodes/music_videos", async (t) => {
+  const mock = mockFetch(() =>
+    jsonResponse({
+      data: {
+        promo: [{ title: "PV 1", trailer: { url: "https://youtube.com/watch?v=abc" } }],
+        episodes: [],
+        music_videos: [],
+      },
+    }),
+  );
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const res = await client.callTool({ name: "get_anime_videos", arguments: { id: 1 } });
+  assert.notEqual(res.isError, true);
+  const s = res.structuredContent as { promo: Record<string, unknown>[] };
+  assert.equal(s.promo[0]!["url"], "https://youtube.com/watch?v=abc");
+  assert.match(mock.calls[0]!.url, /\/anime\/1\/videos$/);
+});
+
+test("get_recent_anime_recommendations/get_recent_manga_recommendations return the site-wide feed", async (t) => {
+  const mock = mockFetch(() =>
+    jsonResponse({
+      data: [
+        {
+          entry: [
+            { mal_id: 1, title: "A" },
+            { mal_id: 2, title: "B" },
+          ],
+          content: "Great pair",
+          user: { username: "bob" },
+        },
+      ],
+      pagination: {},
+    }),
+  );
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const anime = await client.callTool({ name: "get_recent_anime_recommendations", arguments: {} });
+  assert.notEqual(anime.isError, true);
+  assert.match(mock.calls[0]!.url, /\/recommendations\/anime/);
+
+  const manga = await client.callTool({ name: "get_recent_manga_recommendations", arguments: {} });
+  assert.notEqual(manga.isError, true);
+  assert.match(mock.calls[1]!.url, /\/recommendations\/manga/);
+
+  const overCap = await client.callTool({
+    name: "get_recent_anime_recommendations",
+    arguments: { limit: 101 },
+  });
+  assert.equal(overCap.isError, true);
+});
+
+test("get_news hits the site-wide feed, not one anime's news", async (t) => {
+  const mock = mockFetch(() =>
+    jsonResponse({
+      data: [{ mal_id: 1, url: "u", title: "Big Announcement" }],
+      pagination: {},
+    }),
+  );
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const res = await client.callTool({ name: "get_news", arguments: { q: "announcement" } });
+  assert.notEqual(res.isError, true);
+  const s = res.structuredContent as { results: Record<string, unknown>[] };
+  assert.equal(s.results[0]!["title"], "Big Announcement");
+  assert.match(mock.calls[0]!.url, /\/news\?/);
+  assert.doesNotMatch(mock.calls[0]!.url, /\/anime\//);
 });
 
 test("update_my_anime_status rejects a calendar-invalid start_date", async (t) => {
