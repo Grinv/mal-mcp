@@ -26,10 +26,11 @@ export interface HttpClientOptions {
   /** Called before each request; lets callers throttle (rate limiting). */
   beforeRequest?: () => Promise<void> | void;
   /** Some upstreams occasionally report their own failure inside a 200
-   *  response instead of a real non-2xx status (confirmed live for the former
-   *  Jikan backend; no current client supplies this) — if this returns a
-   *  status, it's thrown as an ApiError the same way a real HTTP error would
-   *  be, instead of reaching the caller as if it were a successful body. */
+   *  response instead of a real non-2xx status (confirmed live against a
+   *  previous read backend; no current client supplies this) — if this
+   *  returns a status, it's thrown as an ApiError the same way a real HTTP
+   *  error would be, instead of reaching the caller as if it were a
+   *  successful body. */
   detectEmbeddedError?: (body: unknown) => { status: number; message: string } | undefined;
 }
 
@@ -152,8 +153,8 @@ export class HttpClient {
 }
 
 // Common upstream JSON error body shape: { status, type, message, error, ... }. `report_url` was
-// Jikan's own extra field; Tenrai's equivalent is `path` instead — parsed generically here since
-// only `message` is actually used across backends and an absent `report_url` is harmless.
+// a previous backend's own extra field; Tenrai's equivalent is `path` instead — parsed generically
+// here since only `message` is actually used across backends and an absent `report_url` is harmless.
 interface UpstreamErrorBody {
   message?: string;
   report_url?: string;

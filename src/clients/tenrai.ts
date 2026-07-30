@@ -1,6 +1,6 @@
-// Read-only client for the Tenrai API (a free, unofficial MyAnimeList mirror that follows the
-// Jikan v4 schema — no credentials needed). Wraps HttpClient with a polite rate limiter and a
-// TTL cache. It only fetches and caches; all raw→agent-facing shaping lives in ../lib/format.js.
+// Read-only client for the Tenrai API (a free, unofficial MyAnimeList mirror — no credentials
+// needed). Wraps HttpClient with a polite rate limiter and a TTL cache. It only fetches and
+// caches; all raw→agent-facing shaping lives in ../lib/format.js.
 import { HttpClient } from "../lib/http.js";
 import type { RateRule } from "../lib/rateLimit.js";
 import { TtlCache } from "../lib/cache.js";

@@ -8,9 +8,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- Replace the Jikan read backend with Tenrai, a free, unofficial Jikan-v4-schema-compatible MyAnimeList mirror — Jikan's community reports its public API shutting down 2026-10-01, and Tenrai answered every endpoint this server uses cleanly where Jikan was intermittently failing ([8615b83](https://github.com/Grinv/mal-mcp/commit/8615b83)).
+- Replace the read backend with Tenrai, a free, unofficial MyAnimeList mirror — the previous backend's public API is reportedly being discontinued, and Tenrai answered every endpoint this server uses cleanly in cases where it was intermittently failing ([8615b83](https://github.com/Grinv/mal-mcp/commit/8615b83)).
 - Rename the `JIKAN_BASE_URL`/`JIKAN_MIN_INTERVAL_MS` env vars to `TENRAI_BASE_URL`/`TENRAI_MIN_INTERVAL_MS` ([8615b83](https://github.com/Grinv/mal-mcp/commit/8615b83)).
-- Raise every search/top/list tool's `limit` cap from 25 to 50, matching Tenrai's own per-page ceiling (Jikan's was 25) ([d96441f](https://github.com/Grinv/mal-mcp/commit/d96441f)).
+- Raise every search/top/list tool's `limit` cap from 25 to 50, matching Tenrai's own per-page ceiling ([d96441f](https://github.com/Grinv/mal-mcp/commit/d96441f)).
 
 ### Removed
 
@@ -19,6 +19,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - Make `get_anime_reviews`/`get_manga_reviews`'s `limit` actually limit the results again — Tenrai's reviews endpoint has no `limit` query param at all (silently ignored), so both tools were always returning a full 20-review page regardless of the requested/defaulted count; now sliced client-side ([d96441f](https://github.com/Grinv/mal-mcp/commit/d96441f)).
+- Accept `get_anime_schedule`'s `unknown`/`other` day buckets and `search_anime`/`search_manga`'s `mal_id`/`end_date`/`scored_by` sort fields — all real, working values upstream that the input schemas previously rejected ([ab1489d](https://github.com/Grinv/mal-mcp/commit/ab1489d)).
 
 ### Added
 

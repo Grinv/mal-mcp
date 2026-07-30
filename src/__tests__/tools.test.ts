@@ -276,7 +276,7 @@ test("get_anime_schedule defaults its limit when omitted", async (t) => {
   assert.match(mock.calls.at(-1)!.url, /limit=25(&|$)/);
 });
 
-test("search_anime's limit cap is 50 (Tenrai's real ceiling), not Jikan's old 25", async (t) => {
+test("search_anime's limit cap is 50, matching Tenrai's real per-page ceiling", async (t) => {
   const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
   installFetch(t, mock);
   const { client, close } = await connectServer({});

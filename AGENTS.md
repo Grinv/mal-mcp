@@ -7,7 +7,7 @@ this file, not in CLAUDE.md. (For end-user/runtime docs, see [README.md](README.
 ## Project shape
 
 A TypeScript MCP server. Hybrid backend: read tools call the free Tenrai API
-(no auth; a Jikan-v4-schema-compatible MyAnimeList mirror). Personal-list
+(no auth; an unofficial MyAnimeList mirror). Personal-list
 tools call the official MyAnimeList API (user token). Eleven read tools
 (search/top/seasonal/recommendations/details/anime statistics) additionally
 fall back to the official API via just a Client ID — see `ReadFallback` in

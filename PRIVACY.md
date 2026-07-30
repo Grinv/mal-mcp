@@ -42,9 +42,9 @@ third-party APIs, carrying only what that specific call needs:
   (search, details, rankings, seasons, characters, recommendations, and
   reviews). Tenrai is a free, unofficial public API that mirrors MyAnimeList
   data; these calls are **anonymous** — no credential of yours is sent,
-  because none is needed. Unlike this server's former Jikan backend, Tenrai
-  publishes an actual [privacy policy](https://tenrai.org/privacy) (verified
-  live, 2026-07-30): it states it logs your IP address and request metadata
+  because none is needed. Tenrai publishes an actual
+  [privacy policy](https://tenrai.org/privacy) (verified live, 2026-07-30):
+  it states it logs your IP address and request metadata
   (endpoint, status code, timing) for rate-limiting/abuse-prevention/security,
   retained on a rolling basis for up to ~90 days, and does not sell data or
   use behavioral tracking/advertising cookies.

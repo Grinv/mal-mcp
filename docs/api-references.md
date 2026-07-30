@@ -17,15 +17,15 @@ JavaScript, so a plain HTTP fetch returns only the title — open them in a brow
   - **HTTP responses:** `200`, `404`, `429` (with a `Retry-After` header —
     verified live), `5xx` for a genuine outage.
   - **Error body:** `{ status, type, message, error, path }` — `http.ts`
-    surfaces `message`. (`report_url` was the former Jikan backend's own
-    field; Tenrai has no equivalent, which the parser tolerates as simply
-    absent.)
-  - **Schema compatibility:** Tenrai's `/v1/*` routes mirror the Jikan v4
-    response shape field-for-field (verified live 2026-07-30 across anime/
-    manga search and detail, characters, people, producers, genres, seasons,
-    schedules, recommendations, reviews, statistics, news, and random) — this
-    server's `format.ts` shapers required zero changes when the read backend
-    moved off Jikan onto Tenrai.
+    surfaces `message`. (`report_url` isn't populated by Tenrai; the parser
+    tolerates its absence.)
+  - **Schema compatibility:** Tenrai's `/v1/*` routes return a response shape
+    (top-level `data`/`pagination`, nested `{mal_id,url,images,...}` entities)
+    that already matched every `Raw*` interface in `format.ts` field-for-field
+    (verified live 2026-07-30 across anime/manga search and detail,
+    characters, people, producers, genres, seasons, schedules,
+    recommendations, reviews, statistics, news, and random) — this server's
+    shapers required zero changes when the read backend moved onto Tenrai.
   - **No user-data endpoints** (confirmed via `api.tenrai.org/llms.txt`): no
     `/users`, `/watch`, or `/clubs` routes exist — the operators state all
     data is pre-cached from MAL's public catalogue, which rules out

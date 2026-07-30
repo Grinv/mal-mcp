@@ -25,7 +25,7 @@ export const CACHE_HINT = { ttlMs: 60 * 60 * 1000, cacheScope: "public" } as con
 
 const INSTRUCTIONS = [
   "MyAnimeList tools. Reads (search/details/rankings/seasons/characters/reviews) are served via",
-  "the Tenrai API (a free, Jikan-v4-schema-compatible MyAnimeList mirror) and need no",
+  "the Tenrai API (a free, unofficial MyAnimeList mirror) and need no",
   "credentials. Personal-list tools (get_my_*, update_my_*, delete_my_*) act on the authenticated",
   "user's own MAL list and require a user token; without one they return an actionable error.",
   "Resolve a title to its mal_id with search_anime/search_manga before calling id-based tools. To",
