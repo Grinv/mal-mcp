@@ -81,9 +81,6 @@ json.load(open('notes/tenrai-openapi-spec.json'))..."`) instead of re-fetching
     a mapping bug, but not independently confirmed non-empty on any title. `get_news`'s `q` param
     genuinely filters (a nonsense query returns 0 results) but matches more than the visible
     headline — a query like "Dragon Ball" returns articles whose titles don't contain the phrase.
-  - **Open gaps** (found auditing every param against the local spec, not yet closed): no
-    `get_manga_news` tool for `/manga/{id}/news`; this server's `page` schema has no upper bound,
-    while `/anime` and `/manga` cap it at 1000 server-side.
 
 ## MyAnimeList official API
 
