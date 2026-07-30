@@ -23,6 +23,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Add `sort`/`preliminary`/`spoilers`/`sentiment` filters to `get_anime_reviews`/`get_manga_reviews`, plus `page`, and surface `is_spoiler`/`is_preliminary`/`reactions`/`episodes_watched`/`chapters_read` on each review — all real Tenrai fields the tools previously ignored ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
+- Add `rating`, `score`/`min_score`/`max_score`, `genres_exclude`, `letter`, `producers`/`magazines`, `start_date`/`end_date`, and `unapproved` to `search_anime`/`search_manga`; let their (and `get_top_anime`/`get_top_manga`'s) `type` accept multiple values at once instead of just one ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
+- Add `rating` to `get_top_anime` ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
+- Add `filter`/`rating`/`unapproved`/`continuing`/`kids`/`order_by`/`sort` to `get_seasonal_anime`/`get_upcoming_season` ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
+- Add `kids`/`unapproved`/`page` to `get_anime_schedule` ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
+- Add `letter` to `search_characters`/`search_people`/`get_producers` ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
 - Add `sfw_strict` alongside `sfw` on `search_anime`, `search_manga`, `get_seasonal_anime`, `get_upcoming_season`, and `get_anime_schedule` — `sfw` alone still lets mainstream, safely-rated shows tagged with the Ecchi genre through; `sfw_strict` excludes those too ([e0b8b38](https://github.com/Grinv/mal-mcp/commit/e0b8b38)).
 - Add `sfw`/`sfw_strict` to `get_top_anime`, `get_top_manga`, `get_random_anime`, and `get_random_manga` — these had no content filter at all despite Tenrai supporting one ([e0b8b38](https://github.com/Grinv/mal-mcp/commit/e0b8b38)).
 - Add a privacy policy (`PRIVACY.md`) covering data collection, third-party sharing, storage/retention, and which tools read vs. mutate a connected MyAnimeList account, linked from the README ([d380b9a](https://github.com/Grinv/mal-mcp/commit/d380b9a)).

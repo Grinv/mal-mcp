@@ -45,6 +45,18 @@ JavaScript, so a plain HTTP fetch returns only the title — open them in a brow
     OAuth).
   - **Beta status, self-declared**: the operators describe `/v1` as an
     interim bridge toward a `/v2` design, with occasional downtime expected.
+  - **Full query-param audit (2026-07-30)**, cross-checked against the maintainer's local
+    OpenAPI spec (`api-1.json`/`api-1.yaml`, v1.0.17, 86 paths) and `api.tenrai.org/llms.txt`:
+    `type` and `rating` on `/anime`, `/manga`, `/top/anime`, `/top/manga` and the seasonal
+    (`filter`) endpoints are OpenAPI `array` params with `style: form, explode: false` — sent as
+    one comma-joined query value (`type=tv,movie`), not repeated keys; `mal-mcp` previously
+    exposed only a single value for several of these (fixed). `/anime|manga/{id}/reviews`
+    (unlike the paginated collection routes) has real `sort`/`preliminary`/`spoilers`/
+    `sentiment` params — `preliminary`/`spoilers` are tri-state (`true`/`false`/`only`), not
+    plain booleans. Manga reviews carry `chapters_read`, anime reviews carry
+    `episodes_watched` — never both on the same item, despite sharing one response schema.
+    Every comma-separated ID list (`genres`, `genres_exclude`, `producers`, `magazines`) caps
+    at 25 IDs per Tenrai's own docs.
 
 ## MyAnimeList official API
 

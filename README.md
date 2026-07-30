@@ -254,6 +254,11 @@ the upstream API provides. Most read tools (`search_anime`, `search_manga`,
   otherwise mainstream, safely-rated shows that `sfw` alone still lets through
   (e.g. _No Game No Life_, _Kill la Kill_).
 
+`search_anime` and `get_top_anime`/`get_seasonal_anime`/`get_upcoming_season` also
+accept a `rating` filter for finer-grained control — target one or more specific
+MAL content ratings (e.g. `pg13`, `r17`) directly instead of a blanket adult-content
+cutoff.
+
 ## Development
 
 ```sh
