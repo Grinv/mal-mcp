@@ -43,11 +43,13 @@ third-party APIs, carrying only what that specific call needs:
   reviews). Tenrai is a free, unofficial public API that mirrors MyAnimeList
   data; these calls are **anonymous** — no credential of yours is sent,
   because none is needed. Tenrai publishes an actual
-  [privacy policy](https://tenrai.org/privacy) (verified live, 2026-07-30):
-  it states it logs your IP address and request metadata
-  (endpoint, status code, timing) for rate-limiting/abuse-prevention/security,
-  retained on a rolling basis for up to ~90 days, and does not sell data or
-  use behavioral tracking/advertising cookies.
+  [privacy policy](https://tenrai.org/privacy) (verified live 2026-07-30,
+  policy dated 2026-07-04): it operates from Sweden and is GDPR-governed; it
+  logs your IP address and request metadata (endpoint URL, status code,
+  timing) — but explicitly not request/response bodies — for
+  rate-limiting/abuse-prevention/security, retained up to 90 days then
+  purged, and states it does not sell data or use behavioral-tracking/
+  advertising cookies.
 - **The official MyAnimeList API** (`api.myanimelist.net`,
   `myanimelist.net/v1/oauth2/*`) — reached in two distinct ways:
   - **Resilience fallback for eleven read tools** (`search_anime`,
