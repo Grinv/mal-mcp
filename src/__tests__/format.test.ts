@@ -281,7 +281,7 @@ test("summarizeCharacters keeps Japanese VAs for anime and omits them for manga"
 
 test("summarizeRecommendations caps at 25 and maps the entry", () => {
   const raw = Array.from({ length: 30 }, (_v, i) => ({
-    entry: { mal_id: i, title: `T${i}`, url: "u" },
+    entry: { mal_id: i + 1, title: `T${i}`, url: "u" },
     votes: i,
   }));
   const r = summarizeRecommendations(raw) as { recommendations: unknown[] };

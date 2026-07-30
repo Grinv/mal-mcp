@@ -20,9 +20,9 @@ import { z } from "zod";
 // characterEntrySchema's comment below; these entries exist to be chained into get_anime/get_manga.
 export const recommendationEntrySchema = z
   .object({
-    mal_id: z.number(),
+    mal_id: z.int().positive(),
     title: z.string().optional(),
-    votes: z.number().optional(),
+    votes: z.int().nonnegative().optional(),
     url: z.string().optional(),
   })
   .strict();
@@ -42,10 +42,10 @@ const relationSchema = z
 // every field here is optional, so that subset satisfies this schema too.
 export const pageSchema = z
   .object({
-    current_page: z.number().optional(),
+    current_page: z.int().positive().optional(),
     has_next_page: z.boolean().optional(),
-    last_visible_page: z.number().optional(),
-    total: z.number().optional(),
+    last_visible_page: z.int().positive().optional(),
+    total: z.int().nonnegative().optional(),
   })
   .strict();
 
@@ -63,18 +63,18 @@ export function listPageSchema<T extends z.ZodTypeAny>(item: T) {
 
 export const animeSummarySchema = z
   .object({
-    mal_id: z.number(),
+    mal_id: z.int().positive(),
     title: z.string().optional(),
     title_english: z.string().optional(),
     type: z.string().optional(),
-    episodes: z.number().optional(),
+    episodes: z.int().nonnegative().optional(),
     status: z.string().optional(),
     airing: z.boolean().optional(),
     score: z.number().optional(),
-    rank: z.number().optional(),
-    popularity: z.number().optional(),
-    members: z.number().optional(),
-    year: z.number().optional(),
+    rank: z.int().positive().optional(),
+    popularity: z.int().positive().optional(),
+    members: z.int().nonnegative().optional(),
+    year: z.int().min(1900).max(2100).optional(),
     season: z.string().optional(),
     rating: z.string().optional(),
     aired: z.string().optional(),
@@ -105,8 +105,8 @@ export const animeDetailSchema = animeSummarySchema
     title_japanese: z.string().optional(),
     source: z.string().optional(),
     duration: z.string().optional(),
-    scored_by: z.number().optional(),
-    favorites: z.number().optional(),
+    scored_by: z.int().nonnegative().optional(),
+    favorites: z.int().nonnegative().optional(),
     background: z.string().optional(),
     producers: z.array(z.string()).optional(),
     licensors: z.array(z.string()).optional(),
@@ -124,17 +124,17 @@ export const animeDetailSchema = animeSummarySchema
 
 export const mangaSummarySchema = z
   .object({
-    mal_id: z.number(),
+    mal_id: z.int().positive(),
     title: z.string().optional(),
     title_english: z.string().optional(),
     type: z.string().optional(),
-    chapters: z.number().optional(),
-    volumes: z.number().optional(),
+    chapters: z.int().nonnegative().optional(),
+    volumes: z.int().nonnegative().optional(),
     status: z.string().optional(),
     score: z.number().optional(),
-    rank: z.number().optional(),
-    popularity: z.number().optional(),
-    members: z.number().optional(),
+    rank: z.int().positive().optional(),
+    popularity: z.int().positive().optional(),
+    members: z.int().nonnegative().optional(),
     published: z.string().optional(),
     genres: z.array(z.string()).optional(),
     themes: z.array(z.string()).optional(),
@@ -154,8 +154,8 @@ export const mangaDetailSchema = mangaSummarySchema
   .extend({
     title_japanese: z.string().optional(),
     publishing: z.boolean().optional(),
-    scored_by: z.number().optional(),
-    favorites: z.number().optional(),
+    scored_by: z.int().nonnegative().optional(),
+    favorites: z.int().nonnegative().optional(),
     background: z.string().optional(),
     serializations: z.array(z.string()).optional(),
     relations: z.array(relationSchema).optional(),
@@ -177,7 +177,7 @@ export const mangaDetailSchema = mangaSummarySchema
 // "see characterEntrySchema's comment above/below" reference in this file points back here.
 export const characterEntrySchema = z
   .object({
-    mal_id: z.number(),
+    mal_id: z.int().positive(),
     name: z.string().optional(),
     role: z.string().optional(),
     url: z.string().optional(),
@@ -200,7 +200,7 @@ export const recommendationsSchema = z
 // "1-30"-style pair id), so only these two entries are exposed.
 const recentRecommendationEntitySchema = z
   .object({
-    mal_id: z.number(),
+    mal_id: z.int().positive(),
     title: z.string().optional(),
     url: z.string().optional(),
     image_url: z.string().optional(),
@@ -223,16 +223,18 @@ export const recentRecommendationsSchema = listPageSchema(recentRecommendationEn
 const reviewEntrySchema = z
   .object({
     user: z.string().optional(),
-    score: z.number().optional(),
+    // MAL review scores are always a whole 1-10 star rating (unlike the anime/manga entity's
+    // own decimal average `score`, e.g. 8.75).
+    score: z.int().min(1).max(10).optional(),
     tags: z.array(z.string()),
     date: z.string().optional(),
     review: z.string().optional(),
     url: z.string().optional(),
     is_spoiler: z.boolean().optional(),
     is_preliminary: z.boolean().optional(),
-    episodes_watched: z.number().optional(),
-    chapters_read: z.number().optional(),
-    reactions: z.record(z.string(), z.number()).optional(),
+    episodes_watched: z.int().nonnegative().optional(),
+    chapters_read: z.int().nonnegative().optional(),
+    reactions: z.record(z.string(), z.int().nonnegative()).optional(),
   })
   .strict();
 
@@ -242,7 +244,7 @@ export const reviewsSchema = z.object({ reviews: z.array(reviewEntrySchema) }).s
 
 const episodeEntrySchema = z
   .object({
-    mal_id: z.number().optional(),
+    mal_id: z.int().positive().optional(),
     title: z.string().optional(),
     title_japanese: z.string().optional(),
     aired: z.string().optional(),
@@ -263,9 +265,9 @@ export const episodesSchema = z
 // characterEntrySchema's comment above.
 const genreEntrySchema = z
   .object({
-    mal_id: z.number(),
+    mal_id: z.int().positive(),
     name: z.string().optional(),
-    count: z.number().optional(),
+    count: z.int().nonnegative().optional(),
     url: z.string().optional(),
   })
   .strict();
@@ -280,7 +282,7 @@ export const creditEntrySchema = z
   .object({
     role: z.string().optional(),
     position: z.string().optional(),
-    mal_id: z.number(),
+    mal_id: z.int().positive(),
     title: z.string().optional(),
   })
   .strict();
@@ -290,7 +292,7 @@ export const creditEntrySchema = z
 export const voiceActorEntrySchema = z
   .object({
     language: z.string().optional(),
-    mal_id: z.number(),
+    mal_id: z.int().positive(),
     name: z.string().optional(),
   })
   .strict();
@@ -299,11 +301,11 @@ export const voiceActorEntrySchema = z
 // comment above.
 export const characterEntitySchema = z
   .object({
-    mal_id: z.number(),
+    mal_id: z.int().positive(),
     name: z.string().optional(),
     name_kanji: z.string().optional(),
     nicknames: z.array(z.string()).optional(),
-    favorites: z.number().optional(),
+    favorites: z.int().nonnegative().optional(),
     about: z.string().optional(),
     url: z.string().optional(),
     image_url: z.string().optional(),
@@ -325,13 +327,13 @@ const voiceRoleEntrySchema = z
 // comment above.
 export const personEntitySchema = z
   .object({
-    mal_id: z.number(),
+    mal_id: z.int().positive(),
     name: z.string().optional(),
     given_name: z.string().optional(),
     family_name: z.string().optional(),
     alternate_names: z.array(z.string()).optional(),
     birthday: z.string().optional(),
-    favorites: z.number().optional(),
+    favorites: z.int().nonnegative().optional(),
     about: z.string().optional(),
     url: z.string().optional(),
     image_url: z.string().optional(),
@@ -346,7 +348,7 @@ export const personEntitySchema = z
 // mal_id required — meant to chain into get_person; see characterEntrySchema's comment above.
 export const staffEntrySchema = z
   .object({
-    mal_id: z.number(),
+    mal_id: z.int().positive(),
     name: z.string().optional(),
     positions: z.array(z.string()).optional(),
     url: z.string().optional(),
@@ -359,8 +361,9 @@ export const staffSchema = z.object({ staff: z.array(staffEntrySchema) }).strict
 
 const scoreEntrySchema = z
   .object({
-    score: z.number().optional(),
-    votes: z.number().optional(),
+    // The score bucket (1-10), not a decimal average — see reviewEntrySchema's comment above.
+    score: z.int().min(1).max(10).optional(),
+    votes: z.int().nonnegative().optional(),
     percentage: z.number().optional(),
   })
   .strict();
@@ -370,14 +373,14 @@ const scoreEntrySchema = z
 // of what Tenrai can return, which this schema's optionality already allows.
 export const statisticsSchema = z
   .object({
-    watching: z.number().optional(),
-    completed: z.number().optional(),
-    on_hold: z.number().optional(),
-    dropped: z.number().optional(),
-    plan_to_watch: z.number().optional(),
-    reading: z.number().optional(),
-    plan_to_read: z.number().optional(),
-    total: z.number().optional(),
+    watching: z.int().nonnegative().optional(),
+    completed: z.int().nonnegative().optional(),
+    on_hold: z.int().nonnegative().optional(),
+    dropped: z.int().nonnegative().optional(),
+    plan_to_watch: z.int().nonnegative().optional(),
+    reading: z.int().nonnegative().optional(),
+    plan_to_read: z.int().nonnegative().optional(),
+    total: z.int().nonnegative().optional(),
     scores: z.array(scoreEntrySchema).optional(),
   })
   .strict();
@@ -388,10 +391,10 @@ export const statisticsSchema = z
 // comment above.
 export const producerSchema = z
   .object({
-    mal_id: z.number(),
+    mal_id: z.int().positive(),
     name: z.string().optional(),
-    count: z.number().optional(),
-    favorites: z.number().optional(),
+    count: z.int().nonnegative().optional(),
+    favorites: z.int().nonnegative().optional(),
     established: z.string().optional(),
     url: z.string().optional(),
     image_url: z.string().optional(),
@@ -414,9 +417,9 @@ export const producerDetailSchema = producerSchema
 // Tenrai's own response shape for this endpoint is simply {mal_id, name, url, count}.
 export const magazineSchema = z
   .object({
-    mal_id: z.number(),
+    mal_id: z.int().positive(),
     name: z.string().optional(),
-    count: z.number().optional(),
+    count: z.int().nonnegative().optional(),
     url: z.string().optional(),
   })
   .strict();
@@ -428,14 +431,14 @@ const videoClipEntrySchema = z
     title: z.string().optional(),
     url: z.string().optional(),
     image_url: z.string().optional(),
-    views: z.number().optional(),
-    likes: z.number().optional(),
+    views: z.int().nonnegative().optional(),
+    likes: z.int().nonnegative().optional(),
   })
   .strict();
 
 const episodePreviewEntrySchema = z
   .object({
-    mal_id: z.number().optional(),
+    mal_id: z.int().positive().optional(),
     title: z.string().optional(),
     episode: z.string().optional(),
     url: z.string().optional(),
@@ -457,7 +460,7 @@ export const animeVideosSchema = z
 // valid `year` argument for get_seasonal_anime; an entry missing it can't serve that purpose.
 // Same reasoning as mal_id in the entity schemas above.
 export const seasonEntrySchema = z
-  .object({ year: z.number(), seasons: z.array(z.string()) })
+  .object({ year: z.int().min(1900).max(2100), seasons: z.array(z.string()) })
   .strict();
 
 export const seasonsListSchema = z.object({ seasons: z.array(seasonEntrySchema) }).strict();
@@ -466,11 +469,11 @@ export const seasonsListSchema = z.object({ seasons: z.array(seasonEntrySchema) 
 
 export const newsItemSchema = z
   .object({
-    mal_id: z.number().optional(),
+    mal_id: z.int().positive().optional(),
     title: z.string().optional(),
     date: z.string().optional(),
     author: z.string().optional(),
-    comments: z.number().optional(),
+    comments: z.int().nonnegative().optional(),
     excerpt: z.string().optional(),
     url: z.string().optional(),
   })
@@ -488,7 +491,7 @@ export const newsItemSchema = z
 // comment above.
 export const myListItemSchema = z
   .object({
-    mal_id: z.number(),
+    mal_id: z.int().positive(),
     title: z.string().optional(),
     // Loose on purpose: anime and manga list_status differ (num_episodes_watched vs
     // num_chapters_read/num_volumes_read, is_rewatching vs is_rereading, …) and MAL may add
@@ -504,8 +507,8 @@ export const myListSchema = z
 
 /** The outputSchema for delete_my_anime_list_item / delete_my_manga_list_item. */
 export const deleteAnimeItemSchema = z
-  .object({ deleted: z.literal(true), anime_id: z.number() })
+  .object({ deleted: z.literal(true), anime_id: z.int().positive() })
   .strict();
 export const deleteMangaItemSchema = z
-  .object({ deleted: z.literal(true), manga_id: z.number() })
+  .object({ deleted: z.literal(true), manga_id: z.int().positive() })
   .strict();

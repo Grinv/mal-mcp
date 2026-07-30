@@ -78,11 +78,11 @@ const animeStatus = z.enum(ANIME_STATUSES).describe("Filter by airing status.");
 const mangaType = z.enum(MANGA_MEDIA_TYPES).describe("A publication type.");
 const mangaStatus = z.enum(MANGA_STATUSES).describe("Filter by publication status.");
 const sortDir = z.enum(SORT_DIRS).describe("Sort direction.");
-const limit = z.number().int().min(1).max(50).describe("Max results per page (1-50).");
+const limit = z.int().min(1).max(50).describe("Max results per page (1-50).");
 // A handful of Tenrai list endpoints (magazines, the two site-wide recommendation feeds) have a
 // 100 (not 50) per-page ceiling.
-const limit100 = z.number().int().min(1).max(100).describe("Max results per page (1-100).");
-const page = z.number().int().min(1).describe("1-based page number for pagination.");
+const limit100 = z.int().min(1).max(100).describe("Max results per page (1-100).");
+const page = z.int().min(1).describe("1-based page number for pagination.");
 const sfw = z
   .boolean()
   .describe(
@@ -96,7 +96,7 @@ const sfwStrict = z
     "If true, exclude adult/explicit-rated entries AND anything tagged with the Ecchi genre, " +
       "even otherwise-mainstream/safely-rated shows. Stricter than `sfw` alone. Defaults to false.",
   );
-const malId = z.number().int().positive().describe("MyAnimeList numeric ID.");
+const malId = z.int().positive().describe("MyAnimeList numeric ID.");
 const genreFilter = z
   .enum(GENRE_FILTERS)
   .describe("Restrict to one kind of tag. Omit to list all.");

@@ -255,7 +255,7 @@ test("mangaRecommendationsOfficial hits manga/{id} and points url at /manga/", a
 test("animeRecommendationsOfficial caps results at 25", async (t) => {
   const config = loadConfig({ MAL_CLIENT_ID: "cid" });
   const many = Array.from({ length: 30 }, (_, i) => ({
-    node: { id: i, title: `Anime ${i}` },
+    node: { id: i + 1, title: `Anime ${i}` },
     num_recommendations: 1,
   }));
   const mock = mockFetch(() => jsonResponse({ id: 1, recommendations: many }));

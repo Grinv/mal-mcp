@@ -34,23 +34,17 @@ const NEEDS_TOKEN =
 
 const animeListStatus = z.enum(ANIME_LIST_STATUSES).describe("List status bucket.");
 const mangaListStatus = z.enum(MANGA_LIST_STATUSES).describe("List status bucket.");
-const score = z.number().int().min(0).max(10).describe("Score 0-10 (0 clears the score).");
-const priority = z
-  .number()
-  .int()
-  .min(0)
-  .max(2)
-  .describe("List priority: 0 = low, 1 = medium, 2 = high.");
+const score = z.int().min(0).max(10).describe("Score 0-10 (0 clears the score).");
+const priority = z.int().min(0).max(2).describe("List priority: 0 = low, 1 = medium, 2 = high.");
 const rewatchValue = z
-  .number()
   .int()
   .min(0)
   .max(5)
   .describe("Rewatch/reread value: 0 = none … 5 = very high.");
 const tags = z.string().describe("Comma-separated free-text tags.");
-const listLimit = z.number().int().min(1).max(100).describe("Max results (1-100).");
-const offset = z.number().int().min(0).describe("Offset for pagination.");
-const malId = z.number().int().positive().describe("MyAnimeList numeric ID.");
+const listLimit = z.int().min(1).max(100).describe("Max results (1-100).");
+const offset = z.int().min(0).describe("Offset for pagination.");
+const malId = z.int().positive().describe("MyAnimeList numeric ID.");
 const date = z.iso.date().describe("Date as YYYY-MM-DD.");
 
 export function registerMyListTools(server: McpServer, mal: MalClient): void {
@@ -133,7 +127,6 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
           status: animeListStatus.optional(),
           score: score.optional(),
           num_watched_episodes: z
-            .number()
             .int()
             .min(0)
             .describe(
@@ -142,7 +135,7 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
             )
             .optional(),
           is_rewatching: z.boolean().describe("Whether currently rewatching.").optional(),
-          num_times_rewatched: z.number().int().min(0).describe("Times rewatched.").optional(),
+          num_times_rewatched: z.int().min(0).describe("Times rewatched.").optional(),
           rewatch_value: rewatchValue.optional(),
           priority: priority.optional(),
           tags: tags.optional(),
@@ -182,10 +175,10 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
           manga_id: malId,
           status: mangaListStatus.optional(),
           score: score.optional(),
-          num_chapters_read: z.number().int().min(0).describe("Chapters read.").optional(),
-          num_volumes_read: z.number().int().min(0).describe("Volumes read.").optional(),
+          num_chapters_read: z.int().min(0).describe("Chapters read.").optional(),
+          num_volumes_read: z.int().min(0).describe("Volumes read.").optional(),
           is_rereading: z.boolean().describe("Whether currently rereading.").optional(),
-          num_times_reread: z.number().int().min(0).describe("Times reread.").optional(),
+          num_times_reread: z.int().min(0).describe("Times reread.").optional(),
           reread_value: rewatchValue.optional(),
           priority: priority.optional(),
           tags: tags.optional(),

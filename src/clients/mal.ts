@@ -202,37 +202,33 @@ export class MalClient {
 // data straight into the tool result with no summarizer in between (unlike Tenrai/officialReads,
 // whose format.ts/formatOfficial.ts reshape every field), so a malformed/unexpected response
 // here would otherwise reach the agent completely unnoticed. Every schema declared IN THIS FILE
-// is .passthrough() — we only assert the fields we read have sane types, never reject fields MAL
+// is z.looseObject() — we only assert the fields we read have sane types, never reject fields MAL
 // adds later. myListSchema/deleteAnimeItemSchema/deleteMangaItemSchema below are the exception:
 // they describe trimList()'s/deleteMy*ListItem()'s own shaped output, not a raw upstream
-// response, so — same convention as format.schemas.ts — they're .strict() and defined there.
+// response, so — same convention as format.schemas.ts — they're z.strictObject() and defined
+// there. (z.looseObject()/z.strictObject() are zod v4's replacements for the legacy
+// z.object({...}).passthrough()/.strict() chains — .passthrough() is deprecated outright.)
 
-const MalListNodeSchema = z
-  .object({
-    node: z.object({ id: z.number().optional(), title: z.string().optional() }).optional(),
-    list_status: z.record(z.string(), z.unknown()).optional(),
-  })
-  .passthrough();
+const MalListNodeSchema = z.looseObject({
+  node: z.object({ id: z.int().positive().optional(), title: z.string().optional() }).optional(),
+  list_status: z.record(z.string(), z.unknown()).optional(),
+});
 
-const MalListResponseSchema = z
-  .object({
-    data: z.array(MalListNodeSchema).optional(),
-    paging: z.object({ next: z.string().optional(), previous: z.string().optional() }).optional(),
-  })
-  .passthrough();
+const MalListResponseSchema = z.looseObject({
+  data: z.array(MalListNodeSchema).optional(),
+  paging: z.object({ next: z.string().optional(), previous: z.string().optional() }).optional(),
+});
 
 // Exported for reuse as the get_my_user_info tool's outputSchema — it's the exact shape this
 // client hands back (no summarizer in between, see the comment above), so the same
 // upstream-validating schema doubles as the MCP-facing one.
-export const MyUserInfoSchema = z
-  .object({
-    id: z.number(),
-    name: z.string(),
-    location: z.string().nullable().optional(),
-    joined_at: z.string().optional(),
-    anime_statistics: z.record(z.string(), z.unknown()).optional(),
-  })
-  .passthrough();
+export const MyUserInfoSchema = z.looseObject({
+  id: z.int().positive(),
+  name: z.string(),
+  location: z.string().nullable().optional(),
+  joined_at: z.string().optional(),
+  anime_statistics: z.record(z.string(), z.unknown()).optional(),
+});
 
 // Loose on purpose: anime and manga list_status responses differ (num_episodes_watched vs
 // num_chapters_read/num_volumes_read, is_rewatching vs is_rereading, …) and MAL may add fields —
@@ -240,12 +236,11 @@ export const MyUserInfoSchema = z
 // array/string/null a broken upstream could return. Exported for reuse as the
 // update_my_anime_status/update_my_manga_status tools' outputSchema, same reasoning as
 // MyUserInfoSchema above.
-export const ListStatusUpdateResponseSchema = z
-  .object({
-    status: z.string().optional(),
-    score: z.number().optional(),
-  })
-  .passthrough();
+export const ListStatusUpdateResponseSchema = z.looseObject({
+  status: z.string().optional(),
+  // Same 0-10 whole-number scale as mylist.ts's own `score` input field.
+  score: z.int().min(0).max(10).optional(),
+});
 
 /** Validate an upstream JSON response against `schema`; a mismatch becomes an actionable
  *  ApiError instead of silently forwarding a malformed shape to the agent. */

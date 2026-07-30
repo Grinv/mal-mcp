@@ -133,6 +133,23 @@ npm run check:api      # live upstream health-check (network)
   lenient output object exists to trigger the third symptom). Re-check this
   note before adding `z.date()` anywhere, or a `.default()` to any schema in
   `format.schemas.ts`/`clients/mal.ts`.
+- Broader than the `z.date()` case above: the SDK converts every registered
+  tool's `inputSchema`/`outputSchema` via zod's own JSON Schema generator
+  (`schema['~standard'].jsonSchema[io](...)` — the zod ≥4.2.0 bridge our zod
+  4.4.3 provides; `@modelcontextprotocol/server/dist/*.mjs`'s direct
+  `z.toJSONSchema(schema, {...})` call is only a fallback for zod 3.x, unused
+  here) with `unrepresentable` left at zod's own default, `"throw"` — not
+  this project's bug, just zod's documented default behavior, so it won't go
+  away if typescript-sdk#2464 above ever gets fixed. Confirmed live (both
+  code paths throw the same `"Date cannot be represented in JSON Schema"`):
+  any of `z.date()`, `z.bigint()`, `z.int64()`, `z.symbol()`, `z.nan()`,
+  `z.void()`, `z.undefined()`, `z.map()`, `z.set()`, `.transform()`, or
+  `z.custom()` anywhere in a tool's `inputSchema`/`outputSchema` throws at
+  _registration_ time (crashes `tools/list` for every tool, not just the
+  offending one) rather than degrading gracefully. None are currently used in
+  any tool schema — keep it that way; if a genuine need for one comes up,
+  model it as a string/number instead (as `z.iso.date()` already does for
+  dates) rather than reaching for the "obvious" zod type.
 - Write tool `description`s and per-field `.describe()` text for the calling
   model: explain when to use a tool and what each parameter means. Check new
   or edited descriptions against the `tool-description-check` skill (Glama's

@@ -11,9 +11,9 @@ export const EnvSchema = z.object({
   /** Override the on-disk token store path (defaults under the OS config dir). */
   MAL_TOKEN_STORE: z.string().min(1).optional(),
 
-  TENRAI_BASE_URL: z.string().url().default("https://api.tenrai.org/v1"),
-  MAL_BASE_URL: z.string().url().default("https://api.myanimelist.net/v2"),
-  MAL_OAUTH_BASE_URL: z.string().url().default("https://myanimelist.net/v1/oauth2"),
+  TENRAI_BASE_URL: z.url().default("https://api.tenrai.org/v1"),
+  MAL_BASE_URL: z.url().default("https://api.myanimelist.net/v2"),
+  MAL_OAUTH_BASE_URL: z.url().default("https://myanimelist.net/v1/oauth2"),
 
   HTTP_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
   HTTP_RETRIES: z.coerce.number().int().nonnegative().default(2),
