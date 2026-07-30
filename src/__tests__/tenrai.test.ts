@@ -236,6 +236,28 @@ test("getAnimeReviews maps episodes_watched, is_spoiler, is_preliminary, reactio
   assert.deepEqual(review["reactions"], { nice: 3, funny: 1 });
 });
 
+test("getAnimeReviews backfills from later in the page when an early entry is malformed", async (t) => {
+  const mock = mockFetch(() =>
+    jsonResponse({
+      data: [
+        // score out of the 1-10 range — dropped by summarizeReviews.
+        { user: { username: "bad" }, score: 15, review: "Bad." },
+        { user: { username: "a" }, score: 8, review: "A." },
+        { user: { username: "b" }, score: 7, review: "B." },
+        { user: { username: "c" }, score: 6, review: "C." },
+      ],
+    }),
+  );
+  installFetch(t, mock);
+  const res = (await tenrai().getAnimeReviews(1, 3)) as { reviews: { user: string }[] };
+  // limit=3 with one malformed entry among the first 3 must still backfill from index 3.
+  assert.equal(res.reviews.length, 3);
+  assert.deepEqual(
+    res.reviews.map((r) => r.user),
+    ["a", "b", "c"],
+  );
+});
+
 test("getMangaReviews maps chapters_read (not episodes_watched) into the output", async (t) => {
   const mock = mockFetch(() =>
     jsonResponse({

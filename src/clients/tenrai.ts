@@ -369,7 +369,10 @@ export class TenraiClient {
     const res = await this.#http.getJson<ListResponse<RawReview>>(`${kind}/${id}/reviews`, {
       query: { ...params },
     });
-    return summarizeReviews(res.data.slice(0, limit));
+    // Slice AFTER shaping, not before: summarizeReviews drops any malformed entry, so slicing the
+    // raw array first could under-fill `limit` even when enough valid reviews exist further in.
+    const { reviews } = summarizeReviews(res.data);
+    return { reviews: reviews.slice(0, limit) };
   }
 
   // Not cached: the response is paginated, and the cache key here would not
