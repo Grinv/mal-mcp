@@ -128,10 +128,11 @@ test("honors Retry-After given as an HTTP date rather than seconds", async (t) =
   const mock = mockFetch(() => {
     n += 1;
     if (n === 1) {
-      // HTTP dates only have whole-second precision, so a small offset can truncate to a past
-      // (i.e. <=0) instant once Date.parse() rounds it — this must be large enough to stay
-      // reliably positive and clearly distinguishable from the ~500ms blind-backoff fallback.
-      const retryAt = new Date(Date.now() + 2000).toUTCString();
+      // HTTP dates only have whole-second precision, so Date.parse() can truncate up to ~999ms
+      // off the intended offset (whenever Date.now() falls near a second boundary) — the offset
+      // must survive that worst case and still land clearly above the assertion threshold below
+      // (and clearly distinguishable from the ~500ms blind-backoff fallback).
+      const retryAt = new Date(Date.now() + 3000).toUTCString();
       return jsonResponse({}, { status: 429, headers: { "retry-after": retryAt } });
     }
     return jsonResponse({ ok: true });
