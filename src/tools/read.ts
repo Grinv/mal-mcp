@@ -98,14 +98,17 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
           genres: genreIds("get_anime_genres").optional(),
           order_by: z
             .enum([
+              "mal_id",
               "title",
               "start_date",
+              "end_date",
+              "episodes",
               "score",
+              "scored_by",
               "rank",
               "popularity",
               "members",
               "favorites",
-              "episodes",
             ])
             .describe("Field to order by.")
             .optional(),
@@ -141,15 +144,18 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
           genres: genreIds("get_manga_genres").optional(),
           order_by: z
             .enum([
+              "mal_id",
               "title",
               "start_date",
+              "end_date",
+              "chapters",
+              "volumes",
               "score",
+              "scored_by",
               "rank",
               "popularity",
               "members",
               "favorites",
-              "chapters",
-              "volumes",
             ])
             .describe("Field to order by.")
             .optional(),
@@ -361,14 +367,28 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       name: "get_anime_schedule",
       title: "Get broadcast schedule",
       description:
-        "Get the anime broadcast schedule (air times in JST), optionally for a single weekday. " +
+        "Get the anime broadcast schedule (air times in JST), optionally for a single weekday " +
+        "(or the `unknown`/`other` buckets Tenrai uses for shows with no fixed weekly slot). " +
         "`broadcast` is only present for currently-airing shows. Defaults to 25 results if " +
         "`limit` is omitted.",
       inputSchema: z
         .object({
           day: z
-            .enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"])
-            .describe("Weekday to filter by. Omit for the whole week.")
+            .enum([
+              "monday",
+              "tuesday",
+              "wednesday",
+              "thursday",
+              "friday",
+              "saturday",
+              "sunday",
+              "unknown",
+              "other",
+            ])
+            .describe(
+              "Weekday to filter by, or `unknown`/`other` for shows with no fixed weekly " +
+                "slot. Omit for the whole week.",
+            )
             .optional(),
           limit: limit.default(25),
         })

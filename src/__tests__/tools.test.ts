@@ -10,7 +10,7 @@ test("search_anime tool returns structured results end-to-end", async (t) => {
     }),
   );
   installFetch(t, mock);
-  const { client, close } = await connectServer({ JIKAN_MIN_INTERVAL_MS: "0" });
+  const { client, close } = await connectServer({ TENRAI_MIN_INTERVAL_MS: "0" });
   t.after(close);
   const res = await client.callTool({ name: "search_anime", arguments: { q: "bebop" } });
   assert.notEqual(res.isError, true);
@@ -27,7 +27,7 @@ test("new read tools are wired and return structured content end-to-end", async 
     jsonResponse({ data: [{ mal_id: 1, name: "Action", title: "T" }], pagination: {} }),
   );
   installFetch(t, mock);
-  const { client, close } = await connectServer({ JIKAN_MIN_INTERVAL_MS: "0", CACHE_TTL_MS: "0" });
+  const { client, close } = await connectServer({ TENRAI_MIN_INTERVAL_MS: "0", CACHE_TTL_MS: "0" });
   t.after(close);
   const cases: [string, Record<string, unknown>, string][] = [
     ["get_anime_genres", {}, "genres"],
@@ -71,7 +71,7 @@ test("get_manga_characters/get_anime_staff/get_manga_recommendations/get_seasons
     });
   });
   installFetch(t, mock);
-  const { client, close } = await connectServer({ JIKAN_MIN_INTERVAL_MS: "0", CACHE_TTL_MS: "0" });
+  const { client, close } = await connectServer({ TENRAI_MIN_INTERVAL_MS: "0", CACHE_TTL_MS: "0" });
   t.after(close);
 
   const characters = await client.callTool({ name: "get_manga_characters", arguments: { id: 1 } });
@@ -274,6 +274,56 @@ test("get_anime_schedule defaults its limit when omitted", async (t) => {
   const schedule = await client.callTool({ name: "get_anime_schedule", arguments: {} });
   assert.notEqual(schedule.isError, true);
   assert.match(mock.calls.at(-1)!.url, /limit=25(&|$)/);
+});
+
+test("search_anime's limit cap is 50 (Tenrai's real ceiling), not Jikan's old 25", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const atCap = await client.callTool({ name: "search_anime", arguments: { q: "x", limit: 50 } });
+  assert.notEqual(atCap.isError, true);
+
+  const overCap = await client.callTool({
+    name: "search_anime",
+    arguments: { q: "x", limit: 51 },
+  });
+  assert.equal(overCap.isError, true);
+});
+
+test("get_anime_schedule accepts Tenrai's unknown/other day buckets", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  for (const day of ["unknown", "other"]) {
+    const res = await client.callTool({ name: "get_anime_schedule", arguments: { day } });
+    assert.notEqual(res.isError, true, `day=${day} should be accepted`);
+    assert.match(mock.calls.at(-1)!.url, new RegExp(`filter=${day}(&|$)`));
+  }
+});
+
+test("search_anime/search_manga accept Tenrai's full order_by enum (mal_id, end_date, scored_by)", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  for (const order_by of ["mal_id", "end_date", "scored_by"]) {
+    const anime = await client.callTool({
+      name: "search_anime",
+      arguments: { q: "x", order_by },
+    });
+    assert.notEqual(anime.isError, true, `search_anime order_by=${order_by} should be accepted`);
+
+    const manga = await client.callTool({
+      name: "search_manga",
+      arguments: { q: "x", order_by },
+    });
+    assert.notEqual(manga.isError, true, `search_manga order_by=${order_by} should be accepted`);
+  }
 });
 
 test("get_anime_reviews applies limit client-side (Tenrai's /reviews has no limit param)", async (t) => {

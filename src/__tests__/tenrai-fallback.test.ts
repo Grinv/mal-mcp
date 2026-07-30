@@ -11,7 +11,7 @@ import { silentLogger, jsonResponse, mockFetch, installFetch } from "./helpers.j
 function tenrai(fallback?: ReadFallback) {
   // No rate-limit delay, no HTTP retries, small cache TTL — keeps fallback tests fast/deterministic.
   const config = loadConfig({
-    JIKAN_MIN_INTERVAL_MS: "0",
+    TENRAI_MIN_INTERVAL_MS: "0",
     HTTP_RETRIES: "0",
     CACHE_TTL_MS: "60000",
   });
