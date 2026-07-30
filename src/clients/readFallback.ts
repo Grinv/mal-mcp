@@ -30,12 +30,14 @@ export interface ReadFallback {
   topAnimeOfficial(p: {
     type?: string;
     filter?: string;
+    sfw?: boolean;
     limit?: number;
     page?: number;
   }): Promise<Record<string, unknown>>;
   topMangaOfficial(p: {
     type?: string;
     filter?: string;
+    sfw?: boolean;
     limit?: number;
     page?: number;
   }): Promise<Record<string, unknown>>;

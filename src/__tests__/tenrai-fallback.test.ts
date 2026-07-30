@@ -84,6 +84,16 @@ test("searchAnime falls back to the official MAL API on a retryable upstream fai
   ]);
 });
 
+test("searchAnime's sfw_strict degrades to sfw during a fallback (no Ecchi-genre distinction there)", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ message: "boom" }, { status: 500 }));
+  installFetch(t, mock);
+  const fallback = fakeFallback();
+  await tenrai(fallback).searchAnime({ q: "frieren", sfw_strict: true });
+  assert.deepEqual(fallback.calls, [
+    { kind: "searchAnime", args: { q: "frieren", limit: undefined, page: undefined, sfw: true } },
+  ]);
+});
+
 test("searchManga falls back to the official MAL API on a retryable upstream failure", async (t) => {
   const mock = mockFetch(() => jsonResponse({ message: "boom" }, { status: 500 }));
   installFetch(t, mock);
@@ -111,7 +121,13 @@ test("getTopAnime falls back and maps filter to the official ranking_type", asyn
   assert.deepEqual(fallback.calls, [
     {
       kind: "topAnime",
-      args: { type: undefined, filter: "favorite", limit: undefined, page: undefined },
+      args: {
+        type: undefined,
+        filter: "favorite",
+        sfw: undefined,
+        limit: undefined,
+        page: undefined,
+      },
     },
   ]);
 });

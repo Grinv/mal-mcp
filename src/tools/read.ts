@@ -58,7 +58,17 @@ const limit = z.number().int().min(1).max(50).describe("Max results per page (1-
 const page = z.number().int().min(1).describe("1-based page number for pagination.");
 const sfw = z
   .boolean()
-  .describe("If true, exclude adult (NSFW) entries. Defaults to false (no filtering).");
+  .describe(
+    "If true, exclude adult/explicit-rated entries (R+ Mild Nudity and up). Defaults to " +
+      "false (no filtering). Note: this alone still allows mainstream, safely-rated shows " +
+      "tagged with the Ecchi genre (fanservice) through — use `sfw_strict` to also exclude those.",
+  );
+const sfwStrict = z
+  .boolean()
+  .describe(
+    "If true, exclude adult/explicit-rated entries AND anything tagged with the Ecchi genre, " +
+      "even otherwise-mainstream/safely-rated shows. Stricter than `sfw` alone. Defaults to false.",
+  );
 const malId = z.number().int().positive().describe("MyAnimeList numeric ID.");
 const genreFilter = z
   .enum(["genres", "explicit_genres", "themes", "demographics"])
@@ -114,6 +124,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
             .optional(),
           sort: sortDir.optional(),
           sfw: sfw.optional(),
+          sfw_strict: sfwStrict.optional(),
           limit: limit.optional(),
           page: page.optional(),
         })
@@ -161,6 +172,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
             .optional(),
           sort: sortDir.optional(),
           sfw: sfw.optional(),
+          sfw_strict: sfwStrict.optional(),
           limit: limit.optional(),
           page: page.optional(),
         })
@@ -289,7 +301,9 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "special rankings (airing, upcoming, bypopularity, favorite); for a specific season's " +
         "lineup use get_seasonal_anime or get_upcoming_season instead. If Tenrai is unavailable " +
         "and MAL_CLIENT_ID is set, transparently retries via the official API — `type`/`filter` " +
-        `are merged into one best-effort ranking, and ${gapList(ANIME_LIST_FALLBACK_GAPS)} come back empty.`,
+        `are merged into one best-effort ranking, ${gapList(ANIME_LIST_FALLBACK_GAPS)} come back ` +
+        "empty, and `sfw_strict` degrades to the same filtering as `sfw` (the official API can't " +
+        "separate adult-rated from Ecchi-tagged-but-safely-rated).",
       inputSchema: z
         .object({
           type: z
@@ -300,6 +314,8 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
             .enum(["airing", "upcoming", "bypopularity", "favorite"])
             .describe("Special ranking filter.")
             .optional(),
+          sfw: sfw.optional(),
+          sfw_strict: sfwStrict.optional(),
           limit: limit.optional(),
           page: page.optional(),
         })
@@ -315,7 +331,9 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "Get manga ranked by all-time score/popularity, not tied to any release window. Use " +
         "`filter` for special rankings (publishing, upcoming, bypopularity, favorite). If Tenrai is unavailable and " +
         "MAL_CLIENT_ID is set, transparently retries via the official API — `type`/`filter` are " +
-        `merged into one best-effort ranking, and ${gapList(MANGA_LIST_FALLBACK_GAPS)} come back empty.`,
+        `merged into one best-effort ranking, ${gapList(MANGA_LIST_FALLBACK_GAPS)} come back ` +
+        "empty, and `sfw_strict` degrades to the same filtering as `sfw` (the official API can't " +
+        "separate adult-rated from Ecchi-tagged-but-safely-rated).",
       inputSchema: z
         .object({
           type: mangaType.optional(),
@@ -323,6 +341,8 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
             .enum(["publishing", "upcoming", "bypopularity", "favorite"])
             .describe("Special ranking filter.")
             .optional(),
+          sfw: sfw.optional(),
+          sfw_strict: sfwStrict.optional(),
           limit: limit.optional(),
           page: page.optional(),
         })
@@ -339,8 +359,9 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "for the current season; supplying only one is treated as omitting both. For next " +
         "season's lineup use get_upcoming_season instead. If Tenrai is " +
         "unavailable and MAL_CLIENT_ID is set, transparently retries via the official API — " +
-        `${gapList(ANIME_LIST_FALLBACK_GAPS)} come back empty, and an explicit \`sfw: true\` is enforced ` +
-        "client-side (a filtered page can come back shorter than `limit`).",
+        `${gapList(ANIME_LIST_FALLBACK_GAPS)} come back empty, an explicit \`sfw: true\` is enforced ` +
+        "client-side (a filtered page can come back shorter than `limit`), and `sfw_strict` " +
+        "degrades to the same filtering as `sfw` there (no Ecchi-genre distinction available).",
       inputSchema: z
         .object({
           year: z
@@ -355,6 +376,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
             .describe("Season name.")
             .optional(),
           sfw: sfw.optional(),
+          sfw_strict: sfwStrict.optional(),
           limit: limit.optional(),
           page: page.optional(),
         })
@@ -390,12 +412,15 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
                 "slot. Omit for the whole week.",
             )
             .optional(),
+          sfw: sfw.optional(),
+          sfw_strict: sfwStrict.optional(),
           limit: limit.default(25),
         })
         .strict(),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
-      handler: ({ day, limit: lim }) => reply(() => tenrai.getSchedule(day, lim)),
+      handler: ({ day, limit: lim, sfw: s, sfw_strict: ss }) =>
+        reply(() => tenrai.getSchedule(day, lim, s, ss)),
     }),
     defineTool({
       name: "get_anime_genres",
@@ -510,20 +535,26 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
     defineTool({
       name: "get_random_anime",
       title: "Get a random anime",
-      description: "Return one random anime (full details). Good for discovery / suggestions.",
-      inputSchema: z.object({}).strict(),
+      description:
+        "Return one random anime (full details). Good for discovery / suggestions. No " +
+        "official-API fallback exists for this tool — it always needs Tenrai itself to be " +
+        "reachable.",
+      inputSchema: z.object({ sfw: sfw.optional(), sfw_strict: sfwStrict.optional() }).strict(),
       outputSchema: animeDetailSchema,
       annotations: READ_ONLY,
-      handler: () => reply(() => tenrai.getRandomAnime()),
+      handler: ({ sfw: s, sfw_strict: ss }) => reply(() => tenrai.getRandomAnime(s, ss)),
     }),
     defineTool({
       name: "get_random_manga",
       title: "Get a random manga",
-      description: "Return one random manga (full details). Good for discovery / suggestions.",
-      inputSchema: z.object({}).strict(),
+      description:
+        "Return one random manga (full details). Good for discovery / suggestions. No " +
+        "official-API fallback exists for this tool — it always needs Tenrai itself to be " +
+        "reachable.",
+      inputSchema: z.object({ sfw: sfw.optional(), sfw_strict: sfwStrict.optional() }).strict(),
       outputSchema: mangaDetailSchema,
       annotations: READ_ONLY,
-      handler: () => reply(() => tenrai.getRandomManga()),
+      handler: ({ sfw: s, sfw_strict: ss }) => reply(() => tenrai.getRandomManga(s, ss)),
     }),
     defineTool({
       name: "get_upcoming_season",
@@ -531,10 +562,17 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       description:
         "List anime scheduled for the upcoming season. Use get_seasonal_anime for the current or a " +
         "specific past season. If Tenrai is unavailable and MAL_CLIENT_ID is set, transparently " +
-        `retries via the official API — ${gapList(ANIME_LIST_FALLBACK_GAPS)} come back empty, and an explicit ` +
-        "`sfw: true` is enforced client-side (a filtered page can come back shorter than `limit`).",
+        `retries via the official API — ${gapList(ANIME_LIST_FALLBACK_GAPS)} come back empty, an explicit ` +
+        "`sfw: true` is enforced client-side (a filtered page can come back shorter than " +
+        "`limit`), and `sfw_strict` degrades to the same filtering as `sfw` there (no " +
+        "Ecchi-genre distinction available).",
       inputSchema: z
-        .object({ sfw: sfw.optional(), limit: limit.optional(), page: page.optional() })
+        .object({
+          sfw: sfw.optional(),
+          sfw_strict: sfwStrict.optional(),
+          limit: limit.optional(),
+          page: page.optional(),
+        })
         .strict(),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,

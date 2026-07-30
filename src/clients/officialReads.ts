@@ -120,6 +120,7 @@ export interface OfficialSearchParams {
 export interface OfficialTopParams {
   type?: string;
   filter?: string;
+  sfw?: boolean;
   limit?: number;
   page?: number;
 }

@@ -38,6 +38,26 @@ test("searchAnime returns trimmed results and pagination", async (t) => {
   assert.match(mock.calls[0]!.url, /q=frieren/);
 });
 
+test("searchAnime sends sfw_strict as the hyphenated sfw-strict query param", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [] }));
+  installFetch(t, mock);
+  await tenrai().searchAnime({ q: "x", sfw: true, sfw_strict: true });
+  const url = mock.calls[0]!.url;
+  assert.match(url, /sfw=true/);
+  assert.match(url, /sfw-strict=true/);
+  // The underscored field name itself must never leak into the outgoing request.
+  assert.doesNotMatch(url, /sfw_strict=/);
+});
+
+test("getRandomAnime forwards sfw/sfw_strict as query params", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: { mal_id: 1, title: "T" } }));
+  installFetch(t, mock);
+  await tenrai().getRandomAnime(true, true);
+  const url = mock.calls[0]!.url;
+  assert.match(url, /sfw=true/);
+  assert.match(url, /sfw-strict=true/);
+});
+
 test("getAnime caches by id (second call hits cache, no second fetch)", async (t) => {
   const mock = mockFetch(() => jsonResponse({ data: { mal_id: 1, title: "Bebop" } }));
   installFetch(t, mock);

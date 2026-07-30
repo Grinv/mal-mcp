@@ -58,6 +58,7 @@ export interface SearchParams {
   order_by?: string;
   sort?: string;
   sfw?: boolean;
+  sfw_strict?: boolean;
   limit?: number;
   page?: number;
 }
@@ -65,6 +66,8 @@ export interface SearchParams {
 export interface TopParams {
   type?: string;
   filter?: string;
+  sfw?: boolean;
+  sfw_strict?: boolean;
   limit?: number;
   page?: number;
 }
@@ -75,6 +78,15 @@ export interface SeasonParams {
   limit?: number;
   page?: number;
   sfw?: boolean;
+  sfw_strict?: boolean;
+}
+
+/** Tenrai's stricter NSFW filter is the hyphenated query param `sfw-strict` — not a valid JS
+ *  object-literal identifier — so `{...p}` alone would send it verbatim under the wrong
+ *  (underscored) name. Spread this alongside `{...p}` to correct it: it blanks the wrong key
+ *  and adds the right one. */
+function sfwStrictQuery(sfwStrict: boolean | undefined): Record<string, boolean | undefined> {
+  return { sfw_strict: undefined, "sfw-strict": sfwStrict };
 }
 
 // Tenrai's published limits (see api.tenrai.org/llms.txt "Auth & Rate Limits"): 4 req/s AND
@@ -148,13 +160,19 @@ export class TenraiClient {
       this.#logger,
       this.#fallback,
       "anime search",
-      () => this.#list<AnimeMangaRaw>("anime", { ...p }, (a) => summarizeAnime(a)),
+      () =>
+        this.#list<AnimeMangaRaw>("anime", { ...p, ...sfwStrictQuery(p.sfw_strict) }, (a) =>
+          summarizeAnime(a),
+        ),
       () =>
         this.#fallback!.searchAnimeOfficial({
           q: p.q ?? "",
           limit: p.limit,
           page: p.page,
-          sfw: p.sfw,
+          // The official API's client-side nsfw filter can't distinguish "adult-rated" from
+          // "genre-tagged Ecchi but otherwise safe" — sfw_strict degrades to the same sfw
+          // filtering as a plain `sfw: true` during a fallback (documented gap, not a bug).
+          sfw: p.sfw || p.sfw_strict,
         }),
     );
   }
@@ -164,13 +182,16 @@ export class TenraiClient {
       this.#logger,
       this.#fallback,
       "manga search",
-      () => this.#list<AnimeMangaRaw>("manga", { ...p }, (m) => summarizeManga(m)),
+      () =>
+        this.#list<AnimeMangaRaw>("manga", { ...p, ...sfwStrictQuery(p.sfw_strict) }, (m) =>
+          summarizeManga(m),
+        ),
       () =>
         this.#fallback!.searchMangaOfficial({
           q: p.q ?? "",
           limit: p.limit,
           page: p.page,
-          sfw: p.sfw,
+          sfw: p.sfw || p.sfw_strict,
         }),
     );
   }
@@ -299,13 +320,17 @@ export class TenraiClient {
       this.#logger,
       this.#fallback,
       "top anime",
-      () => this.#list<AnimeMangaRaw>("top/anime", { ...p }, (a) => summarizeAnime(a)),
+      () =>
+        this.#list<AnimeMangaRaw>("top/anime", { ...p, ...sfwStrictQuery(p.sfw_strict) }, (a) =>
+          summarizeAnime(a),
+        ),
       () =>
         this.#fallback!.topAnimeOfficial({
           type: p.type,
           filter: p.filter,
           limit: p.limit,
           page: p.page,
+          sfw: p.sfw || p.sfw_strict,
         }),
     );
   }
@@ -315,13 +340,17 @@ export class TenraiClient {
       this.#logger,
       this.#fallback,
       "top manga",
-      () => this.#list<AnimeMangaRaw>("top/manga", { ...p }, (m) => summarizeManga(m)),
+      () =>
+        this.#list<AnimeMangaRaw>("top/manga", { ...p, ...sfwStrictQuery(p.sfw_strict) }, (m) =>
+          summarizeManga(m),
+        ),
       () =>
         this.#fallback!.topMangaOfficial({
           type: p.type,
           filter: p.filter,
           limit: p.limit,
           page: p.page,
+          sfw: p.sfw || p.sfw_strict,
         }),
     );
   }
@@ -333,8 +362,10 @@ export class TenraiClient {
       this.#fallback,
       "seasonal anime",
       () =>
-        this.#list<AnimeMangaRaw>(path, { limit: p.limit, page: p.page, sfw: p.sfw }, (a) =>
-          summarizeAnime(a),
+        this.#list<AnimeMangaRaw>(
+          path,
+          { limit: p.limit, page: p.page, sfw: p.sfw, ...sfwStrictQuery(p.sfw_strict) },
+          (a) => summarizeAnime(a),
         ),
       () => {
         // The official API has no "current season" shortcut — an explicit year+season
@@ -344,7 +375,7 @@ export class TenraiClient {
         return this.#fallback!.seasonOfficial(year, season, {
           limit: p.limit,
           page: p.page,
-          sfw: p.sfw,
+          sfw: p.sfw || p.sfw_strict,
         });
       },
     );
@@ -358,7 +389,7 @@ export class TenraiClient {
       () =>
         this.#list<AnimeMangaRaw>(
           "seasons/upcoming",
-          { limit: p.limit, page: p.page, sfw: p.sfw },
+          { limit: p.limit, page: p.page, sfw: p.sfw, ...sfwStrictQuery(p.sfw_strict) },
           (a) => summarizeAnime(a),
         ),
       () => {
@@ -366,14 +397,23 @@ export class TenraiClient {
         return this.#fallback!.seasonOfficial(year, season, {
           limit: p.limit,
           page: p.page,
-          sfw: p.sfw,
+          sfw: p.sfw || p.sfw_strict,
         });
       },
     );
   }
 
-  async getSchedule(day: string | undefined, limit: number): Promise<Record<string, unknown>> {
-    return this.#list<AnimeMangaRaw>("schedules", { filter: day, limit }, (a) => summarizeAnime(a));
+  async getSchedule(
+    day: string | undefined,
+    limit: number,
+    sfw?: boolean,
+    sfwStrict?: boolean,
+  ): Promise<Record<string, unknown>> {
+    return this.#list<AnimeMangaRaw>(
+      "schedules",
+      { filter: day, limit, sfw, ...sfwStrictQuery(sfwStrict) },
+      (a) => summarizeAnime(a),
+    );
   }
 
   // ---- characters & people (Tier 1) ----------------------------------------
@@ -405,13 +445,17 @@ export class TenraiClient {
   // ---- discovery & statistics (Tier 2) -------------------------------------
 
   // Random endpoints are never cached — the whole point is a fresh pick.
-  async getRandomAnime(): Promise<Record<string, unknown>> {
-    const res = await this.#http.getJson<ItemResponse<AnimeMangaRaw>>("random/anime");
+  async getRandomAnime(sfw?: boolean, sfwStrict?: boolean): Promise<Record<string, unknown>> {
+    const res = await this.#http.getJson<ItemResponse<AnimeMangaRaw>>("random/anime", {
+      query: { sfw, ...sfwStrictQuery(sfwStrict) },
+    });
     return summarizeAnime(res.data, true);
   }
 
-  async getRandomManga(): Promise<Record<string, unknown>> {
-    const res = await this.#http.getJson<ItemResponse<AnimeMangaRaw>>("random/manga");
+  async getRandomManga(sfw?: boolean, sfwStrict?: boolean): Promise<Record<string, unknown>> {
+    const res = await this.#http.getJson<ItemResponse<AnimeMangaRaw>>("random/manga", {
+      query: { sfw, ...sfwStrictQuery(sfwStrict) },
+    });
     return summarizeManga(res.data, true);
   }
 
