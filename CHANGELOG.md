@@ -12,6 +12,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Add a security policy (`SECURITY.md`) covering tool tiers, write-tool blast radius, host configuration, and credential redaction, linked from the README ([ffa2868](https://github.com/Grinv/mal-mcp/commit/ffa2868)).
 - Add a custom icon for the MCPB submission: an original kawaii creature head in MyAnimeList's brand blue ([bf9d6ec](https://github.com/Grinv/mal-mcp/commit/bf9d6ec), [cfecd36](https://github.com/Grinv/mal-mcp/commit/cfecd36), [83eafd3](https://github.com/Grinv/mal-mcp/commit/83eafd3)).
 
+### Changed
+
+- Raise runtime floor to Node ≥ 20.11 (was ≥ 20.3) ([cfd8cca](https://github.com/Grinv/mal-mcp/commit/cfd8cca)).
+
 ### Fixed
 
 - Make README's and manifest.json's `docs/` links absolute so they still resolve from an installed extension, not just on GitHub ([2c51eec](https://github.com/Grinv/mal-mcp/commit/2c51eec)).
