@@ -86,8 +86,13 @@ const limit100 = z.int().min(1).max(100).describe("Max results per page (1-100).
 // ("Page must be 1000 or lower") everywhere except get_top_anime/get_top_manga/get_top_people/
 // get_top_characters, which serve real data well past it (their own catalogs run into the tens
 // of thousands of entries) — see `pageUnbounded` below for those four.
-const page = z.int().min(1).max(1000).describe("1-based page number for pagination.");
-const pageUnbounded = z.int().min(1).describe("1-based page number for pagination.");
+const page = z.int().min(1).max(1000).describe("1-based page number for pagination (1-1000).");
+const pageUnbounded = z
+  .int()
+  .min(1)
+  .describe(
+    "1-based page number for pagination. No upper bound — this ranking runs to the end of MAL's own catalog.",
+  );
 const sfw = z
   .boolean()
   .describe(
