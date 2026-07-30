@@ -101,12 +101,16 @@ npm run check:api      # live upstream health-check (network)
 - Every tool declares an `outputSchema` (SEP-2106, MCP structured content) — add
   or reuse a schema in `format.schemas.ts` (or the matching client's passthrough
   schema, e.g. in `clients/mal.ts`) for any new tool.
-- Schemas in `format.schemas.ts` are `.strict()` (they describe shaped/summarized
-  output — an unexpected field means the shaper and schema have drifted).
-  Schemas in `clients/mal.ts` (`MyUserInfoSchema`, `MalListResponseSchema`,
-  `ListStatusUpdateResponseSchema`) are deliberately `.passthrough()` instead —
-  they validate raw upstream responses forwarded near-verbatim (MAL may extend
-  them later). Don't unify the two styles.
+- Schemas in `format.schemas.ts` are `z.strictObject()` (they describe shaped/
+  summarized output — an unexpected field means the shaper and schema have
+  drifted). Schemas in `clients/mal.ts` (`MyUserInfoSchema`,
+  `MalListResponseSchema`, `ListStatusUpdateResponseSchema`) are deliberately
+  `z.looseObject()` instead — they validate raw upstream responses forwarded
+  near-verbatim (MAL may extend them later). Don't unify the two styles.
+  (`z.strictObject()`/`z.looseObject()` are zod v4's non-legacy replacements
+  for the `.object({...}).strict()`/`.passthrough()` chains — `.extend()` on
+  a `z.strictObject()`-derived schema keeps it strict with no need to
+  re-append `.strict()`.)
 - `.optional()` in a raw `Raw*` input type (format.ts) is correct defensiveness —
   JSON off the wire is never guaranteed. Don't let that same `.optional()` carry
   through unexamined into the paired **output** schema in `format.schemas.ts`: if
@@ -129,8 +133,8 @@ npm run check:api      # live upstream health-check (network)
   **input** field (confirmed unaffected: verified via both a raw
   `z.toJSONSchema` call and a live `tools/list` round-trip that a defaulted
   input field is correctly omitted from `required`), and every output schema
-  is consistently `.strict()` or `.passthrough()` per the rule above (no
-  lenient output object exists to trigger the third symptom). Re-check this
+  is consistently `z.strictObject()` or `z.looseObject()` per the rule above
+  (no lenient output object exists to trigger the third symptom). Re-check this
   note before adding `z.date()` anywhere, or a `.default()` to any schema in
   `format.schemas.ts`/`clients/mal.ts`.
 - Broader than the `z.date()` case above: the SDK converts every registered

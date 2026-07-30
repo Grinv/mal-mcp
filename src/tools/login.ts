@@ -11,22 +11,18 @@ import { jsonResult } from "../lib/result.js";
 import { guard } from "./guard.js";
 import { defineTool, registerTools } from "./spec.js";
 
-const startLoginResultSchema = z
-  .object({
-    authorize_url: z.string(),
-    redirect_uri: z.string(),
-    auto_capture: z.boolean(),
-    instructions: z.string(),
-  })
-  .strict();
+const startLoginResultSchema = z.strictObject({
+  authorize_url: z.string(),
+  redirect_uri: z.string(),
+  auto_capture: z.boolean(),
+  instructions: z.string(),
+});
 
-const submitRedirectResultSchema = z
-  .object({
-    logged_in: z.literal(true),
-    user: z.string().optional(),
-    message: z.string(),
-  })
-  .strict();
+const submitRedirectResultSchema = z.strictObject({
+  logged_in: z.literal(true),
+  user: z.string().optional(),
+  message: z.string(),
+});
 
 export function registerLoginTools(server: McpServer, mal: MalClient): void {
   const tools = [
@@ -42,7 +38,7 @@ export function registerLoginTools(server: McpServer, mal: MalClient): void {
         "same machine as the server and the callback port is free, login completes " +
         "automatically; otherwise (a remote/headless host, or the port is busy) copy the URL " +
         "you land on and pass it to submit_mal_redirect.",
-      inputSchema: z.object({}).strict(),
+      inputSchema: z.strictObject({}),
       outputSchema: startLoginResultSchema,
       annotations: { readOnlyHint: false, openWorldHint: true },
       handler: () =>
@@ -72,14 +68,12 @@ export function registerLoginTools(server: McpServer, mal: MalClient): void {
         "redirected to after clicking Allow (the one containing ?code=...). Use this when " +
         "login didn't complete automatically — e.g. the server runs on a remote/headless host. " +
         "A bare code string is also accepted.",
-      inputSchema: z
-        .object({
-          redirect_url: z
-            .string()
-            .min(1)
-            .describe("The full redirected URL (contains ?code=...), or just the code value."),
-        })
-        .strict(),
+      inputSchema: z.strictObject({
+        redirect_url: z
+          .string()
+          .min(1)
+          .describe("The full redirected URL (contains ?code=...), or just the code value."),
+      }),
       outputSchema: submitRedirectResultSchema,
       annotations: { readOnlyHint: false, openWorldHint: true },
       handler: ({ redirect_url }) =>
