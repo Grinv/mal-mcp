@@ -9,6 +9,12 @@ import {
   ListStatusUpdateResponseSchema,
 } from "../clients/mal.js";
 import {
+  ANIME_LIST_STATUSES,
+  MANGA_LIST_STATUSES,
+  ANIME_LIST_SORT,
+  MANGA_LIST_SORT,
+} from "../clients/malEnums.js";
+import {
   myListSchema,
   deleteAnimeItemSchema,
   deleteMangaItemSchema,
@@ -26,12 +32,8 @@ const NEEDS_TOKEN =
   "pre-supply the MAL_CLIENT_ID + MAL_REFRESH_TOKEN pair, or a standalone MAL_ACCESS_TOKEN " +
   "that expires in ~30 days.)";
 
-const animeListStatus = z
-  .enum(["watching", "completed", "on_hold", "dropped", "plan_to_watch"])
-  .describe("List status bucket.");
-const mangaListStatus = z
-  .enum(["reading", "completed", "on_hold", "dropped", "plan_to_read"])
-  .describe("List status bucket.");
+const animeListStatus = z.enum(ANIME_LIST_STATUSES).describe("List status bucket.");
+const mangaListStatus = z.enum(MANGA_LIST_STATUSES).describe("List status bucket.");
 const score = z.number().int().min(0).max(10).describe("Score 0-10 (0 clears the score).");
 const priority = z
   .number()
@@ -84,7 +86,7 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         .object({
           status: animeListStatus.optional(),
           sort: z
-            .enum(["list_score", "list_updated_at", "anime_title", "anime_start_date"])
+            .enum(ANIME_LIST_SORT)
             .describe(
               "Sort order. list_score/list_updated_at return highest/most-recent first; " +
                 "anime_title returns A-Z.",
@@ -108,10 +110,7 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
       inputSchema: z
         .object({
           status: mangaListStatus.optional(),
-          sort: z
-            .enum(["list_score", "list_updated_at", "manga_title", "manga_start_date"])
-            .describe("Sort order.")
-            .optional(),
+          sort: z.enum(MANGA_LIST_SORT).describe("Sort order.").optional(),
           limit: listLimit.optional(),
           offset: offset.optional(),
         })

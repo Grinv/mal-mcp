@@ -23,6 +23,7 @@ import {
   deleteMangaItemSchema,
 } from "../lib/format.schemas.js";
 import { mapLenient } from "../lib/format.js";
+import type { AnimeListStatus, MangaListStatus, AnimeListSort, MangaListSort } from "./malEnums.js";
 
 const REFRESH_SKEW_MS = 60_000;
 
@@ -40,15 +41,23 @@ const USER_FIELDS = "id,name,location,joined_at,anime_statistics";
 
 type Resource = "anime" | "manga";
 
-export interface AnimeListParams {
-  status?: string;
-  sort?: string;
+interface ListParamsBase {
   limit?: number;
   offset?: number;
 }
 
+export interface AnimeListParams extends ListParamsBase {
+  status?: AnimeListStatus;
+  sort?: AnimeListSort;
+}
+
+export interface MangaListParams extends ListParamsBase {
+  status?: MangaListStatus;
+  sort?: MangaListSort;
+}
+
 export interface AnimeStatusUpdate {
-  status?: string;
+  status?: AnimeListStatus;
   score?: number;
   num_watched_episodes?: number;
   is_rewatching?: boolean;
@@ -62,7 +71,7 @@ export interface AnimeStatusUpdate {
 }
 
 export interface MangaStatusUpdate {
-  status?: string;
+  status?: MangaListStatus;
   score?: number;
   num_chapters_read?: number;
   num_volumes_read?: number;
@@ -151,14 +160,14 @@ export class MalClient {
     return this.#getMyList("anime", ANIME_LIST_FIELDS, p);
   }
 
-  getMyMangaList(p: AnimeListParams): Promise<z.infer<typeof myListSchema>> {
+  getMyMangaList(p: MangaListParams): Promise<z.infer<typeof myListSchema>> {
     return this.#getMyList("manga", MANGA_LIST_FIELDS, p);
   }
 
   async #getMyList(
     resource: Resource,
     fields: string,
-    p: AnimeListParams,
+    p: AnimeListParams | MangaListParams,
   ): Promise<z.infer<typeof myListSchema>> {
     const data = await this.#authed((token) =>
       this.#http.getJson<unknown>(`users/@me/${resource}list`, {
