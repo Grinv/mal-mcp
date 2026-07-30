@@ -2,7 +2,7 @@
   "name": "mal-mcp",
   "version": "0.8.0",
   "mcpName": "io.github.Grinv/mal-mcp",
-  "description": "MyAnimeList MCP server — Jikan-powered reads plus official MAL personal-list management",
+  "description": "MyAnimeList MCP server — Tenrai-powered reads plus official MAL personal-list management",
   "type": "module",
   "license": "MIT",
   "author": {
@@ -20,7 +20,7 @@
     "model-context-protocol",
     "myanimelist",
     "mal",
-    "jikan",
+    "tenrai",
     "anime",
     "manga"
   ],

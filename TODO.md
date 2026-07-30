@@ -25,11 +25,15 @@ GitHub Issues once the repository is public.
 
 - [ ] Full interactive OAuth2 PKCE flow (local callback server) as an alternative
       to the manual token + silent-refresh approach.
-- [x] Additional Jikan read surface: genres, episodes, manga parity, characters
-      & people (search + detail), staff, statistics, random, upcoming season,
-      producers, top people/characters/reviews, user statistics/updates, and the
-      watch feeds (episodes/promos) all shipped.
-- [ ] Remaining niche Jikan surface, intentionally skipped to keep the tool
+- [x] Additional Tenrai (formerly Jikan) read surface: genres, episodes, manga
+      parity, characters & people (search + detail), staff, statistics, random,
+      upcoming season, producers, top people/characters/reviews, and the watch
+      feeds (episodes/promos) all shipped. (Public-user profile/favorites tools
+      shipped against Jikan too, but were removed on the Tenrai migration — see
+      CHANGELOG — since Tenrai has no user-data endpoints at all.)
+- [ ] Remaining niche Tenrai surface, intentionally skipped to keep the tool
       surface lean (add only on a concrete use case): clubs, magazines,
       pictures/videos, forum threads, relations/themes/external links, per-entity
-      `moreinfo`, user history/friends/about, and the `*/popular` watch variants.
+      `moreinfo`, and the `*/popular` watch variants. (Public-user data — history,
+      friends, about, favorites — isn't on this list: Tenrai has no `/users`
+      endpoint at all, so there's nothing to add a tool for.)

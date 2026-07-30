@@ -38,23 +38,23 @@ The only inputs it handles are:
 Each tool call results in an outbound HTTPS request to exactly one of two
 third-party APIs, carrying only what that specific call needs:
 
-- **Jikan** (`api.jikan.moe`) — the default backend for every read tool
-  (search, details, rankings, seasons, characters, recommendations,
-  reviews, public profiles, and more). Jikan is a public, unofficial,
-  open-source API that scrapes public MyAnimeList pages; these calls are
-  **anonymous** — no credential of yours is sent, because none is needed.
-  Jikan publishes no dedicated privacy policy of its own (verified live,
-  2026-07-29: its site has no such page, and its "Terms of Use" link is a
-  placeholder); its [GitHub organization](https://github.com/jikan-me) is
-  the closest authoritative, publicly-readable statement of what it does
-  with a request, since the parser/API source is fully open.
+- **Tenrai** (`api.tenrai.org`) — the default backend for every read tool
+  (search, details, rankings, seasons, characters, recommendations, and
+  reviews). Tenrai is a free, unofficial public API that mirrors MyAnimeList
+  data; these calls are **anonymous** — no credential of yours is sent,
+  because none is needed. Unlike this server's former Jikan backend, Tenrai
+  publishes an actual [privacy policy](https://tenrai.org/privacy) (verified
+  live, 2026-07-30): it states it logs your IP address and request metadata
+  (endpoint, status code, timing) for rate-limiting/abuse-prevention/security,
+  retained on a rolling basis for up to ~90 days, and does not sell data or
+  use behavioral tracking/advertising cookies.
 - **The official MyAnimeList API** (`api.myanimelist.net`,
   `myanimelist.net/v1/oauth2/*`) — reached in two distinct ways:
   - **Resilience fallback for eleven read tools** (`search_anime`,
     `search_manga`, `get_top_anime`, `get_top_manga`, `get_seasonal_anime`,
     `get_upcoming_season`, `get_anime_recommendations`,
     `get_manga_recommendations`, `get_anime`, `get_manga`,
-    `get_anime_statistics`): only when you've set `MAL_CLIENT_ID` and Jikan's
+    `get_anime_statistics`): only when you've set `MAL_CLIENT_ID` and Tenrai's
     own call failed, these retry via the official API with your Client ID
     sent as an `X-MAL-CLIENT-ID` header — no OAuth, no user token, just the
     Client ID identifying your registered app to MyAnimeList.
@@ -114,7 +114,7 @@ would for any other tool that acts on a real external account.
 - **Caching**: successful API responses (search results, details, rankings,
   etc.) are cached in the server process's own memory only (never written
   to disk), for a short configurable TTL (`CACHE_TTL_MS`, default 5
-  minutes) to cut latency and avoid hammering Jikan/MyAnimeList. The cache
+  minutes) to cut latency and avoid hammering Tenrai/MyAnimeList. The cache
   is cleared entirely when the process exits and is never shared across
   machines or users. Paginated/frequently-changing data (reviews, episode
   lists, random picks, your own list) is deliberately **not** cached.
@@ -131,7 +131,7 @@ would for any other tool that acts on a real external account.
 Material changes will be noted in [CHANGELOG.md](CHANGELOG.md) and
 reflected here, at the same URL, with the effective date below updated.
 
-_Last updated: 2026-07-29._
+_Last updated: 2026-07-30._
 
 ## Contact
 

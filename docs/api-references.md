@@ -5,88 +5,70 @@ behaviour against these before changing the clients. The pages render via
 JavaScript, so a plain HTTP fetch returns only the title — open them in a browser
 (or a headless browser tool).
 
-## Jikan — read backend (`src/clients/jikan.ts`)
+## Tenrai — read backend (`src/clients/tenrai.ts`)
 
-- **API reference + "Information" section** — <https://docs.api.jikan.moe/>
-  - **Rate limiting:** 3 requests/second **and** 60 requests/minute (daily
-    unlimited). Enforced client-side by the sliding-window `RateLimiter`.
-  - **HTTP responses:** `200`, `304 Not Modified` (ETag cache validation), `400`,
-    `404`, `405`, `429`, `500` (may include `report_url`), `503`.
-  - **Error body:** `{ status, type, message, error, report_url }` — `http.ts`
-    surfaces `message` (+ `report_url`).
-  - **Caching:** responses cached 24h upstream; `ETag` + `If-None-Match` supported
-    (we use a local TTL cache instead).
-  - **`Accept-Encoding` default header, not actually a 504 fix**
-    ([jikan-me/jikan#596](https://github.com/jikan-me/jikan/issues/596)):
-    `JikanClient` sends `gzip, deflate, br` as a default header, originally on
-    the strength of a commenter's report that some routes 504 unless a
-    specific `Accept-Encoding` is sent. A broader live A/B re-test
-    (2026-07-27) root-caused the real mechanism instead: Jikan's nginx layer
-    caches per-exact-`Accept-Encoding`-string (`Vary: Accept-Encoding`,
-    confirmed via response headers incl. `X-Cache-Status: STALE`) and falls
-    through to a live (often-flaky) MAL fetch on any cache miss. Whichever
-    string a given route happens to have cached looks "fixed" by it —
-    coincidentally, because it's a commonly-sent value, not because of any
-    encoding-negotiation effect; reordering the same three values, or
-    dropping one, flips a route between a cached 200 and an uncached 504,
-    with no string ever guaranteed to hit a warm entry on any given
-    route/moment (see [notes/jikan-reliability.md](../notes/jikan-reliability.md),
-    gitignored, for the full A/B data). Kept anyway: free and harmless, and
-    it may still ride a cache hit on some routes some of the time — just
-    don't cite it as a proven fix. `zstd` stays out for an unrelated, still-
-    valid reason: Node's fetch/undici won't decode a zstd-encoded body, so
-    advertising it risks a hard JSON-parse failure if Jikan (or something in
-    front of it) ever actually used it.
-  - **A Jikan 5xx can arrive with an HTTP 200 status** (found live
-    2026-07-27): `anime/{id}/episodes` returned
-    `{"status":500,"type":"UpstreamException","message":"...timed out...",
-"error":"..."}` as its body while the real HTTP status was `200` — i.e.
-    Jikan's own upstream-timeout error, but not signaled via a real non-2xx
-    response. Undetected, this reaches a shaper expecting `{data,pagination}`
-    and crashes on `.map()` of `undefined` (still caught by `guard()`, so no
-    protocol crash, but with an unhelpful raw-TypeError message, no retry,
-    and no official-API fallback attempt, since none of that machinery ever
-    sees it as an upstream failure). `HttpClient` now takes an optional
-    `detectEmbeddedError` hook (`lib/http.ts`); `JikanClient` supplies one
-    that recognizes this exact shape and converts it into a normal, retryable
-    `ApiError`, same as a real 5xx. Not yet confirmed to happen on any route
-    besides `episodes` — worth checking whether it recurs elsewhere.
+- **API reference** — <https://tenrai.org/documentation> (interactive Scalar
+  docs); a machine-readable summary lives at <https://api.tenrai.org/llms.txt>.
+  - **Rate limiting:** 4 requests/second **and** 120 requests/minute for
+    public (unauthenticated) access, 40,000/day. Enforced client-side by the
+    sliding-window `RateLimiter`. An optional `X-Server-Key` (Patreon-gated)
+    raises this to 5 req/s / 300 req/min with its own separate cache — not
+    currently used by mal-mcp.
+  - **HTTP responses:** `200`, `404`, `429` (with a `Retry-After` header —
+    verified live), `5xx` for a genuine outage.
+  - **Error body:** `{ status, type, message, error, path }` — `http.ts`
+    surfaces `message`. (`report_url` was the former Jikan backend's own
+    field; Tenrai has no equivalent, which the parser tolerates as simply
+    absent.)
+  - **Schema compatibility:** Tenrai's `/v1/*` routes mirror the Jikan v4
+    response shape field-for-field (verified live 2026-07-30 across anime/
+    manga search and detail, characters, people, producers, genres, seasons,
+    schedules, recommendations, reviews, statistics, news, and random) — this
+    server's `format.ts` shapers required zero changes when the read backend
+    moved off Jikan onto Tenrai.
+  - **No user-data endpoints** (confirmed via `api.tenrai.org/llms.txt`): no
+    `/users`, `/watch`, or `/clubs` routes exist — the operators state all
+    data is pre-cached from MAL's public catalogue, which rules out
+    per-request user-profile lookups. This is why `get_user_profile`/
+    `get_user_favorites` were removed rather than migrated when the backend
+    changed — there is no replacement, official-API or otherwise (the
+    official API's own "Get my user information" only covers `@me` via
+    OAuth).
+  - **Beta status, self-declared**: the operators describe `/v1` as an
+    interim bridge toward a `/v2` design, with occasional downtime expected.
 
 ## MyAnimeList official API
 
 Two separate clients use this API, for two unrelated concerns:
 `src/clients/mal.ts` (`MalClient`) for OAuth-authenticated personal-list
 reads/writes, and `src/clients/officialReads.ts` (`OfficialReadsClient`) for
-anonymous Client-ID-only public reads — the search/top/seasonal fallback for
-when Jikan's live pass-through to MAL is degraded (see
-[../notes/jikan-reliability.md](../notes/jikan-reliability.md), gitignored).
-See [auth.md](auth.md) for the three credential tiers (none / Client ID /
-OAuth token) and exactly what each one unlocks.
+anonymous Client-ID-only public reads — the fallback for when a Tenrai call
+fails. See [auth.md](auth.md) for the three credential tiers (none / Client
+ID / OAuth token) and exactly what each one unlocks.
 
-> **Why reads default to Jikan, not this API.** This API can serve public data
-> without OAuth via an `X-MAL-CLIENT-ID` header, but that still requires a
-> registered MAL application (a Client ID) — our read tools must work with
-> **zero credentials**, so Jikan (which needs none) is the default. Also, the
+> **Why reads default to Tenrai, not this API.** This API can serve public
+> data without OAuth via an `X-MAL-CLIENT-ID` header, but that still requires
+> a registered MAL application (a Client ID) — our read tools must work with
+> **zero credentials**, so Tenrai (which needs none) is the default. Also, the
 > official character/people endpoints are explicitly undocumented and
-> off-limits ("don't use them"), so that data comes from Jikan regardless.
+> off-limits ("don't use them"), so that data comes from Tenrai regardless.
 > `OfficialReadsClient` is additive, not a default change: with no
 > `MAL_CLIENT_ID` configured, every read tool behaves exactly as if it didn't
-> exist. It covers six tools — `search_anime`, `search_manga`,
-> `get_top_anime`, `get_top_manga`, `get_seasonal_anime`, `get_upcoming_season`
-> — because those are Jikan's own live pass-through calls to MAL (not served
-> from Jikan's cached DB), so they're the ones exposed to MAL-side flakiness
-> (see [../notes/jikan-reliability.md](../notes/jikan-reliability.md)), plus
-> `get_anime_recommendations`/`get_manga_recommendations`: not a pass-through,
-> but the official API happens to expose the same data as a `recommendations`
-> field on `GET /anime/{anime_id}` / `GET /manga/{manga_id}` (`client_auth: -`
-> — Client-ID-only, same tier as the other six; items are
+> exist. It covers eleven tools, gated purely by what the official API
+> happens to expose an equivalent for, not by anything Tenrai-specific:
+> `search_anime`, `search_manga`, `get_top_anime`, `get_top_manga`,
+> `get_seasonal_anime`, `get_upcoming_season` map onto the official search/
+> ranking/season endpoints; `get_anime_recommendations`/
+> `get_manga_recommendations` map onto a `recommendations` field on
+> `GET /anime/{anime_id}` / `GET /manga/{manga_id}` (`client_auth: -` —
+> Client-ID-only, same tier as the other six; items are
 > `{node: {id,title,main_picture}, num_recommendations}`, verified live
 > against myanimelist.net/apiconfig/references/api/v2). It's fetched as a
 > single extra field on the details endpoint, not a separate ranked
-> collection, so ordering/ties vs. Jikan's own vote count aren't guaranteed
+> collection, so ordering/ties vs. Tenrai's own vote count aren't guaranteed
 > to match exactly. `get_anime`/`get_manga` also fall back onto that same
 > `GET /anime|manga/{id}` endpoint with a wider `fields` list — the official
-> API covers most of Jikan's `detailed: true` extras (title_japanese, source,
+> API covers most of Tenrai's `detailed: true` extras (title_japanese, source,
 > duration, broadcast, background, relations, scored_by) but has **no**
 > equivalent at all for `producers`/`licensors`/`streaming`/
 > `opening_themes`/`ending_themes`/`trailer`/`favorites`, which are simply
@@ -97,8 +79,8 @@ OAuth token) and exactly what each one unlocks.
 > `dropped`/`plan_to_watch`/`num_list_users`), but has **no** score-distribution
 > histogram at all, so `scores` is simply absent during that fallback.
 > `get_manga_statistics` has no equivalent whatsoever — `MangaForDetails` carries
-> no `statistics` property — so it stays fully Jikan-only. Every other read tool
-> (reviews, user profiles, schedule, producers, news, episodes, genres, random
+> no `statistics` property — so it stays fully Tenrai-only. Every other read tool
+> (reviews, schedule, producers, news, episodes, genres, random
 > picks, everything character/people) has **no** official-API equivalent at
 > all — verified live, not assumed — so there's nothing to fall back to there
 > regardless of Client ID.
@@ -118,15 +100,15 @@ OAuth token) and exactly what each one unlocks.
     `delete_my_anime_list_item`/`delete_my_manga_list_item`'s descriptions.
   - **`ranking_type` enums** (for `officialReads.ts`'s top-anime/top-manga
     fallback): anime — `all, airing, upcoming, tv, ova, movie, special,
-bypopularity, favorite` (no `ona`/`music`, unlike Jikan's `type` filter);
+bypopularity, favorite` (no `ona`/`music`, unlike Tenrai's `type` filter);
     manga — `all, manga, novels, oneshots, doujin, manhwa, manhua,
 bypopularity, favorite`. Both `client_auth (-)` — no OAuth scope needed,
     just the Client ID header.
   - **Season endpoint** (`GET /anime/season/{year}/{season}`) groups months as
     winter=Jan-Mar, spring=Apr-Jun, summer=Jul-Sep, fall=Oct-Dec — matches
-    Jikan's own grouping. There is no "current"/"upcoming" shortcut like
-    Jikan's `seasons/now`/`seasons/upcoming`; the caller computes year+season
-    (see `currentSeason`/`nextSeason` in `src/clients/jikan.ts`).
+    Tenrai's own grouping. There is no "current"/"upcoming" shortcut like
+    Tenrai's `seasons/now`/`seasons/upcoming`; the caller computes year+season
+    (see `currentSeason`/`nextSeason` in `src/clients/readFallback.ts`).
 - **Authorization** (OAuth2 PKCE, token exchange, refresh, lifetimes) —
   <https://myanimelist.net/apiconfig/references/authorization>
   - PKCE uses the **`plain`** method (`code_challenge` == `code_verifier`).
@@ -144,9 +126,9 @@ bypopularity, favorite`. Both `client_auth (-)` — no OAuth scope needed,
     is ~28d).
 - **Forum — getting started / capabilities** — <https://myanimelist.net/forum/?topicid=1973141>
   - The character & people endpoints are **undocumented and off-limits** ("don't
-    use them") — that data comes from Jikan instead.
+    use them") — that data comes from Tenrai instead.
 - **Forum — public data without OAuth** — <https://myanimelist.net/forum/?topicid=1973077>
-  - Public endpoints work with just an `X-MAL-CLIENT-ID` header. We still use Jikan
+  - Public endpoints work with just an `X-MAL-CLIENT-ID` header. We still use Tenrai
     for reads so they need **zero** credentials (see the note in
     [AGENTS.md](../AGENTS.md)) — except the `officialReads.ts` fallback below,
     which is opt-in via `MAL_CLIENT_ID`.
@@ -158,7 +140,7 @@ bypopularity, favorite`. Both `client_auth (-)` — no OAuth scope needed,
     without this — the bare `authors` field returns only `{node:{id},role}`).
     `start_season{year,season}` is the only way to get an anime's season/year
     from a search response (there's no separate `season`/`year` top-level field
-    like Jikan has). Pagination is `limit`/`offset` (not Jikan's `page`).
+    like Tenrai has). Pagination is `limit`/`offset` (not Tenrai's `page`).
   - **No server-side content filter at all** — no query param excludes NSFW
     results, and no genre/status/order_by/sort filter exists either (verified
     against the v2 reference — search/ranking/season take only `q`/
@@ -166,10 +148,10 @@ bypopularity, favorite`. Both `client_auth (-)` — no OAuth scope needed,
     specifically, each anime/manga node carries an `nsfw` field
     (`white`/`gray`/`black`, verified live) that `officialReads.ts` requests
     and filters on client-side (fail-closed: keep only `"white"`) when
-    `sfw: true` was requested — the one Jikan filter the fallback can
+    `sfw: true` was requested — the one Tenrai filter the fallback can
     approximate. `genres`/`status`/`order_by`/`sort` have no equivalent at
     all, client-side or otherwise, and are simply unavailable during a
-    fallback (see `notes/jikan-reliability.md`).
+    fallback.
   - **No-match search doesn't return empty** (verified live 2026-07-27, both
     through the fallback and directly against `GET /v2/anime?q=...`): a query
     with no real title match (e.g. a random unmatchable string) comes back

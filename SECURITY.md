@@ -8,9 +8,9 @@ connected user's real MyAnimeList list.
 
 - **Two distinct tool tiers.** Public reads — `search_anime`/`search_manga`,
   `get_anime`/`get_manga`, rankings, seasons, characters, staff, reviews,
-  user profiles, and more — call the public [Jikan](https://jikan.moe) API
-  (or, for eleven of them, fall back to the official MyAnimeList API using
-  just a Client ID) and need no credential. Personal-list tools —
+  and more — call the free [Tenrai](https://tenrai.org) API (or, for eleven
+  of them, fall back to the official MyAnimeList API using just a Client
+  ID) and need no credential. Personal-list tools —
   `get_my_user_info`, `get_my_anime_list`, `get_my_manga_list`,
   `update_my_anime_status`, `update_my_manga_status`,
   `delete_my_anime_list_item`, `delete_my_manga_list_item` — act on the
@@ -29,7 +29,7 @@ connected user's real MyAnimeList list.
   cross-user write capability, and none of this runs unless the model
   actually invokes one of these tools.
 - **Three hosts, fixed at startup.** Requests go to the configured
-  `JIKAN_BASE_URL` (default `api.jikan.moe`), `MAL_BASE_URL` (default
+  `TENRAI_BASE_URL` (default `api.tenrai.org`), `MAL_BASE_URL` (default
   `api.myanimelist.net`), or `MAL_OAUTH_BASE_URL` (default
   `myanimelist.net/v1/oauth2`) — each is only URL-shape validated at startup
   (via `config.ts`'s Zod schema), not allowlisted against a fixed set of

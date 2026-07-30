@@ -14,7 +14,7 @@ repos (`tmdb-mcp`, `steam-games-mcp`, `anilist-mcp-server`) keep their own
 sync the useful parts both ways rather than letting them drift.
 
 Goal: find real bugs/inaccuracies in the live tool behavior (against the real
-Jikan API, its official-MAL-API fallback, and the official MAL API itself)
+Tenrai API, its official-MAL-API fallback, and the official MAL API itself)
 and in the source, then fix what's found. Read `AGENTS.md` first if it's not
 already in context — every fix must follow its conventions (`guard()`/
 never-throw, `format.schemas.ts`'s `.strict()` shaper/schema 1:1 rule vs.
@@ -56,24 +56,16 @@ npm run build && npm test && npm run lint && npm run format:check
 ```
 
 Optionally `npm run check:api` too — a live upstream health-check against
-both Jikan and (if `MAL_CLIENT_ID`/OAuth creds are set) the official API. A
-failure there can mean either a genuine shape drift (a real finding) or
-Jikan's own known-flaky upstream connection to MAL (see
-`notes/jikan-reliability.md` — gitignored local log; check it before
-re-diagnosing a 504 as new). **Note `check-api.mjs`'s own scope**: it does a
-raw `fetch()` with just `{ Accept: "application/json" }` — it never routes
-through `JikanClient`/`HttpClient`, so it can neither exercise nor confirm
-any client-side header/config fix (e.g. the `Accept-Encoding` workaround
-below). Don't treat a `check:api` pass/fail on a given route as evidence for
-or against such a fix; it's testing raw upstream reachability only. As of
-2026-07-23 `notes/jikan-reliability.md` also records an `Accept-Encoding`
-default header (jikan-me/jikan#596) shipped in `JikanClient` on the strength
-of a single paired live test — a same-day, header-less run of the identical
-route also succeeded, so its causal effect is **unconfirmed**, not a settled
-fix. Treat a 504 on any Jikan route (with or without that header) as the
-known, not-yet-fixed upstream issue, not a new finding, unless the symptom
-has genuinely changed shape (e.g. a 4xx or a malformed body where it used to
-be a clean 504).
+both Tenrai and (if `MAL_CLIENT_ID`/OAuth creds are set) the official API. A
+failure there can mean either a genuine shape drift (a real finding) or a
+transient Tenrai/MAL outage (see `notes/tenrai-reliability.md` — gitignored
+local log; check it before re-diagnosing a failure as new). **Note
+`check-api.mjs`'s own scope**: it does a raw `fetch()` with just
+`{ Accept: "application/json" }` — it never routes through
+`TenraiClient`/`HttpClient`, so it can neither exercise nor confirm any
+client-side header/config fix. Don't treat a `check:api` pass/fail on a given
+route as evidence for or against such a fix; it's testing raw upstream
+reachability only.
 
 All green is a **baseline, not proof of correctness** — it only confirms
 nothing already-covered regressed. It says nothing about whether the
@@ -95,9 +87,7 @@ live testing.
   `get_my_user_info` before doing anything else — if it succeeds, every
   mutation call below acts on a real person's real anime/manga list.
 - **Read-only tools** (`search_*`, `get_*` except the `get_my_*` trio) are
-  always safe to call freely — no special permission needed. This includes
-  `get_user_profile`/`get_user_favorites` for a public username: prefer a
-  well-known public MAL profile over guessing a random one.
+  always safe to call freely — no special permission needed.
 - **Mutation tools** (`update_my_anime_status`, `update_my_manga_status`,
   `delete_my_anime_list_item`, `delete_my_manga_list_item`) require the
   user's explicit go-ahead before this pass touches them. Reversible live
@@ -113,15 +103,14 @@ live testing.
   `get_top_anime`, `get_top_manga`, `get_seasonal_anime`,
   `get_upcoming_season`, `get_anime`/`get_manga`, `get_anime_statistics`, and
   `get_anime_recommendations`/`get_manga_recommendations` fall back to the
-  official MAL API (`MAL_CLIENT_ID`, no OAuth) when Jikan fails — see
-  `JikanFallback`/`withFallback` in `src/clients/jikanFallback.ts`. Given
-  Jikan's documented current flakiness, a live pass right now will likely
-  exercise both paths "for free." When reporting a finding on one of these
-  tools, **state which backend actually answered** (Jikan vs. the official
-  fallback) — their available fields differ by design (see the fallback
-  field-gap list in `docs/api-references.md`), so a "missing field" on a
-  fallback response is expected, not a bug, unless it's missing from a field
-  the fallback is documented to cover.
+  official MAL API (`MAL_CLIENT_ID`, no OAuth) when Tenrai fails — see
+  `ReadFallback`/`withFallback` in `src/clients/readFallback.ts`. When
+  reporting a finding on one of these tools, **state which backend actually
+  answered** (Tenrai vs. the official fallback) — their available fields
+  differ by design (see the fallback field-gap list in
+  `docs/api-references.md`), so a "missing field" on a fallback response is
+  expected, not a bug, unless it's missing from a field the fallback is
+  documented to cover.
 
 ## 3. Live edge-case sweep
 
@@ -146,11 +135,10 @@ supports concurrent subagents/background tasks.
   sense together (e.g. marking `completed` with 0 episodes watched) — does
   MAL/the tool flag this or silently accept it?
 - **Not-found / empty-result paths**: a nonexistent-but-well-formed `mal_id`
-  for anime/manga/character/person, a nonexistent username for
-  `get_user_profile`/`get_user_favorites`, a search returning zero results,
+  for anime/manga/character/person, a search returning zero results,
   `delete_my_anime_list_item`/`delete_my_manga_list_item` on an id with no
   existing list entry.
-- **Score/rating edge cases**: an anime/manga with a Jikan `score` of exactly
+- **Score/rating edge cases**: an anime/manga with a Tenrai `score` of exactly
   `0` (should surface as absent, not literal `0` — shipped in 0.2.0, worth a
   regression spot-check), a brand-new/unranked entry with no `rank`/
   `popularity` at all.
@@ -182,22 +170,20 @@ back to correct, intentional code (e.g. a documented fallback field gap)
 isn't a finding.
 
 The same caution runs the other way: a finding produced by reading source
-_without_ calling any live tool is a hypothesis, not a confirmed bug — Jikan's
+_without_ calling any live tool is a hypothesis, not a confirmed bug — Tenrai's
 and the official API's actual behavior sometimes contradicts what the code's
 shape implies (this is exactly why the `seasonal_overview` item above says
 "verify live before reporting"). Before reporting any source-only finding,
 spend one live call confirming the actual response shape it depends on.
 
-A third caution, specific to a known-flaky upstream like Jikan: **one paired
-live A/B test is suggestive, not proof of causality.** A single "504 without
-the change, 200 with it" result can just as easily be Jikan self-resolving
-mid-test — this log has real prior examples of the exact same failing set
-clearing up within hours with no code change involved (see the recurring
-"self-resolving within a day" pattern in the GitHub-issue-history section
-below). Before writing up a live-tested fix as confirmed, look for (or run) a
-same-day control on the identical route through a path that does _not_ carry
-the change — if that also succeeds, the fix's causal effect is unconfirmed,
-not settled, regardless of how clean the original paired numbers looked.
+A third caution, for any upstream that can be transiently flaky: **one paired
+live A/B test is suggestive, not proof of causality.** A single "failure
+without the change, success with it" result can just as easily be the
+upstream self-resolving mid-test. Before writing up a live-tested fix as
+confirmed, look for (or run) a same-day control on the identical route
+through a path that does _not_ carry the change — if that also succeeds, the
+fix's causal effect is unconfirmed, not settled, regardless of how clean the
+original paired numbers looked.
 
 ## 4. Source-level code review
 
@@ -229,11 +215,11 @@ pass on the last group unless something specific points there) for:
   `ListStatusUpdateResponseSchema` are deliberately `.passthrough()` (raw
   upstream responses forwarded near-verbatim) — a new schema mixing the two
   styles, or a `.strict()` schema applied to a passthrough response, is a bug.
-- `withFallback`/`JikanFallback` call sites that don't distinguish a genuine
+- `withFallback`/`ReadFallback` call sites that don't distinguish a genuine
   upstream failure (5xx/network/timeout — should fall back) from a real 4xx
   (e.g. a genuine "not found" — should **not** silently retry against the
   official API and potentially mask the real error).
-- Rate limiting: does every new Jikan/official-API call site actually route
+- Rate limiting: does every new Tenrai/official-API call site actually route
   through the shared `withThrottle`/`RateLimiter` wiring in
   `src/clients/httpClients.ts`, or does a new method construct its own
   `HttpClient`/bypass the limiter?
@@ -253,8 +239,8 @@ pass on the last group unless something specific points there) for:
 
 ## 5. Docs/metadata consistency
 
-Run the `docs-consistency-check` skill. Also log any new Jikan quirk or
-reliability data point turned up this pass in `notes/jikan-reliability.md`
+Run the `docs-consistency-check` skill. Also log any new Tenrai quirk or
+reliability data point turned up this pass in `notes/tenrai-reliability.md`
 (gitignored), with a date, the same way past passes have — don't let a
 fresh finding live only in this conversation's transcript.
 

@@ -5,7 +5,7 @@
   "version": "0.8.0",
   "description": "Search and browse MyAnimeList anime/manga and manage your personal list.",
   "icon": "assets/icon.png",
-  "long_description": "MCP server for MyAnimeList. Reads (search, details, rankings, seasons, characters, recommendations, reviews, public profiles) are served via the public Jikan API and require no credentials. Personal-list tools (read/update/delete your own anime & manga list) use the official MyAnimeList API and require a user token; without one they return an actionable error. Works with any MCP client.",
+  "long_description": "MCP server for MyAnimeList. Reads (search, details, rankings, seasons, characters, recommendations, reviews) are served via the free Tenrai API and require no credentials. Personal-list tools (read/update/delete your own anime & manga list) use the official MyAnimeList API and require a user token; without one they return an actionable error. Works with any MCP client.",
   "author": {
     "name": "Grinv",
     "email": "4070730+Grinv@users.noreply.github.com",
@@ -19,11 +19,11 @@
     "url": "https://github.com/Grinv/mal-mcp"
   },
   "license": "MIT",
-  "keywords": ["mcp", "myanimelist", "mal", "jikan", "anime", "manga"],
+  "keywords": ["mcp", "myanimelist", "mal", "tenrai", "anime", "manga"],
   "privacy_policies": [
     "https://github.com/Grinv/mal-mcp/blob/main/PRIVACY.md",
     "https://myanimelist.net/about/privacy_policy",
-    "https://jikan.moe"
+    "https://tenrai.org/privacy"
   ],
   "server": {
     "type": "node",
@@ -99,14 +99,6 @@
     {
       "name": "get_anime_schedule",
       "description": "Broadcast schedule, optionally by weekday."
-    },
-    {
-      "name": "get_user_profile",
-      "description": "A public user's profile and statistics."
-    },
-    {
-      "name": "get_user_favorites",
-      "description": "A public user's favorite anime/manga/characters/people."
     },
     {
       "name": "get_anime_genres",

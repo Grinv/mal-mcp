@@ -14,9 +14,9 @@ Continue, and others) — the server speaks the standard MCP stdio protocol.
 
 It uses a hybrid backend:
 
-- **Reads → [Jikan](https://jikan.moe) (unofficial MAL API).** Search, details,
-  rankings, seasons, characters, recommendations, reviews and public profiles.
-  No credentials required.
+- **Reads → [Tenrai](https://tenrai.org) (free, unofficial MAL API).** Search,
+  details, rankings, seasons, characters, recommendations and reviews. No
+  credentials required.
 - **Your personal list → official [MyAnimeList API](https://myanimelist.net/apiconfig/references/api/v2).**
   Read, update and delete entries on your own anime/manga list. Requires a
   one-time login (see below).
@@ -29,7 +29,7 @@ more:
 
 | You set...                                                                                                                                            | You get...                                                                                                                                                                        |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| _(nothing)_                                                                                                                                           | Search, details, rankings, seasons, characters, reviews, public profiles, and more — works immediately, no signup.                                                                |
+| _(nothing)_                                                                                                                                           | Search, details, rankings, seasons, characters, reviews, and more — works immediately, no signup.                                                                                 |
 | A MyAnimeList **Client ID** ([2 minutes, free →](#connect-your-myanimelist-account-for-the-personal-list-tools))                                      | Same as above, plus: 11 read tools (search, rankings, seasons, recommendations, details, statistics) keep working smoothly even during a MyAnimeList hiccup. Still no login step. |
 | The Client ID above, **plus** running the `login_mal` tool once ([same walkthrough →](#connect-your-myanimelist-account-for-the-personal-list-tools)) | Everything above, plus your **own MyAnimeList list**: view it, add/update entries, mark things watched, remove entries.                                                           |
 
@@ -52,7 +52,6 @@ Once it's connected, just ask your agent in natural language.
 "When does the next episode of One Piece air?"
 "Give me the top manga in the Romance genre."
 "What's on the upcoming season's schedule?"
-"Show the public profile and favorites of user Xinil."
 "Pick a random highly-rated anime for me."
 ```
 
@@ -72,22 +71,21 @@ Once it's connected, just ask your agent in natural language.
 
 | Tool                                                                                  | Backend | Auth  |
 | ------------------------------------------------------------------------------------- | ------- | ----- |
-| `search_anime`, `search_manga`                                                        | Jikan   | none  |
-| `get_anime`, `get_manga`                                                              | Jikan   | none  |
-| `get_anime_characters`, `get_anime_recommendations`, `get_anime_reviews`              | Jikan   | none  |
-| `get_manga_characters`, `get_manga_recommendations`, `get_manga_reviews`              | Jikan   | none  |
-| `get_anime_episodes`                                                                  | Jikan   | none  |
-| `get_anime_genres`, `get_manga_genres`                                                | Jikan   | none  |
-| `search_characters`, `get_character`                                                  | Jikan   | none  |
-| `search_people`, `get_person`, `get_anime_staff`                                      | Jikan   | none  |
-| `get_anime_statistics`, `get_manga_statistics`                                        | Jikan   | none  |
-| `get_random_anime`, `get_random_manga`, `get_random_character`, `get_random_person`   | Jikan   | none  |
-| `get_anime_news`                                                                      | Jikan   | none  |
-| `get_top_anime`, `get_top_manga`                                                      | Jikan   | none  |
-| `get_top_people`, `get_top_characters`                                                | Jikan   | none  |
-| `get_seasonal_anime`, `get_upcoming_season`, `get_seasons_list`, `get_anime_schedule` | Jikan   | none  |
-| `get_producers`                                                                       | Jikan   | none  |
-| `get_user_profile`, `get_user_favorites`                                              | Jikan   | none  |
+| `search_anime`, `search_manga`                                                        | Tenrai  | none  |
+| `get_anime`, `get_manga`                                                              | Tenrai  | none  |
+| `get_anime_characters`, `get_anime_recommendations`, `get_anime_reviews`              | Tenrai  | none  |
+| `get_manga_characters`, `get_manga_recommendations`, `get_manga_reviews`              | Tenrai  | none  |
+| `get_anime_episodes`                                                                  | Tenrai  | none  |
+| `get_anime_genres`, `get_manga_genres`                                                | Tenrai  | none  |
+| `search_characters`, `get_character`                                                  | Tenrai  | none  |
+| `search_people`, `get_person`, `get_anime_staff`                                      | Tenrai  | none  |
+| `get_anime_statistics`, `get_manga_statistics`                                        | Tenrai  | none  |
+| `get_random_anime`, `get_random_manga`, `get_random_character`, `get_random_person`   | Tenrai  | none  |
+| `get_anime_news`                                                                      | Tenrai  | none  |
+| `get_top_anime`, `get_top_manga`                                                      | Tenrai  | none  |
+| `get_top_people`, `get_top_characters`                                                | Tenrai  | none  |
+| `get_seasonal_anime`, `get_upcoming_season`, `get_seasons_list`, `get_anime_schedule` | Tenrai  | none  |
+| `get_producers`                                                                       | Tenrai  | none  |
 | `get_my_user_info`, `get_my_anime_list`, `get_my_manga_list`                          | MAL     | token |
 | `update_my_anime_status`, `update_my_manga_status`                                    | MAL     | token |
 | `delete_my_anime_list_item`, `delete_my_manga_list_item`                              | MAL     | token |
@@ -225,19 +223,19 @@ automatically. (mal-mcp is a public PKCE client — there is **no client secret*
 
 ### Tuning (rarely needed)
 
-These have sensible defaults; change them only if you self-host Jikan, need
-different timing, or want to override where/how the server logs or stores its
-token.
+These have sensible defaults; change them only if you need different timing,
+a different upstream base URL, or want to override where/how the server logs
+or stores its token.
 
-| Variable                                               | Purpose                                                                                                                                                                                                                                                                 |
-| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MAL_TOKEN_STORE`                                      | Override where the login token is saved on disk (default: your OS's config folder).                                                                                                                                                                                     |
-| `MAL_OAUTH_PORT`                                       | Only needed if port `8080` is already in use on your machine — see step 1 of the [account walkthrough](#connect-your-myanimelist-account-for-the-personal-list-tools).                                                                                                  |
-| `LOG_LEVEL`                                            | How much the server logs: `debug` \| `info` \| `warn` \| `error` \| `silent` (default `info`). Logs go to stderr only — there's no MCP-level log capability, so a client can't fetch or filter them via `logging/setLevel`; check the server process's stderr directly. |
-| `JIKAN_MIN_INTERVAL_MS`                                | Min spacing between Jikan calls (default `400`). On top of this the client enforces Jikan's published 3/s **and** 60/min limits; set to `0` to disable all client-side throttling.                                                                                      |
-| `CACHE_TTL_MS`                                         | TTL for the in-memory read cache (default `300000` = 5 min).                                                                                                                                                                                                            |
-| `HTTP_TIMEOUT_MS`, `HTTP_RETRIES`                      | Per-request timeout (default `15000`) and retry attempts for transient failures (default `2`).                                                                                                                                                                          |
-| `JIKAN_BASE_URL`, `MAL_BASE_URL`, `MAL_OAUTH_BASE_URL` | Override upstream base URLs (e.g. a self-hosted Jikan instance).                                                                                                                                                                                                        |
+| Variable                                                | Purpose                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MAL_TOKEN_STORE`                                       | Override where the login token is saved on disk (default: your OS's config folder).                                                                                                                                                                                     |
+| `MAL_OAUTH_PORT`                                        | Only needed if port `8080` is already in use on your machine — see step 1 of the [account walkthrough](#connect-your-myanimelist-account-for-the-personal-list-tools).                                                                                                  |
+| `LOG_LEVEL`                                             | How much the server logs: `debug` \| `info` \| `warn` \| `error` \| `silent` (default `info`). Logs go to stderr only — there's no MCP-level log capability, so a client can't fetch or filter them via `logging/setLevel`; check the server process's stderr directly. |
+| `TENRAI_MIN_INTERVAL_MS`                                | Min spacing between Tenrai calls (default `300`). On top of this the client enforces Tenrai's published 4/s **and** 120/min public limits; set to `0` to disable all client-side throttling.                                                                            |
+| `CACHE_TTL_MS`                                          | TTL for the in-memory read cache (default `300000` = 5 min).                                                                                                                                                                                                            |
+| `HTTP_TIMEOUT_MS`, `HTTP_RETRIES`                       | Per-request timeout (default `15000`) and retry attempts for transient failures (default `2`).                                                                                                                                                                          |
+| `TENRAI_BASE_URL`, `MAL_BASE_URL`, `MAL_OAUTH_BASE_URL` | Override upstream base URLs.                                                                                                                                                                                                                                            |
 
 Provide these in your MCP client config's `env` block (the server does **not**
 read a `.env` file). See [docs/auth.md](https://github.com/Grinv/mal-mcp/blob/main/docs/auth.md) for how to obtain the
@@ -248,7 +246,7 @@ credentials, and
 
 NSFW (adult) results are **not** filtered by default — the server returns whatever
 the upstream API provides. Search tools accept an optional `sfw` parameter; set
-`sfw: true` to exclude adult entries via Jikan.
+`sfw: true` to exclude adult entries via Tenrai.
 
 ## Development
 
@@ -262,7 +260,7 @@ npm run check:api    # live health-check of upstream endpoints
 npm run inspector    # run under the MCP Inspector
 ```
 
-Runtime requires Node ≥ 20.3 (global `fetch`, `AbortSignal.any`). See
+Runtime requires Node ≥ 20.11 (global `fetch`, `AbortSignal.any`). See
 [AGENTS.md](AGENTS.md) for contributor/agent guidance.
 
 ## Updating
@@ -281,8 +279,8 @@ See the [CHANGELOG](CHANGELOG.md) for what changed in each release.
 ## Attribution and terms
 
 This is an **unofficial** project and is not affiliated with or endorsed by
-MyAnimeList. Read data is provided by [Jikan](https://jikan.moe), an unofficial
-MAL API; please respect its rate limits. Personal-list operations use the official
+MyAnimeList. Read data is provided by [Tenrai](https://tenrai.org), a free,
+unofficial MAL API; please respect its rate limits. Personal-list operations use the official
 [MyAnimeList API](https://myanimelist.net/apiconfig/references/api/v2) under your
 own account and token. Use is subject to the
 [MyAnimeList Terms of Service](https://myanimelist.net/about/terms_of_use).
@@ -292,7 +290,7 @@ own account and token. Use is subject to the
 `mal-mcp` runs locally on your machine and has no telemetry of its own — see
 [PRIVACY.md](PRIVACY.md) for exactly what data it handles (including what the
 personal-list tools can read and change on your real MyAnimeList account),
-what it sends to Jikan/MyAnimeList, and what (if anything) it stores on disk.
+what it sends to Tenrai/MyAnimeList, and what (if anything) it stores on disk.
 
 ## Security
 

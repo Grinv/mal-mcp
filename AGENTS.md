@@ -6,11 +6,12 @@ this file, not in CLAUDE.md. (For end-user/runtime docs, see [README.md](README.
 
 ## Project shape
 
-A TypeScript MCP server. Hybrid backend: read tools call the public Jikan API
-(no auth); personal-list tools call the official MyAnimeList API (user token).
-Eleven read tools (search/top/seasonal/recommendations/details/anime
-statistics) additionally fall back to the official API via just a Client ID —
-see `JikanFallback` in `clients/jikanFallback.ts` and the rationale/scope in
+A TypeScript MCP server. Hybrid backend: read tools call the free Tenrai API
+(no auth; a Jikan-v4-schema-compatible MyAnimeList mirror). Personal-list
+tools call the official MyAnimeList API (user token). Eleven read tools
+(search/top/seasonal/recommendations/details/anime statistics) additionally
+fall back to the official API via just a Client ID — see `ReadFallback` in
+`clients/readFallback.ts` and the rationale/scope in
 [docs/api-references.md](docs/api-references.md) before changing a client. [docs/auth.md](docs/auth.md) lays out what each
 credential tier (none / Client ID / OAuth token) unlocks — read that before
 changing auth-gating logic or docs that describe it.
@@ -33,15 +34,15 @@ src/
                   # here rather than in mal.ts); each tool's outputSchema, AND (schema-first)
                   # the paired shaper itself calls schema.parse() on its own result before
                   # returning
-  clients/        # jikan.ts (reads) + jikanFallback.ts (retry policy), mal.ts
+  clients/        # tenrai.ts (reads) + readFallback.ts (retry policy), mal.ts
                   # (personal list + token refresh + login — MyUserInfoSchema/
                   # MalListResponseSchema/ListStatusUpdateResponseSchema stay here as
                   # .passthrough(), see below), officialReads.ts (Client-ID-only public
                   # reads, the fallback's data source), httpClients.ts (shared HttpClient
                   # factory for the official API, + withThrottle(), the rate-limit wiring
-                  # shared with jikan.ts too)
+                  # shared with tenrai.ts too)
   tools/          # read.ts, mylist.ts, login.ts (login_mal), guard.ts
-  prompts.ts      # registerPrompts(server, jikan) — clients get threaded in as needed,
+  prompts.ts      # registerPrompts(server, tenrai) — clients get threaded in as needed,
                   # e.g. for completable() autocomplete on recommend_similar's title
   __tests__/      # node:test (*.test.ts) + helpers.ts
 scripts/          # build-tests.mjs, run-tests.mjs, check-api.mjs, sync-version.mjs,
@@ -158,7 +159,7 @@ build/test/lint plus hammering the live MCP tools with edge cases,
 cross-checked against source — follow
 [skills/live-audit/SKILL.md](skills/live-audit/SKILL.md). It covers the
 safety rules for testing mutation tools against a real authenticated MAL
-account, the dual-backend (Jikan / official-API-fallback) awareness needed
+account, the dual-backend (Tenrai / official-API-fallback) awareness needed
 when reporting a finding, and known bug classes worth checking don't recur.
 
 ## Before opening a PR

@@ -30,7 +30,7 @@ just "all set" or "all omitted":
   `get_seasonal_anime`) — this is correct, not a bug: `get_seasonal_anime`'s
   own description says supplying only one is treated as omitting both
   (matches `getSeason()`'s `p.year && p.season ? ... : "seasons/now"` in
-  `src/clients/jikan.ts`), so the prompt mirrors the tool's own contract.
+  `src/clients/tenrai.ts`), so the prompt mirrors the tool's own contract.
   Don't flag this from a source-only read of the prompt's branching alone —
   it resembles the "argument that's individually optional but breaks when
   given alone" bug class, but here the "breakage" is intended.

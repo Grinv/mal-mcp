@@ -32,14 +32,14 @@ Check every one of these, not just a sample:
   don't skip the check just because most commits usually are internal.
 - `docs/api-references.md`'s "verified live" claims still match the current
   client code, especially any claim this pass's own fixes just invalidated —
-  and especially the Jikan fallback field-gap list, which is exactly the kind
-  of claim a MAL API change could quietly break.
+  and especially the official-API fallback field-gap list, which is exactly
+  the kind of claim a MAL API change could quietly break.
 - `docs/auth.md`'s credential-tier breakdown still matches what each tool
   actually requires.
 - `AGENTS.md`'s project-shape/file-tree description (including this
   `skills/` entry) still matches the filesystem.
-- `notes/jikan-reliability.md` (gitignored) — if this pass turned up a new
-  Jikan quirk or reliability data point, log it there with a date, the same
+- `notes/tenrai-reliability.md` (gitignored) — if this pass turned up a new
+  Tenrai quirk or reliability data point, log it there with a date, the same
   way past passes have; don't let a fresh finding live only in this
   conversation's transcript.
 - `PRIVACY.md` and `SECURITY.md`: re-verify every specific claim against the

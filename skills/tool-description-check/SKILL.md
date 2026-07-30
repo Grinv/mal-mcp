@@ -39,7 +39,7 @@ Purpose — double-check those two first on any new or edited tool.
      doesn't return empty" note for the official-API fallback, or the
      `num_episodes_watched`/`num_watched_episodes` read/write field-name
      mismatch — both already verified there);
-   - a fresh live call against Jikan/the official API made during this
+   - a fresh live call against Tenrai/the official API made during this
      review, with the actual response observed;
    - direct reading of the exact function implementing the behavior, when
      it's deterministic code logic rather than an upstream API's quirk
@@ -62,10 +62,9 @@ Purpose — double-check those two first on any new or edited tool.
    to `search_characters`/`search_people` for a name lookup instead of a
    ranking, `get_anime_recommendations`/`get_manga_recommendations` point to
    `get_top_anime`/`get_top_manga` for an untargeted ranking, and
-   `get_user_profile`/`get_my_user_info` cross-reference each other
-   bidirectionally (including the manga-stats gap on the "my" side). When
-   you edit one description, re-read every sibling description that
-   cross-references it or shares its underlying data — fixing A while
+   `get_seasonal_anime`/`get_upcoming_season` cross-reference each other
+   bidirectionally. When you edit one description, re-read every sibling
+   description that cross-references it or shares its underlying data — fixing A while
    leaving a now-false claim in B is still a bug you introduced this
    session, not a pre-existing one.
 
@@ -175,7 +174,7 @@ Purpose — double-check those two first on any new or edited tool.
   (see `docs/api-references.md`); a caveat correct for
   `get_anime_statistics`'s fallback (missing `scores`) is not automatically
   correct for `get_manga_statistics`, which has **no** fallback at all and
-  stays Jikan-only.
+  stays Tenrai-only.
 - Disclose the return shape's real substance, not just the auth/key caveat —
   fixed caps (`get_anime_reviews`'s 1200-char truncation, `get_person`'s
   50-role cap), ordering, and which nested fields a specific tool omits that
