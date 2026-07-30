@@ -23,6 +23,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Add `get_magazines` — lists/searches manga serialization magazines/publishers, giving `search_manga`'s `magazines` filter an actual ID lookup for the first time ([e80346d](https://github.com/Grinv/mal-mcp/commit/e80346d)).
 - Add `sort`/`preliminary`/`spoilers`/`sentiment` filters to `get_anime_reviews`/`get_manga_reviews`, plus `page`, and surface `is_spoiler`/`is_preliminary`/`reactions`/`episodes_watched`/`chapters_read` on each review — all real Tenrai fields the tools previously ignored ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
 - Add `rating`, `score`/`min_score`/`max_score`, `genres_exclude`, `letter`, `producers`/`magazines`, `start_date`/`end_date`, and `unapproved` to `search_anime`/`search_manga`; let their (and `get_top_anime`/`get_top_manga`'s) `type` accept multiple values at once instead of just one ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
 - Add `rating` to `get_top_anime` ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
