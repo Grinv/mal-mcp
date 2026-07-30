@@ -2,11 +2,11 @@
 // one-click flows without the user having to chain tool calls manually.
 import { z } from "zod";
 import { completable, type McpServer } from "@modelcontextprotocol/server";
-import type { JikanClient } from "./clients/jikan.js";
+import type { TenraiClient } from "./clients/tenrai.js";
 
 const COMPLETION_LIMIT = 8;
 
-export function registerPrompts(server: McpServer, jikan: JikanClient): void {
+export function registerPrompts(server: McpServer, tenrai: TenraiClient): void {
   server.registerPrompt(
     "recommend_similar",
     {
@@ -31,7 +31,7 @@ export function registerPrompts(server: McpServer, jikan: JikanClient): void {
             // upstream failure degrades to no suggestions instead of an error
             // surfacing in the client's live-typing UI.
             try {
-              const r = await jikan.searchAnime({ q: value, limit: COMPLETION_LIMIT });
+              const r = await tenrai.searchAnime({ q: value, limit: COMPLETION_LIMIT });
               const results = r.results as { title?: string }[] | undefined;
               return (results ?? [])
                 .map((a) => a.title)

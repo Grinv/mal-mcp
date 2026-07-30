@@ -1,11 +1,11 @@
-// Read-only tools backed by Jikan (no credentials required). Each tool maps a
-// validated input to one JikanClient call; `reply` wraps that call in the shared
+// Read-only tools backed by Tenrai (no credentials required). Each tool maps a
+// validated input to one TenraiClient call; `reply` wraps that call in the shared
 // guard/jsonResult plumbing so the handlers stay one-liners. Descriptions and
 // per-field `.describe()` text are written for the calling model: they explain
 // when to use a tool and the meaning/units of every parameter.
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
-import type { JikanClient } from "../clients/jikan.js";
+import type { TenraiClient } from "../clients/tenrai.js";
 import { jsonResult, type ToolResult } from "../lib/result.js";
 import { guard } from "./guard.js";
 import { defineTool, registerTools } from "./spec.js";
@@ -15,7 +15,6 @@ import {
   charactersSchema,
   characterEntitySchema,
   episodesSchema,
-  favoritesSchema,
   genresSchema,
   listPageSchema,
   mangaDetailSchema,
@@ -28,7 +27,6 @@ import {
   seasonsListSchema,
   staffSchema,
   statisticsSchema,
-  userSchema,
 } from "../lib/format.schemas.js";
 import {
   ANIME_LIST_FALLBACK_GAPS,
@@ -69,20 +67,20 @@ const genreIds = (lookupTool: string) =>
   z
     .string()
     .regex(/^\d+(,\d+)*$/, "Comma-separated numeric genre IDs, e.g. '1,4' — no other format.")
-    .describe(`Comma-separated Jikan genre IDs, e.g. '1,4'. Look up the IDs with ${lookupTool}.`);
+    .describe(`Comma-separated MAL genre IDs, e.g. '1,4'. Look up the IDs with ${lookupTool}.`);
 
 /** Run a client call and wrap its result (or any failure) as a tool result. */
 const reply = (fn: () => Promise<Record<string, unknown>>): Promise<ToolResult> =>
   guard(async () => jsonResult(await fn()));
 
-export function registerReadTools(server: McpServer, jikan: JikanClient): void {
+export function registerReadTools(server: McpServer, tenrai: TenraiClient): void {
   const tools = [
     defineTool({
       name: "search_anime",
       title: "Search anime",
       description:
         "Search MyAnimeList anime by keyword; returns compact summaries (with the mal_id that " +
-        "other anime tools require) plus pagination info. If Jikan is unavailable and " +
+        "other anime tools require) plus pagination info. If Tenrai is unavailable and " +
         "MAL_CLIENT_ID is set, transparently retries via the official API, which ignores " +
         "`genres`/`status`/`order_by`/`sort` (only `q`/`sfw`/`limit`/`page` still apply), " +
         `always returns empty ${gapList(ANIME_LIST_FALLBACK_GAPS)} (no official-API ` +
@@ -119,14 +117,14 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         .strict(),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
-      handler: (args) => reply(() => jikan.searchAnime(args)),
+      handler: (args) => reply(() => tenrai.searchAnime(args)),
     }),
     defineTool({
       name: "search_manga",
       title: "Search manga",
       description:
         "Search MyAnimeList manga by keyword (also light novels, manhwa/manhua); returns compact " +
-        "summaries with the mal_id that other manga tools require. If Jikan is unavailable and " +
+        "summaries with the mal_id that other manga tools require. If Tenrai is unavailable and " +
         "MAL_CLIENT_ID is set, transparently retries via the official API, which ignores " +
         "`genres`/`status`/`order_by`/`sort` (only `q`/`sfw`/`limit`/`page` still apply), " +
         `always returns empty ${gapList(MANGA_LIST_FALLBACK_GAPS)} (no official-API equivalent), enforces ` +
@@ -163,7 +161,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         .strict(),
       outputSchema: listPageSchema(mangaSummarySchema),
       annotations: READ_ONLY,
-      handler: (args) => reply(() => jikan.searchManga(args)),
+      handler: (args) => reply(() => tenrai.searchManga(args)),
     }),
     defineTool({
       name: "get_anime",
@@ -171,12 +169,12 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "Get full details for one anime by mal_id: synopsis, score, genres, studios, " +
         "streaming links and related entries. Obtain the mal_id from search_anime first. If " +
-        "Jikan is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
+        "Tenrai is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
         `API, which omits ${gapList(ANIME_DETAIL_FALLBACK_GAPS)} (no equivalent fields there).`,
       inputSchema: z.object({ id: malId }).strict(),
       outputSchema: animeDetailSchema,
       annotations: READ_ONLY,
-      handler: ({ id }) => reply(() => jikan.getAnime(id)),
+      handler: ({ id }) => reply(() => tenrai.getAnime(id)),
     }),
     defineTool({
       name: "get_manga",
@@ -184,12 +182,12 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "Get full details for one manga by mal_id: synopsis, score, genres, authors, " +
         "serialization, and related entries. Obtain the mal_id from search_manga first. If " +
-        "Jikan is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
+        "Tenrai is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
         `API, which omits ${gapList(MANGA_DETAIL_FALLBACK_GAPS)} (no equivalent field there).`,
       inputSchema: z.object({ id: malId }).strict(),
       outputSchema: mangaDetailSchema,
       annotations: READ_ONLY,
-      handler: ({ id }) => reply(() => jikan.getManga(id)),
+      handler: ({ id }) => reply(() => tenrai.getManga(id)),
     }),
     defineTool({
       name: "get_anime_characters",
@@ -200,7 +198,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: z.object({ id: malId }).strict(),
       outputSchema: charactersSchema,
       annotations: READ_ONLY,
-      handler: ({ id }) => reply(() => jikan.getAnimeCharacters(id)),
+      handler: ({ id }) => reply(() => tenrai.getAnimeCharacters(id)),
     }),
     defineTool({
       name: "get_manga_characters",
@@ -210,7 +208,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: z.object({ id: malId }).strict(),
       outputSchema: charactersSchema,
       annotations: READ_ONLY,
-      handler: ({ id }) => reply(() => jikan.getMangaCharacters(id)),
+      handler: ({ id }) => reply(() => tenrai.getMangaCharacters(id)),
     }),
     defineTool({
       name: "get_anime_episodes",
@@ -221,7 +219,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: z.object({ id: malId, page: page.optional() }).strict(),
       outputSchema: episodesSchema,
       annotations: READ_ONLY,
-      handler: ({ id, page: pg }) => reply(() => jikan.getAnimeEpisodes(id, pg)),
+      handler: ({ id, page: pg }) => reply(() => tenrai.getAnimeEpisodes(id, pg)),
     }),
     defineTool({
       name: "get_anime_recommendations",
@@ -230,13 +228,13 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "Get community recommendations for anime similar to the given mal_id, ordered by votes " +
         "and capped at the top 25 (no pagination). Get the mal_id from search_anime. Use " +
         "get_top_anime instead for a global popularity/score ranking not tied to one title. If " +
-        "Jikan is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
+        "Tenrai is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
         "API's own recommendations field (same output shape, but ordering/counts may differ " +
-        "slightly from Jikan's).",
+        "slightly from Tenrai's).",
       inputSchema: z.object({ id: malId }).strict(),
       outputSchema: recommendationsSchema,
       annotations: READ_ONLY,
-      handler: ({ id }) => reply(() => jikan.getAnimeRecommendations(id)),
+      handler: ({ id }) => reply(() => tenrai.getAnimeRecommendations(id)),
     }),
     defineTool({
       name: "get_anime_reviews",
@@ -248,7 +246,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: z.object({ id: malId, limit: limit.default(5) }).strict(),
       outputSchema: reviewsSchema,
       annotations: READ_ONLY,
-      handler: ({ id, limit: lim }) => reply(() => jikan.getAnimeReviews(id, lim)),
+      handler: ({ id, limit: lim }) => reply(() => tenrai.getAnimeReviews(id, lim)),
     }),
     defineTool({
       name: "get_manga_recommendations",
@@ -257,13 +255,13 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         "Get community recommendations for manga similar to the given mal_id, ordered by votes " +
         "and capped at the top 25 (no pagination). Get the mal_id from search_manga. Use " +
         "get_top_manga instead for a global popularity/score ranking not tied to one title. If " +
-        "Jikan is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
+        "Tenrai is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
         "API's own recommendations field (same output shape, but ordering/counts may differ " +
-        "slightly from Jikan's).",
+        "slightly from Tenrai's).",
       inputSchema: z.object({ id: malId }).strict(),
       outputSchema: recommendationsSchema,
       annotations: READ_ONLY,
-      handler: ({ id }) => reply(() => jikan.getMangaRecommendations(id)),
+      handler: ({ id }) => reply(() => tenrai.getMangaRecommendations(id)),
     }),
     defineTool({
       name: "get_manga_reviews",
@@ -275,7 +273,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: z.object({ id: malId, limit: limit.default(5) }).strict(),
       outputSchema: reviewsSchema,
       annotations: READ_ONLY,
-      handler: ({ id, limit: lim }) => reply(() => jikan.getMangaReviews(id, lim)),
+      handler: ({ id, limit: lim }) => reply(() => tenrai.getMangaReviews(id, lim)),
     }),
     defineTool({
       name: "get_top_anime",
@@ -283,7 +281,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "Get anime ranked by all-time score/popularity, not tied to any season. Use `filter` for " +
         "special rankings (airing, upcoming, bypopularity, favorite); for a specific season's " +
-        "lineup use get_seasonal_anime or get_upcoming_season instead. If Jikan is unavailable " +
+        "lineup use get_seasonal_anime or get_upcoming_season instead. If Tenrai is unavailable " +
         "and MAL_CLIENT_ID is set, transparently retries via the official API — `type`/`filter` " +
         `are merged into one best-effort ranking, and ${gapList(ANIME_LIST_FALLBACK_GAPS)} come back empty.`,
       inputSchema: z
@@ -302,14 +300,14 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         .strict(),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
-      handler: (args) => reply(() => jikan.getTopAnime(args)),
+      handler: (args) => reply(() => tenrai.getTopAnime(args)),
     }),
     defineTool({
       name: "get_top_manga",
       title: "Get top manga",
       description:
         "Get manga ranked by all-time score/popularity, not tied to any release window. Use " +
-        "`filter` for special rankings (publishing, upcoming, bypopularity, favorite). If Jikan is unavailable and " +
+        "`filter` for special rankings (publishing, upcoming, bypopularity, favorite). If Tenrai is unavailable and " +
         "MAL_CLIENT_ID is set, transparently retries via the official API — `type`/`filter` are " +
         `merged into one best-effort ranking, and ${gapList(MANGA_LIST_FALLBACK_GAPS)} come back empty.`,
       inputSchema: z
@@ -325,7 +323,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         .strict(),
       outputSchema: listPageSchema(mangaSummarySchema),
       annotations: READ_ONLY,
-      handler: (args) => reply(() => jikan.getTopManga(args)),
+      handler: (args) => reply(() => tenrai.getTopManga(args)),
     }),
     defineTool({
       name: "get_seasonal_anime",
@@ -333,7 +331,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "List anime from a given season — supply both `year` and `season` together, or omit both " +
         "for the current season; supplying only one is treated as omitting both. For next " +
-        "season's lineup use get_upcoming_season instead. If Jikan is " +
+        "season's lineup use get_upcoming_season instead. If Tenrai is " +
         "unavailable and MAL_CLIENT_ID is set, transparently retries via the official API — " +
         `${gapList(ANIME_LIST_FALLBACK_GAPS)} come back empty, and an explicit \`sfw: true\` is enforced ` +
         "client-side (a filtered page can come back shorter than `limit`).",
@@ -357,7 +355,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         .strict(),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
-      handler: (args) => reply(() => jikan.getSeason(args)),
+      handler: (args) => reply(() => tenrai.getSeason(args)),
     }),
     defineTool({
       name: "get_anime_schedule",
@@ -377,56 +375,29 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         .strict(),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
-      handler: ({ day, limit: lim }) => reply(() => jikan.getSchedule(day, lim)),
-    }),
-    defineTool({
-      name: "get_user_profile",
-      title: "Get user profile",
-      description:
-        "Get a public MyAnimeList user's profile and watch/read statistics by username — works " +
-        "for any username, including your own, with no login needed. Use get_my_user_info " +
-        "instead when you're already logged in via login_mal and want the authenticated " +
-        "user's data specifically (though that tool only covers anime stats, not manga).",
-      inputSchema: z
-        .object({ username: z.string().trim().min(1).describe("MyAnimeList username.") })
-        .strict(),
-      outputSchema: userSchema,
-      annotations: READ_ONLY,
-      handler: ({ username }) => reply(() => jikan.getUserProfile(username)),
-    }),
-    defineTool({
-      name: "get_user_favorites",
-      title: "Get user favorites",
-      description:
-        "Get a public MyAnimeList user's favorite anime, manga, characters and people by username.",
-      inputSchema: z
-        .object({ username: z.string().trim().min(1).describe("MyAnimeList username.") })
-        .strict(),
-      outputSchema: favoritesSchema,
-      annotations: READ_ONLY,
-      handler: ({ username }) => reply(() => jikan.getUserFavorites(username)),
+      handler: ({ day, limit: lim }) => reply(() => tenrai.getSchedule(day, lim)),
     }),
     defineTool({
       name: "get_anime_genres",
       title: "Get anime genres",
       description:
-        "List anime genres/themes/demographics with their Jikan IDs. Use this to discover the " +
+        "List anime genres/themes/demographics with their MAL IDs. Use this to discover the " +
         "numeric IDs that the `genres` parameter of search_anime expects.",
       inputSchema: z.object({ filter: genreFilter.optional() }).strict(),
       outputSchema: genresSchema,
       annotations: READ_ONLY,
-      handler: ({ filter }) => reply(() => jikan.getAnimeGenres(filter)),
+      handler: ({ filter }) => reply(() => tenrai.getAnimeGenres(filter)),
     }),
     defineTool({
       name: "get_manga_genres",
       title: "Get manga genres",
       description:
-        "List manga genres/themes/demographics with their Jikan IDs. Use this to discover the " +
+        "List manga genres/themes/demographics with their MAL IDs. Use this to discover the " +
         "numeric IDs that the `genres` parameter of search_manga expects.",
       inputSchema: z.object({ filter: genreFilter.optional() }).strict(),
       outputSchema: genresSchema,
       annotations: READ_ONLY,
-      handler: ({ filter }) => reply(() => jikan.getMangaGenres(filter)),
+      handler: ({ filter }) => reply(() => tenrai.getMangaGenres(filter)),
     }),
 
     // ---- characters & people (Tier 1) ----------------------------------------
@@ -452,7 +423,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         .strict(),
       outputSchema: listPageSchema(characterEntitySchema),
       annotations: READ_ONLY,
-      handler: (args) => reply(() => jikan.searchCharacters(args)),
+      handler: (args) => reply(() => tenrai.searchCharacters(args)),
     }),
     defineTool({
       name: "get_character",
@@ -463,7 +434,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: z.object({ id: malId }).strict(),
       outputSchema: characterEntitySchema,
       annotations: READ_ONLY,
-      handler: ({ id }) => reply(() => jikan.getCharacter(id)),
+      handler: ({ id }) => reply(() => tenrai.getCharacter(id)),
     }),
     defineTool({
       name: "search_people",
@@ -485,7 +456,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         .strict(),
       outputSchema: listPageSchema(personEntitySchema),
       annotations: READ_ONLY,
-      handler: (args) => reply(() => jikan.searchPeople(args)),
+      handler: (args) => reply(() => tenrai.searchPeople(args)),
     }),
     defineTool({
       name: "get_person",
@@ -499,7 +470,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: z.object({ id: malId }).strict(),
       outputSchema: personEntitySchema,
       annotations: READ_ONLY,
-      handler: ({ id }) => reply(() => jikan.getPerson(id)),
+      handler: ({ id }) => reply(() => tenrai.getPerson(id)),
     }),
     defineTool({
       name: "get_anime_staff",
@@ -511,7 +482,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: z.object({ id: malId }).strict(),
       outputSchema: staffSchema,
       annotations: READ_ONLY,
-      handler: ({ id }) => reply(() => jikan.getAnimeStaff(id)),
+      handler: ({ id }) => reply(() => tenrai.getAnimeStaff(id)),
     }),
 
     // ---- discovery & statistics (Tier 2) -------------------------------------
@@ -523,7 +494,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: z.object({}).strict(),
       outputSchema: animeDetailSchema,
       annotations: READ_ONLY,
-      handler: () => reply(() => jikan.getRandomAnime()),
+      handler: () => reply(() => tenrai.getRandomAnime()),
     }),
     defineTool({
       name: "get_random_manga",
@@ -532,14 +503,14 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: z.object({}).strict(),
       outputSchema: mangaDetailSchema,
       annotations: READ_ONLY,
-      handler: () => reply(() => jikan.getRandomManga()),
+      handler: () => reply(() => tenrai.getRandomManga()),
     }),
     defineTool({
       name: "get_upcoming_season",
       title: "Get upcoming season anime",
       description:
         "List anime scheduled for the upcoming season. Use get_seasonal_anime for the current or a " +
-        "specific past season. If Jikan is unavailable and MAL_CLIENT_ID is set, transparently " +
+        "specific past season. If Tenrai is unavailable and MAL_CLIENT_ID is set, transparently " +
         `retries via the official API — ${gapList(ANIME_LIST_FALLBACK_GAPS)} come back empty, and an explicit ` +
         "`sfw: true` is enforced client-side (a filtered page can come back shorter than `limit`).",
       inputSchema: z
@@ -547,20 +518,20 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         .strict(),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
-      handler: (args) => reply(() => jikan.getUpcomingSeason(args)),
+      handler: (args) => reply(() => tenrai.getUpcomingSeason(args)),
     }),
     defineTool({
       name: "get_anime_statistics",
       title: "Get anime statistics",
       description:
         "Get watch-status counts (watching/completed/…) and the score distribution for an anime by mal_id. " +
-        "Get the mal_id from search_anime. If Jikan is unavailable and MAL_CLIENT_ID is set, " +
+        "Get the mal_id from search_anime. If Tenrai is unavailable and MAL_CLIENT_ID is set, " +
         "transparently retries via the official API, which omits the score distribution " +
         `(${gapList(ANIME_STATISTICS_FALLBACK_GAPS)}) entirely — no equivalent field there.`,
       inputSchema: z.object({ id: malId }).strict(),
       outputSchema: statisticsSchema,
       annotations: READ_ONLY,
-      handler: ({ id }) => reply(() => jikan.getAnimeStatistics(id)),
+      handler: ({ id }) => reply(() => tenrai.getAnimeStatistics(id)),
     }),
     defineTool({
       name: "get_manga_statistics",
@@ -568,11 +539,11 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       description:
         "Get read-status counts (reading/completed/…) and the score distribution for a manga by mal_id. " +
         "Get the mal_id from search_manga. Unlike get_anime_statistics, no official-API fallback " +
-        "exists for this tool — it always needs Jikan itself to be reachable.",
+        "exists for this tool — it always needs Tenrai itself to be reachable.",
       inputSchema: z.object({ id: malId }).strict(),
       outputSchema: statisticsSchema,
       annotations: READ_ONLY,
-      handler: ({ id }) => reply(() => jikan.getMangaStatistics(id)),
+      handler: ({ id }) => reply(() => tenrai.getMangaStatistics(id)),
     }),
 
     // ---- broader surface (Tier 3) --------------------------------------------
@@ -581,7 +552,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       name: "get_producers",
       title: "Get producers/studios",
       description:
-        "List or search anime producers and studios with their Jikan IDs and counts. Use `q` to search by name.",
+        "List or search anime producers and studios with their MAL IDs and counts. Use `q` to search by name.",
       inputSchema: z
         .object({
           q: z.string().describe("Filter by name.").optional(),
@@ -596,7 +567,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
         .strict(),
       outputSchema: listPageSchema(producerSchema),
       annotations: READ_ONLY,
-      handler: (args) => reply(() => jikan.getProducers(args)),
+      handler: (args) => reply(() => tenrai.getProducers(args)),
     }),
     defineTool({
       name: "get_top_people",
@@ -607,7 +578,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: z.object({ limit: limit.optional(), page: page.optional() }).strict(),
       outputSchema: listPageSchema(personEntitySchema),
       annotations: READ_ONLY,
-      handler: (args) => reply(() => jikan.getTopPeople(args)),
+      handler: (args) => reply(() => tenrai.getTopPeople(args)),
     }),
     defineTool({
       name: "get_top_characters",
@@ -618,7 +589,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: z.object({ limit: limit.optional(), page: page.optional() }).strict(),
       outputSchema: listPageSchema(characterEntitySchema),
       annotations: READ_ONLY,
-      handler: (args) => reply(() => jikan.getTopCharacters(args)),
+      handler: (args) => reply(() => tenrai.getTopCharacters(args)),
     }),
 
     // ---- curated extras ------------------------------------------------------
@@ -632,7 +603,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: z.object({}).strict(),
       outputSchema: seasonsListSchema,
       annotations: READ_ONLY,
-      handler: () => reply(() => jikan.getSeasonsList()),
+      handler: () => reply(() => tenrai.getSeasonsList()),
     }),
     defineTool({
       name: "get_random_character",
@@ -641,7 +612,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: z.object({}).strict(),
       outputSchema: characterEntitySchema,
       annotations: READ_ONLY,
-      handler: () => reply(() => jikan.getRandomCharacter()),
+      handler: () => reply(() => tenrai.getRandomCharacter()),
     }),
     defineTool({
       name: "get_random_person",
@@ -652,7 +623,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: z.object({}).strict(),
       outputSchema: personEntitySchema,
       annotations: READ_ONLY,
-      handler: () => reply(() => jikan.getRandomPerson()),
+      handler: () => reply(() => tenrai.getRandomPerson()),
     }),
     defineTool({
       name: "get_anime_news",
@@ -663,7 +634,7 @@ export function registerReadTools(server: McpServer, jikan: JikanClient): void {
       inputSchema: z.object({ id: malId, page: page.optional() }).strict(),
       outputSchema: listPageSchema(newsItemSchema),
       annotations: READ_ONLY,
-      handler: ({ id, page: pg }) => reply(() => jikan.getAnimeNews(id, pg)),
+      handler: ({ id, page: pg }) => reply(() => tenrai.getAnimeNews(id, pg)),
     }),
   ];
 

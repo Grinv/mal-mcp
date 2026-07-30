@@ -8,8 +8,6 @@ import {
   summarizeReviews,
   summarizeEpisodes,
   summarizeGenres,
-  summarizeUser,
-  summarizeFavorites,
   summarizeCharacter,
   summarizePerson,
   summarizeStaff,
@@ -18,12 +16,12 @@ import {
   summarizeSeasonsList,
   summarizeNewsItem,
   pageInfo,
-  type JikanMedia,
+  type AnimeMangaRaw,
 } from "../lib/format.js";
 
 const longSynopsis = "x".repeat(500);
 
-const anime: JikanMedia = {
+const anime: AnimeMangaRaw = {
   mal_id: 1,
   title: "Cowboy Bebop",
   title_english: "Cowboy Bebop",
@@ -56,7 +54,7 @@ test("summarizeAnime keeps the full synopsis in detailed mode", () => {
 });
 
 test("summarizeAnime surfaces detailed /full fields (duration, broadcast, trailer, themes, licensors)", () => {
-  const full: JikanMedia = {
+  const full: AnimeMangaRaw = {
     ...anime,
     duration: "24 min per ep",
     broadcast: {
@@ -109,7 +107,7 @@ test("summarizeAnime treats a score of 0 as absent", () => {
 });
 
 test("summarizeManga maps manga-specific fields", () => {
-  const manga: JikanMedia = {
+  const manga: AnimeMangaRaw = {
     mal_id: 2,
     title: "Berserk",
     type: "manga",
@@ -124,7 +122,7 @@ test("summarizeManga maps manga-specific fields", () => {
 });
 
 test("summarizeManga surfaces the publishing flag only in detailed mode", () => {
-  const manga: JikanMedia = { mal_id: 2, title: "Berserk", publishing: true };
+  const manga: AnimeMangaRaw = { mal_id: 2, title: "Berserk", publishing: true };
   assert.ok(!("publishing" in summarizeManga(manga))); // list mode omits it
   assert.equal(summarizeManga(manga, true)["publishing"], true);
   // A finished manga keeps the explicit false (not dropped as nullish).
@@ -202,21 +200,6 @@ test("summarizeGenres maps id/name/count", () => {
     genres: Record<string, unknown>[];
   };
   assert.deepEqual(r.genres[0], { mal_id: 1, name: "Action", count: 100, url: "u" });
-});
-
-test("summarizeUser truncates the about text", () => {
-  const u = summarizeUser({ username: "bob", about: "y".repeat(900) }) as { about: string };
-  assert.equal(u.about.length, 600);
-});
-
-test("summarizeFavorites falls back to name when title is absent", () => {
-  const f = summarizeFavorites({
-    anime: [{ mal_id: 1, title: "Fav" }],
-    characters: [{ mal_id: 2, name: "Char" }],
-  });
-  assert.equal(f.anime[0]!["title"], "Fav");
-  assert.equal(f.characters[0]!["title"], "Char");
-  assert.deepEqual(f.manga, []);
 });
 
 test("summarizeCharacter is compact in list mode and expands when detailed", () => {

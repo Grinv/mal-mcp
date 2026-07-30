@@ -1,11 +1,11 @@
-// Read-only client for the unofficial Jikan API (v4) — no credentials needed.
-// Wraps HttpClient with a polite rate limiter and a TTL cache. It only fetches
-// and caches; all raw→agent-facing shaping lives in ../lib/format.js.
+// Read-only client for the Tenrai API (a free, unofficial MyAnimeList mirror that follows the
+// Jikan v4 schema — no credentials needed). Wraps HttpClient with a polite rate limiter and a
+// TTL cache. It only fetches and caches; all raw→agent-facing shaping lives in ../lib/format.js.
 import { HttpClient } from "../lib/http.js";
 import type { RateRule } from "../lib/rateLimit.js";
 import { TtlCache } from "../lib/cache.js";
 import { withThrottle } from "./httpClients.js";
-import { withFallback, currentSeason, nextSeason, type JikanFallback } from "./jikanFallback.js";
+import { withFallback, currentSeason, nextSeason, type ReadFallback } from "./readFallback.js";
 import {
   pageInfo,
   summarizeAnime,
@@ -15,8 +15,6 @@ import {
   summarizeReviews,
   summarizeEpisodes,
   summarizeGenres,
-  summarizeUser,
-  summarizeFavorites,
   summarizeCharacter,
   summarizePerson,
   summarizeStaff,
@@ -24,15 +22,13 @@ import {
   summarizeProducer,
   summarizeSeasonsList,
   summarizeNewsItem,
-  type JikanMedia,
-  type JikanPagination,
+  type AnimeMangaRaw,
+  type RawPagination,
   type RawCharacter,
   type RawRecommendation,
   type RawReview,
   type RawEpisode,
   type RawGenre,
-  type RawUser,
-  type RawFavorites,
   type RawCharacterEntity,
   type RawPersonEntity,
   type RawStaff,
@@ -48,7 +44,7 @@ type Query = Record<string, string | number | boolean | undefined>;
 
 interface ListResponse<T> {
   data: T[];
-  pagination?: JikanPagination;
+  pagination?: RawPagination;
 }
 interface ItemResponse<T> {
   data: T;
@@ -81,65 +77,31 @@ export interface SeasonParams {
   sfw?: boolean;
 }
 
-// Jikan's published limits (docs.api.jikan.moe "Rate Limiting"): 3 req/s AND
-// 60 req/min. A min-interval alone covers the per-second cap but not the
-// sustained per-minute one, so both windows are enforced.
-const JIKAN_RATE_RULES: RateRule[] = [
-  { limit: 3, windowMs: 1000 },
-  { limit: 60, windowMs: 60_000 },
+// Tenrai's published limits (see api.tenrai.org/llms.txt "Auth & Rate Limits"): 4 req/s AND
+// 120 req/min for unauthenticated (public) access. A min-interval alone covers the per-second
+// cap but not the sustained per-minute one, so both windows are enforced.
+const TENRAI_RATE_RULES: RateRule[] = [
+  { limit: 4, windowMs: 1000 },
+  { limit: 120, windowMs: 60_000 },
 ];
 
-// Started life as a workaround for jikan-me/jikan#596 ("some routes 504
-// unless you send this exact Accept-Encoding"). Turns out that's not what's
-// happening: a broader live A/B re-test (2026-07-27, notes/jikan-reliability.md)
-// caught `Vary: Accept-Encoding` + `X-Cache-Status: STALE` on the successful
-// responses — Jikan's nginx caches per exact Accept-Encoding string, and any
-// route whose cache is currently warm for `gzip, deflate, br` looks "fixed"
-// by it. Reorder the same three values, or drop one, and the same route
-// falls through to a live (often-flaky) MAL fetch and 504s instead — nothing
-// to do with encoding or decoding, just whichever string happens to be
-// cached right now. No string is a reliable fix; this one's kept because
-// it's free and occasionally rides a warm cache. `zstd` stays out for an
-// unrelated, still-valid reason: Node's fetch/undici won't decode a
-// zstd-encoded body, so advertising it risks a hard JSON.parse failure on
-// every request if Jikan (or something in front of it) ever actually used it.
-const JIKAN_DEFAULT_HEADERS = { "Accept-Encoding": "gzip, deflate, br" };
-
-// Jikan sometimes reports its own upstream failure with an HTTP 200 status and
-// an error-shaped body instead of a real 5xx — confirmed live 2026-07-27:
-// `anime/{id}/episodes` returned `{status:500,type:"UpstreamException",
-// message:"...timed out...",error:"..."}` with res.ok true. Left undetected,
-// that body reaches a shaper expecting `{data,pagination}` and crashes on
-// `.map()` of `undefined` instead of surfacing the normal, retryable
-// "upstream returned an error" message every other 5xx gets. See
-// notes/jikan-reliability.md.
-function detectJikanEmbeddedError(body: unknown): { status: number; message: string } | undefined {
-  if (body === null || typeof body !== "object") return undefined;
-  const rec = body as Record<string, unknown>;
-  if (typeof rec.status !== "number" || rec.status < 400) return undefined;
-  if (typeof rec.type !== "string") return undefined;
-  return { status: rec.status, message: typeof rec.message === "string" ? rec.message : rec.type };
-}
-
-export class JikanClient {
+export class TenraiClient {
   readonly #http: HttpClient;
   readonly #cache: TtlCache<Record<string, unknown>>;
   readonly #logger: Logger;
-  readonly #fallback: JikanFallback | undefined;
+  readonly #fallback: ReadFallback | undefined;
 
-  constructor(config: Config, logger: Logger, fallback?: JikanFallback) {
+  constructor(config: Config, logger: Logger, fallback?: ReadFallback) {
     // A zero interval disables client-side throttling entirely (used in tests);
-    // otherwise enforce both the min interval and Jikan's documented windows.
+    // otherwise enforce both the min interval and Tenrai's documented windows.
     this.#http = new HttpClient({
-      baseUrl: config.jikanBaseUrl,
+      baseUrl: config.tenraiBaseUrl,
       logger,
       timeoutMs: config.httpTimeoutMs,
       retries: config.httpRetries,
-      defaultHeaders: JIKAN_DEFAULT_HEADERS,
-      detectEmbeddedError: detectJikanEmbeddedError,
       ...withThrottle(
-        config.jikanMinIntervalMs,
-        config.jikanMinIntervalMs === 0 ? [] : JIKAN_RATE_RULES,
+        config.tenraiMinIntervalMs,
+        config.tenraiMinIntervalMs === 0 ? [] : TENRAI_RATE_RULES,
       ),
     });
     this.#cache = new TtlCache(config.cacheTtlMs);
@@ -186,7 +148,7 @@ export class JikanClient {
       this.#logger,
       this.#fallback,
       "anime search",
-      () => this.#list<JikanMedia>("anime", { ...p }, (a) => summarizeAnime(a)),
+      () => this.#list<AnimeMangaRaw>("anime", { ...p }, (a) => summarizeAnime(a)),
       () =>
         this.#fallback!.searchAnimeOfficial({
           q: p.q ?? "",
@@ -202,7 +164,7 @@ export class JikanClient {
       this.#logger,
       this.#fallback,
       "manga search",
-      () => this.#list<JikanMedia>("manga", { ...p }, (m) => summarizeManga(m)),
+      () => this.#list<AnimeMangaRaw>("manga", { ...p }, (m) => summarizeManga(m)),
       () =>
         this.#fallback!.searchMangaOfficial({
           q: p.q ?? "",
@@ -220,7 +182,7 @@ export class JikanClient {
         this.#fallback,
         "anime details",
         async () => {
-          const res = await this.#http.getJson<ItemResponse<JikanMedia>>(`anime/${id}/full`);
+          const res = await this.#http.getJson<ItemResponse<AnimeMangaRaw>>(`anime/${id}/full`);
           return summarizeAnime(res.data, true);
         },
         () => this.#fallback!.animeDetailsOfficial(id),
@@ -235,7 +197,7 @@ export class JikanClient {
         this.#fallback,
         "manga details",
         async () => {
-          const res = await this.#http.getJson<ItemResponse<JikanMedia>>(`manga/${id}/full`);
+          const res = await this.#http.getJson<ItemResponse<AnimeMangaRaw>>(`manga/${id}/full`);
           return summarizeManga(res.data, true);
         },
         () => this.#fallback!.mangaDetailsOfficial(id),
@@ -335,7 +297,7 @@ export class JikanClient {
       this.#logger,
       this.#fallback,
       "top anime",
-      () => this.#list<JikanMedia>("top/anime", { ...p }, (a) => summarizeAnime(a)),
+      () => this.#list<AnimeMangaRaw>("top/anime", { ...p }, (a) => summarizeAnime(a)),
       () =>
         this.#fallback!.topAnimeOfficial({
           type: p.type,
@@ -351,7 +313,7 @@ export class JikanClient {
       this.#logger,
       this.#fallback,
       "top manga",
-      () => this.#list<JikanMedia>("top/manga", { ...p }, (m) => summarizeManga(m)),
+      () => this.#list<AnimeMangaRaw>("top/manga", { ...p }, (m) => summarizeManga(m)),
       () =>
         this.#fallback!.topMangaOfficial({
           type: p.type,
@@ -369,7 +331,7 @@ export class JikanClient {
       this.#fallback,
       "seasonal anime",
       () =>
-        this.#list<JikanMedia>(path, { limit: p.limit, page: p.page, sfw: p.sfw }, (a) =>
+        this.#list<AnimeMangaRaw>(path, { limit: p.limit, page: p.page, sfw: p.sfw }, (a) =>
           summarizeAnime(a),
         ),
       () => {
@@ -392,7 +354,7 @@ export class JikanClient {
       this.#fallback,
       "upcoming season",
       () =>
-        this.#list<JikanMedia>(
+        this.#list<AnimeMangaRaw>(
           "seasons/upcoming",
           { limit: p.limit, page: p.page, sfw: p.sfw },
           (a) => summarizeAnime(a),
@@ -409,23 +371,7 @@ export class JikanClient {
   }
 
   async getSchedule(day: string | undefined, limit: number): Promise<Record<string, unknown>> {
-    return this.#list<JikanMedia>("schedules", { filter: day, limit }, (a) => summarizeAnime(a));
-  }
-
-  async getUserProfile(username: string): Promise<Record<string, unknown>> {
-    return this.#cached<RawUser>(
-      `user:${username}`,
-      `users/${encodeURIComponent(username)}/full`,
-      summarizeUser,
-    );
-  }
-
-  async getUserFavorites(username: string): Promise<Record<string, unknown>> {
-    return this.#cached<RawFavorites>(
-      `user-fav:${username}`,
-      `users/${encodeURIComponent(username)}/favorites`,
-      summarizeFavorites,
-    );
+    return this.#list<AnimeMangaRaw>("schedules", { filter: day, limit }, (a) => summarizeAnime(a));
   }
 
   // ---- characters & people (Tier 1) ----------------------------------------
@@ -458,12 +404,12 @@ export class JikanClient {
 
   // Random endpoints are never cached — the whole point is a fresh pick.
   async getRandomAnime(): Promise<Record<string, unknown>> {
-    const res = await this.#http.getJson<ItemResponse<JikanMedia>>("random/anime");
+    const res = await this.#http.getJson<ItemResponse<AnimeMangaRaw>>("random/anime");
     return summarizeAnime(res.data, true);
   }
 
   async getRandomManga(): Promise<Record<string, unknown>> {
-    const res = await this.#http.getJson<ItemResponse<JikanMedia>>("random/manga");
+    const res = await this.#http.getJson<ItemResponse<AnimeMangaRaw>>("random/manga");
     return summarizeManga(res.data, true);
   }
 
@@ -484,7 +430,7 @@ export class JikanClient {
     );
   }
 
-  // No official-API equivalent for manga statistics (see officialReads.ts) — always Jikan-only.
+  // No official-API equivalent for manga statistics (see officialReads.ts) — always Tenrai-only.
   async getMangaStatistics(id: number): Promise<Record<string, unknown>> {
     return this.#cached<RawStatistics>(
       `manga-stats:${id}`,

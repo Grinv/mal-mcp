@@ -1,5 +1,5 @@
 // Client for the official MyAnimeList API (v2). Handles the personal-list
-// operations that Jikan cannot do (they require a user token). Implements
+// operations that Tenrai cannot do (they require a user token). Implements
 // silent token refresh: on 401 (or when the cached access token is expired)
 // it refreshes via grant_type=refresh_token and persists the rotated token.
 import { z } from "zod";
@@ -394,7 +394,7 @@ interface TokenResponse {
 }
 
 // Response shapes are validated (not just cast) at the boundary: the official API drives
-// data straight into the tool result with no summarizer in between (unlike Jikan/officialReads,
+// data straight into the tool result with no summarizer in between (unlike Tenrai/officialReads,
 // whose format.ts/formatOfficial.ts reshape every field), so a malformed/unexpected response
 // here would otherwise reach the agent completely unnoticed. Every schema declared IN THIS FILE
 // is .passthrough() — we only assert the fields we read have sane types, never reject fields MAL

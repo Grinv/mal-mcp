@@ -99,7 +99,7 @@ test("topAnimeOfficial falls back to ranking_type=all for a filter the official 
   assert.match(url, /ranking_type=all/);
 });
 
-test("topMangaOfficial maps Jikan's `lightnovel` type onto the official `novels` ranking_type", async (t) => {
+test("topMangaOfficial maps Tenrai's `lightnovel` type onto the official `novels` ranking_type", async (t) => {
   const config = loadConfig({ MAL_CLIENT_ID: "cid" });
   const mock = mockFetch(() => jsonResponse({ data: [] }));
   installFetch(t, mock);
@@ -267,7 +267,7 @@ test("animeRecommendationsOfficial caps results at 25", async (t) => {
   assert.equal(res.recommendations.length, 25);
 });
 
-test("animeDetailsOfficial maps the detail-mode fields onto Jikan's `detailed: true` shape", async (t) => {
+test("animeDetailsOfficial maps the detail-mode fields onto Tenrai's `detailed: true` shape", async (t) => {
   const config = loadConfig({ MAL_CLIENT_ID: "cid" });
   const mock = mockFetch(() =>
     jsonResponse({

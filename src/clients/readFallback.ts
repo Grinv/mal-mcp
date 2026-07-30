@@ -1,20 +1,19 @@
-// Fallback-retry policy for JikanClient: when a Jikan call fails with a genuine upstream error
+// Fallback-retry policy for TenraiClient: when a Tenrai call fails with a genuine upstream error
 // (not a real 4xx) and an official-API fallback is configured, retry once there instead of
-// failing the tool outright. Kept separate from jikan.ts's HTTP/caching/rate-limit mechanics —
-// this module is purely about *when* and *how* to fall back, independently testable. See
-// notes/jikan-reliability.md for why Jikan's live pass-through endpoints (search/top/seasonal)
-// are the ones that need this; recommendations/anime/manga-details/anime-statistics get the same
-// treatment because the official API happens to expose equivalents (see officialReads.ts), not
-// because they're pass-throughs.
+// failing the tool outright. Kept separate from tenrai.ts's HTTP/caching/rate-limit mechanics —
+// this module is purely about *when* and *how* to fall back, independently testable. Tenrai is
+// itself a beta service (per its own docs) that can have its own outages independent of MAL's —
+// this fallback tier is defense-in-depth against that, not against any one upstream's specific
+// failure mode.
 import { ApiError } from "../lib/errors.js";
 import type { Logger } from "../lib/logger.js";
 
 // Structurally satisfied by OfficialReadsClient (see server.ts wiring) — kept as an interface
 // here so this module doesn't need to import that client module directly. `sfw` is the one
-// Jikan filter the official API can approximate (client-side, via its `nsfw` response field —
+// filter the official API can approximate (client-side, via its `nsfw` response field —
 // see officialReads.ts); genre/status/order_by/sort have no official-API equivalent at all and
 // are simply unavailable during a fallback (documented degraded-mode trade-off).
-export interface JikanFallback {
+export interface ReadFallback {
   hasClientId(): boolean;
   searchAnimeOfficial(p: {
     q: string;
@@ -62,10 +61,10 @@ function isUpstreamFailure(err: unknown): err is ApiError {
 /** Run `primary`; on a genuine upstream failure (not a real client-side error) with a Client-ID
  *  fallback configured, retry once via `fallback` instead of throwing. `fallback` always loses
  *  some filtering fidelity vs `primary` (the official API's params don't line up 1:1 with
- *  Jikan's) — a degraded-mode trade-off, not parity. */
+ *  Tenrai's) — a degraded-mode trade-off, not parity. */
 export async function withFallback(
   logger: Logger,
-  fallback: JikanFallback | undefined,
+  fallback: ReadFallback | undefined,
   label: string,
   primary: () => Promise<Record<string, unknown>>,
   fallbackCall: () => Promise<Record<string, unknown>>,
@@ -86,7 +85,7 @@ export async function withFallback(
         hint: "client_id_would_help",
       });
     }
-    logger.warn(`Jikan ${label} failed (${err.code}); falling back to the official MAL API`);
+    logger.warn(`Tenrai ${label} failed (${err.code}); falling back to the official MAL API`);
     return fallbackCall();
   }
 }

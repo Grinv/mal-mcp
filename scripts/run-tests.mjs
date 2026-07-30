@@ -27,7 +27,7 @@ if (coverage) {
 }
 
 // RUN_LIVE=1 npm test exercises the *.test.ts "live:" contract suites against the
-// real Jikan/MAL APIs. Those need real credentials (MAL_CLIENT_ID, MAL_ACCESS_TOKEN,
+// real Tenrai/MAL APIs. Those need real credentials (MAL_CLIENT_ID, MAL_ACCESS_TOKEN,
 // MAL_REFRESH_TOKEN) that live in the repo's gitignored .env, not process.env — load
 // it only in that opt-in path, via Node's built-in --env-file (no dotenv dependency).
 const repoRoot = join(import.meta.dirname, "..");

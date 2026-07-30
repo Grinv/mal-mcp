@@ -1,13 +1,12 @@
 // Public (Client-ID-only, no OAuth) reads from the official MAL API. Used as a fallback for
-// search_anime/search_manga/get_top_anime/get_top_manga/get_seasonal_anime/get_upcoming_season
-// when Jikan's live pass-through to MAL is degraded (see notes/jikan-reliability.md), and for
+// search_anime/search_manga/get_top_anime/get_top_manga/get_seasonal_anime/get_upcoming_season/
 // get_anime_recommendations/get_manga_recommendations/get_anime/get_manga/get_anime_statistics
-// when Jikan's own (not-live-pass-through) endpoints fail — the official API happens to expose
-// equivalents for all five via GET /anime|manga/{id} plus a wider `fields` list (verified live
-// against myanimelist.net/apiconfig/references/api/v2). get_manga_statistics has no such
-// equivalent — MangaForDetails carries no `statistics` property at all.
-// Structurally implements JikanFallback (see clients/jikan.ts) — neither module imports the
-// other. Deliberately separate from MalClient: that class is about OAuth-authenticated
+// when Tenrai (the primary read backend, see clients/tenrai.ts) fails — the official API happens
+// to expose equivalents for all eleven via GET /anime|manga/{id} plus a wider `fields` list
+// (verified live against myanimelist.net/apiconfig/references/api/v2). get_manga_statistics has
+// no such equivalent — MangaForDetails carries no `statistics` property at all.
+// Structurally implements ReadFallback (see clients/readFallback.ts) — neither module imports
+// the other. Deliberately separate from MalClient: that class is about OAuth-authenticated
 // personal-list reads/writes, this one needs no user token at all, just an app registration.
 import { HttpClient } from "../lib/http.js";
 import { ApiError } from "../lib/errors.js";
@@ -39,7 +38,7 @@ const MANGA_FIELDS =
   "genres,num_chapters,num_volumes,authors{first_name,last_name},nsfw";
 
 // Superset of the above for get_anime/get_manga's fallback (a single-item detail lookup, not a
-// list) — adds the fields Jikan's `detailed: true` output also carries. See
+// list) — adds the fields Tenrai's `detailed: true` output also carries. See
 // summarizeOfficialAnimeDetailed/summarizeOfficialMangaDetailed for what still can't be
 // reproduced (producers/licensors/streaming/themes/trailer/favorites — no official-API field).
 const ANIME_DETAIL_FIELDS =
@@ -50,7 +49,7 @@ const MANGA_DETAIL_FIELDS =
   MANGA_FIELDS + ",background,related_anime,related_manga,serialization,num_scoring_users";
 
 // Official `ranking_type` enums (verified against myanimelist.net/apiconfig/references/api/v2 —
-// there is no combined type+filter like Jikan's TopParams, just one enum value per request).
+// there is no combined type+filter like TenraiClient's TopParams, just one enum value per request).
 const ANIME_RANKING_TYPES = new Set([
   "all",
   "airing",
@@ -73,7 +72,7 @@ const MANGA_RANKING_TYPES = new Set([
   "bypopularity",
   "favorite",
 ]);
-// Jikan's manga `type` values don't all have an official ranking_type match (e.g. "lightnovel");
+// Tenrai's manga `type` values don't all have an official ranking_type match (e.g. "lightnovel");
 // map to the closest official bucket rather than dropping the filter entirely.
 const MANGA_TYPE_TO_RANKING: Record<string, string> = {
   manga: "manga",
@@ -90,7 +89,7 @@ interface RankingParams {
   filter?: string;
 }
 
-// Best-effort mapping, not parity: Jikan's TopParams separates `type` and `filter`, the official
+// Best-effort mapping, not parity: TenraiClient's TopParams separates `type` and `filter`, the official
 // API takes one ranking_type. Prefer `filter` (closer semantic match), fall back to `type`, else "all".
 function pickAnimeRankingType(p: RankingParams): string {
   if (p.filter && ANIME_RANKING_TYPES.has(p.filter)) return p.filter;
@@ -131,9 +130,9 @@ export interface OfficialSeasonParams {
   sfw?: boolean;
 }
 
-// No documented rate limit for MAL's official API (unlike Jikan's published 3/s+60/min — see
+// No documented rate limit for MAL's official API (unlike Tenrai's published 4/s+120/min — see
 // docs/api-references.md). A conservative per-request spacing avoids bursting it during exactly
-// the Jikan-outage scenario this fallback exists for, when many concurrent read-tool calls could
+// the Tenrai-outage scenario this fallback exists for, when many concurrent read-tool calls could
 // otherwise fail over at once with no client-side throttling at all.
 const MIN_INTERVAL_MS = 350;
 
@@ -294,11 +293,11 @@ export class OfficialReadsClient {
       query: { ...extraQuery, limit, offset, fields },
     });
     // Client-side nsfw exclusion (see isSfw): the official API has no server-side equivalent of
-    // Jikan's `sfw` param, so this is the fallback's one way to honor an explicit `sfw: true`.
+    // Tenrai's `sfw` param, so this is the fallback's one way to honor an explicit `sfw: true`.
     // Filtering after the page is fetched means a filtered page can come back shorter than
     // `limit` even when more results exist upstream — an accepted degraded-mode trade-off.
     const nodes = p.sfw ? res.data.filter((d) => isSfw(d.node)) : res.data;
-    // One malformed node shouldn't fail the whole page — see jikan.ts's #list for the
+    // One malformed node shouldn't fail the whole page — see tenrai.ts's #list for the
     // same reasoning (a single item missing a required output field would otherwise
     // take out every other result in the response).
     const results: Record<string, unknown>[] = [];

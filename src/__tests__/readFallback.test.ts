@@ -4,8 +4,8 @@ import {
   withFallback,
   currentSeason,
   nextSeason,
-  type JikanFallback,
-} from "../clients/jikanFallback.js";
+  type ReadFallback,
+} from "../clients/readFallback.js";
 import { ApiError } from "../lib/errors.js";
 import type { Logger } from "../lib/logger.js";
 
@@ -20,7 +20,7 @@ function fakeLogger(): Logger & { warnings: string[] } {
   };
 }
 
-function fakeFallback(hasClientId = true): JikanFallback {
+function fakeFallback(hasClientId = true): ReadFallback {
   return {
     hasClientId: () => hasClientId,
     searchAnimeOfficial: async () => ({ results: [] }),

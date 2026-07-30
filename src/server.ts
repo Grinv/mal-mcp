@@ -6,7 +6,7 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { loadConfig, type Config } from "./config.js";
 import { createLogger, type Logger } from "./lib/logger.js";
 import { TokenStore, defaultTokenStorePath } from "./lib/tokenStore.js";
-import { JikanClient } from "./clients/jikan.js";
+import { TenraiClient } from "./clients/tenrai.js";
 import { MalClient } from "./clients/mal.js";
 import { OfficialReadsClient } from "./clients/officialReads.js";
 import { registerReadTools } from "./tools/read.js";
@@ -24,13 +24,14 @@ import { VERSION } from "./version.js";
 export const CACHE_HINT = { ttlMs: 60 * 60 * 1000, cacheScope: "public" } as const;
 
 const INSTRUCTIONS = [
-  "MyAnimeList tools. Reads (search/details/rankings/seasons/characters/reviews/profiles) are",
-  "served via the public Jikan API and need no credentials. Personal-list tools (get_my_*,",
-  "update_my_*, delete_my_*) act on the authenticated user's own MAL list and require a user",
-  "token; without one they return an actionable error. Resolve a title to its mal_id with",
-  "search_anime/search_manga before calling id-based tools. To filter a search by genre, first",
-  "call get_anime_genres/get_manga_genres to get the numeric IDs the `genres` parameter expects.",
-  "NSFW results are NOT filtered by default; pass sfw=true to exclude adult entries.",
+  "MyAnimeList tools. Reads (search/details/rankings/seasons/characters/reviews) are served via",
+  "the Tenrai API (a free, Jikan-v4-schema-compatible MyAnimeList mirror) and need no",
+  "credentials. Personal-list tools (get_my_*, update_my_*, delete_my_*) act on the authenticated",
+  "user's own MAL list and require a user token; without one they return an actionable error.",
+  "Resolve a title to its mal_id with search_anime/search_manga before calling id-based tools. To",
+  "filter a search by genre, first call get_anime_genres/get_manga_genres to get the numeric IDs",
+  "the `genres` parameter expects. NSFW results are NOT filtered by default; pass sfw=true to",
+  "exclude adult entries.",
 ].join(" ");
 
 /** Construct a fully-registered MCP server. Shared by start() and tests. */
@@ -38,12 +39,11 @@ export function buildServer(config: Config, logger: Logger): McpServer {
   const tokenStore = new TokenStore(config.auth.tokenStorePath ?? defaultTokenStorePath(), logger);
 
   const mal = new MalClient(config, logger, tokenStore);
-  // OfficialReadsClient is the fallback for read tools whose Jikan live pass-through
-  // to MAL is degraded (search/top/seasonal — see notes/jikan-reliability.md); it
-  // structurally satisfies JikanFallback, needs only a Client ID (no user token),
-  // and is kept separate from MalClient's OAuth/personal-list concern.
+  // OfficialReadsClient is the fallback for read tools when Tenrai (the primary read backend,
+  // itself a beta service) fails; it structurally satisfies ReadFallback, needs only a Client ID
+  // (no user token), and is kept separate from MalClient's OAuth/personal-list concern.
   const officialReads = new OfficialReadsClient(config, logger);
-  const jikan = new JikanClient(config, logger, officialReads);
+  const tenrai = new TenraiClient(config, logger, officialReads);
 
   const server = new McpServer(
     { name: "mal-mcp", title: "MAL MCP Server", version: VERSION },
@@ -57,10 +57,10 @@ export function buildServer(config: Config, logger: Logger): McpServer {
     },
   );
 
-  registerReadTools(server, jikan);
+  registerReadTools(server, tenrai);
   registerMyListTools(server, mal);
   registerLoginTools(server, mal);
-  registerPrompts(server, jikan);
+  registerPrompts(server, tenrai);
   return server;
 }
 

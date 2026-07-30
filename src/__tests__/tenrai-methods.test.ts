@@ -1,13 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { JikanClient } from "../clients/jikan.js";
+import { TenraiClient } from "../clients/tenrai.js";
 import { loadConfig } from "../config.js";
-import { ApiError } from "../lib/errors.js";
 import { silentLogger, mockFetch, installFetch } from "./helpers.js";
 
-function jikan() {
-  return new JikanClient(
-    loadConfig({ JIKAN_MIN_INTERVAL_MS: "0", CACHE_TTL_MS: "0" }),
+function tenrai() {
+  return new TenraiClient(
+    loadConfig({ TENRAI_MIN_INTERVAL_MS: "0", CACHE_TTL_MS: "0" }),
     silentLogger(),
   );
 }
@@ -40,13 +39,6 @@ function routedResponse(url: string): Response {
         },
       ],
     };
-  } else if (url.includes("/favorites")) {
-    body = {
-      data: { anime: [{ mal_id: 1, title: "Fav" }], manga: [], characters: [], people: [] },
-    };
-  } else if (url.includes("/users/")) {
-    // Note: profile URL is `users/<name>/full`, so check /users/ before /full.
-    body = { data: { username: "bob", url: "u", joined: "2010", statistics: {} } };
   } else if (url.includes("/full")) {
     body = { data: { mal_id: 1, title: "Detail" } };
   } else if (/\/seasons(\?|$)/.test(url)) {
@@ -62,10 +54,10 @@ function routedResponse(url: string): Response {
   });
 }
 
-test("every Jikan read method hits the expected endpoint and returns data", async (t) => {
+test("every Tenrai read method hits the expected endpoint and returns data", async (t) => {
   const mock = mockFetch((url) => routedResponse(url));
   installFetch(t, mock);
-  const c = jikan();
+  const c = tenrai();
   assert.ok((await c.getManga(1))["mal_id"]);
   assert.ok((await c.getAnimeCharacters(1))["characters"]);
   assert.ok((await c.getMangaCharacters(1))["characters"]);
@@ -81,10 +73,6 @@ test("every Jikan read method hits the expected endpoint and returns data", asyn
   assert.ok((await c.getSeason({ year: 2024, season: "spring" }))["results"]);
   assert.ok((await c.getSeason({}))["results"]); // current season path
   assert.ok((await c.getSchedule("monday", 5))["results"]);
-  assert.ok((await c.getUserProfile("bob"))["username"]);
-
-  const fav = (await c.getUserFavorites("bob")) as { anime: unknown[] };
-  assert.equal(fav.anime.length, 1);
 
   const urls = mock.calls.map((x) => x.url);
   assert.ok(urls.some((u) => /\/manga\/1\/full$/.test(u)));
@@ -123,7 +111,7 @@ test("Tier 1-3 methods hit their endpoints and shape the response", async (t) =>
     );
   });
   installFetch(t, mock);
-  const c = jikan();
+  const c = tenrai();
   assert.equal((await c.getCharacter(1))["mal_id"], 1);
   assert.equal((await c.getPerson(1))["mal_id"], 1);
   assert.equal((await c.getAnimeStatistics(1))["watching"], 5);
@@ -171,32 +159,8 @@ test("getAnimeCharacters keeps only Japanese voice actors", async (t) => {
       ),
   );
   installFetch(t, mock);
-  const res = (await jikan().getAnimeCharacters(1)) as {
+  const res = (await tenrai().getAnimeCharacters(1)) as {
     characters: { voice_actors: string[] }[];
   };
   assert.deepEqual(res.characters[0]!.voice_actors, ["JP"]);
-});
-
-test("a Jikan error smuggled inside a 200 response (jikan-rest's own upstream-timeout shape) surfaces as a retryable ApiError instead of crashing the shaper", async (t) => {
-  const mock = mockFetch(
-    () =>
-      new Response(
-        JSON.stringify({
-          status: 500,
-          type: "UpstreamException",
-          message: "Request to MyAnimeList.net timed out (10 seconds). Please try again later.",
-          error: "Idle timeout reached",
-        }),
-        { status: 200, headers: { "content-type": "application/json" } },
-      ),
-  );
-  installFetch(t, mock);
-  await assert.rejects(
-    () => jikan().getAnimeEpisodes(21),
-    (err: unknown) =>
-      err instanceof ApiError &&
-      err.code === "server_error" &&
-      err.retryable === true &&
-      /timed out/.test(err.message),
-  );
 });

@@ -33,11 +33,11 @@ export function apiErrorToResult(err: ApiError): ToolResult {
 }
 
 // Prose for each ApiErrorHint — the sole place hint text is authored. Clients (e.g.
-// jikanFallback.ts) only attach the marker fact; they never construct user-facing copy.
+// readFallback.ts) only attach the marker fact; they never construct user-facing copy.
 const HINT_TEXT: Record<ApiErrorHint, string> = {
   client_id_would_help:
     "Tip: setting the MAL_CLIENT_ID environment variable would let this retry via the official " +
-    "MAL API when Jikan has trouble (no login needed) — see docs/auth.md.",
+    "MAL API when Tenrai has trouble (no login needed) — see docs/auth.md.",
 };
 
 function messageFor(err: ApiError): string {

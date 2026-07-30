@@ -22,8 +22,8 @@ import { CACHE_HINT } from "../server.js";
 // shut down cleanly when signalled.
 const distPath = join(process.cwd(), "..", "dist", "index.js");
 
-// read.ts (36) + mylist.ts (7) + login.ts (2). Bump when a tool is added/removed.
-const EXPECTED_TOOLS = 45;
+// read.ts (34) + mylist.ts (7) + login.ts (2). Bump when a tool is added/removed.
+const EXPECTED_TOOLS = 43;
 
 // Copy the bundle to a dir with no node_modules: if it weren't self-contained,
 // the child would die with ERR_MODULE_NOT_FOUND and connect() would reject.
@@ -147,7 +147,7 @@ describe("e2e (real built bundle over stdio)", () => {
       assert.match(toolText(res), /needs a MyAnimeList login/i);
 
       // A zod schema rejection — happens before any network call, so it's
-      // deterministic regardless of live Jikan's mood — proving the modern-era
+      // deterministic regardless of live Tenrai's mood — proving the modern-era
       // dispatch path still surfaces input validation errors as isError results.
       const badInput = await client.callTool({ name: "get_anime", arguments: { id: -1 } });
       assert.equal(badInput.isError, true);
@@ -156,11 +156,10 @@ describe("e2e (real built bundle over stdio)", () => {
       // A live successful read, to see real structuredContent flow back over the
       // modern-era wire format (the client auto-validates it against get_anime's
       // outputSchema once tools/list is cached — see connectServer()'s comment in
-      // helpers.ts for the same reasoning). mal_id=1 (Cowboy Bebop) is a cached-DB
-      // lookup, not a live search pass-through — the route least exposed to
-      // Jikan's documented flakiness (notes/jikan-reliability.md) — but still
-      // tolerate a transient upstream 5xx rather than fail this suite on Jikan's
-      // own mood, matching check-api.mjs's "transient — not blocking" convention.
+      // helpers.ts for the same reasoning). mal_id=1 (Cowboy Bebop) is a well-known,
+      // heavily-cached entry, but still tolerate a transient upstream 5xx rather
+      // than fail this suite on Tenrai's own mood, matching check-api.mjs's
+      // "transient — not blocking" convention.
       const anime = await client.callTool({ name: "get_anime", arguments: { id: 1 } });
       if (anime.isError) {
         console.warn(`  (skipping structuredContent check — upstream issue: ${toolText(anime)})`);

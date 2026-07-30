@@ -67,8 +67,7 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         "Get the logged-in user's MyAnimeList profile and anime watch-status statistics. " +
         "Requires MyAnimeList authentication (via `login_mal`, or a pre-supplied " +
         "`MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`). Anime-only — the official API has no manga " +
-        "statistics field at all; use get_user_profile with your own username instead for " +
-        "manga read stats too (no login needed).",
+        "statistics field at all, and there is no tool for a user's manga read stats.",
       inputSchema: z.object({}).strict(),
       outputSchema: MyUserInfoSchema,
       annotations: { readOnlyHint: true, openWorldHint: true },

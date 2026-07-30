@@ -34,7 +34,7 @@ test("does not retry a 404 and maps it to not_found", async (t) => {
   assert.equal(mock.calls.length, 1);
 });
 
-test("surfaces Jikan's structured error message and report_url", async (t) => {
+test("surfaces an upstream's structured error message and report_url", async (t) => {
   const mock = mockFetch(() =>
     jsonResponse(
       { status: 500, type: "InternalException", message: "boom", report_url: "https://gh/issue" },

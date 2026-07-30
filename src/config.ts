@@ -11,16 +11,16 @@ export const EnvSchema = z.object({
   /** Override the on-disk token store path (defaults under the OS config dir). */
   MAL_TOKEN_STORE: z.string().min(1).optional(),
 
-  JIKAN_BASE_URL: z.string().url().default("https://api.jikan.moe/v4"),
+  TENRAI_BASE_URL: z.string().url().default("https://api.tenrai.org/v1"),
   MAL_BASE_URL: z.string().url().default("https://api.myanimelist.net/v2"),
   MAL_OAUTH_BASE_URL: z.string().url().default("https://myanimelist.net/v1/oauth2"),
 
   HTTP_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
   HTTP_RETRIES: z.coerce.number().int().nonnegative().default(2),
-  // Minimum spacing between Jikan calls. On top of this, the client enforces
-  // Jikan's documented sliding-window limits (3/s and 60/min). Set to 0 to
-  // disable all client-side throttling.
-  JIKAN_MIN_INTERVAL_MS: z.coerce.number().int().nonnegative().default(400),
+  // Minimum spacing between Tenrai calls. On top of this, the client enforces
+  // Tenrai's documented sliding-window limits (4/s and 120/min public). Set to 0
+  // to disable all client-side throttling.
+  TENRAI_MIN_INTERVAL_MS: z.coerce.number().int().nonnegative().default(300),
   CACHE_TTL_MS: z.coerce.number().int().nonnegative().default(300_000),
   // Localhost port for the `login_mal` OAuth callback. Must match the port in
   // the Redirect URI registered for the MAL app (http://localhost:<port>/callback).
@@ -58,12 +58,12 @@ export interface MalAuth {
 }
 
 export interface Config {
-  jikanBaseUrl: string;
+  tenraiBaseUrl: string;
   malBaseUrl: string;
   malOauthBaseUrl: string;
   httpTimeoutMs: number;
   httpRetries: number;
-  jikanMinIntervalMs: number;
+  tenraiMinIntervalMs: number;
   cacheTtlMs: number;
   logLevel: LogLevel;
   /** Localhost port for the login_mal OAuth callback (matches the app's Redirect URI). */
@@ -94,12 +94,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const configured = canRefresh || Boolean(parsed.MAL_ACCESS_TOKEN);
 
   return {
-    jikanBaseUrl: parsed.JIKAN_BASE_URL,
+    tenraiBaseUrl: parsed.TENRAI_BASE_URL,
     malBaseUrl: parsed.MAL_BASE_URL,
     malOauthBaseUrl: parsed.MAL_OAUTH_BASE_URL,
     httpTimeoutMs: parsed.HTTP_TIMEOUT_MS,
     httpRetries: parsed.HTTP_RETRIES,
-    jikanMinIntervalMs: parsed.JIKAN_MIN_INTERVAL_MS,
+    tenraiMinIntervalMs: parsed.TENRAI_MIN_INTERVAL_MS,
     cacheTtlMs: parsed.CACHE_TTL_MS,
     logLevel: parsed.LOG_LEVEL,
     oauthPort: parsed.MAL_OAUTH_PORT,

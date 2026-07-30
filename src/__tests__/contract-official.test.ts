@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { OfficialReadsClient } from "../clients/officialReads.js";
-import { currentSeason } from "../clients/jikanFallback.js";
+import { currentSeason } from "../clients/readFallback.js";
 import { loadConfig } from "../config.js";
 import { silentLogger } from "./helpers.js";
 

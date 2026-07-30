@@ -1,15 +1,15 @@
-// Live contract tests against the real Jikan API. Skipped unless RUN_LIVE is
+// Live contract tests against the real Tenrai API. Skipped unless RUN_LIVE is
 // set, so the default unit suite stays offline and deterministic. These assert
 // key fields exist (not just HTTP 200), catching upstream schema drift.
 //   RUN_LIVE=1 npm test
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { JikanClient } from "../clients/jikan.js";
+import { TenraiClient } from "../clients/tenrai.js";
 import { loadConfig } from "../config.js";
 import { silentLogger } from "./helpers.js";
 
 const skip = process.env.RUN_LIVE ? false : "set RUN_LIVE=1 to run live contract tests";
-const client = new JikanClient(loadConfig({ JIKAN_MIN_INTERVAL_MS: "700" }), silentLogger());
+const client = new TenraiClient(loadConfig({ TENRAI_MIN_INTERVAL_MS: "700" }), silentLogger());
 
 test("live: searchAnime returns results with expected fields", { skip }, async () => {
   const res = (await client.searchAnime({ q: "frieren", limit: 1 })) as {

@@ -1,13 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { JikanClient } from "../clients/jikan.js";
+import { TenraiClient } from "../clients/tenrai.js";
 import { loadConfig } from "../config.js";
 import { silentLogger, jsonResponse, mockFetch, installFetch } from "./helpers.js";
 
-function jikan() {
+function tenrai() {
   // No rate-limit delay in tests; small cache TTL.
-  const config = loadConfig({ JIKAN_MIN_INTERVAL_MS: "0", CACHE_TTL_MS: "60000" });
-  return new JikanClient(config, silentLogger());
+  const config = loadConfig({ TENRAI_MIN_INTERVAL_MS: "0", CACHE_TTL_MS: "60000" });
+  return new TenraiClient(config, silentLogger());
 }
 
 test("searchAnime returns trimmed results and pagination", async (t) => {
@@ -26,7 +26,7 @@ test("searchAnime returns trimmed results and pagination", async (t) => {
     }),
   );
   installFetch(t, mock);
-  const res = (await jikan().searchAnime({ q: "frieren" })) as {
+  const res = (await tenrai().searchAnime({ q: "frieren" })) as {
     results: Record<string, unknown>[];
     page: Record<string, unknown>;
   };
@@ -38,18 +38,10 @@ test("searchAnime returns trimmed results and pagination", async (t) => {
   assert.match(mock.calls[0]!.url, /q=frieren/);
 });
 
-test("sends the Accept-Encoding workaround header for jikan-me/jikan#596, without zstd", async (t) => {
-  const mock = mockFetch(() => jsonResponse({ data: [] }));
-  installFetch(t, mock);
-  await jikan().searchAnime({ q: "frieren" });
-  const headers = mock.calls[0]!.init?.headers as Record<string, string>;
-  assert.equal(headers["Accept-Encoding"], "gzip, deflate, br");
-});
-
 test("getAnime caches by id (second call hits cache, no second fetch)", async (t) => {
   const mock = mockFetch(() => jsonResponse({ data: { mal_id: 1, title: "Bebop" } }));
   installFetch(t, mock);
-  const client = jikan();
+  const client = tenrai();
   const a = (await client.getAnime(1)) as Record<string, unknown>;
   const b = (await client.getAnime(1)) as Record<string, unknown>;
   assert.equal(a["title"], "Bebop");

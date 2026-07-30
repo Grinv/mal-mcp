@@ -6,7 +6,7 @@ test("no credentials → not configured", () => {
   const c = loadConfig({});
   assert.equal(c.auth.configured, false);
   assert.equal(c.auth.canRefresh, false);
-  assert.equal(c.jikanBaseUrl, "https://api.jikan.moe/v4");
+  assert.equal(c.tenraiBaseUrl, "https://api.tenrai.org/v1");
 });
 
 test("access token only → configured but cannot refresh", () => {
@@ -51,9 +51,9 @@ test("unsubstituted .mcpb placeholders are treated as unset", () => {
 });
 
 test("numeric env vars are coerced", () => {
-  const c = loadConfig({ HTTP_TIMEOUT_MS: "5000", JIKAN_MIN_INTERVAL_MS: "0" });
+  const c = loadConfig({ HTTP_TIMEOUT_MS: "5000", TENRAI_MIN_INTERVAL_MS: "0" });
   assert.equal(c.httpTimeoutMs, 5000);
-  assert.equal(c.jikanMinIntervalMs, 0);
+  assert.equal(c.tenraiMinIntervalMs, 0);
 });
 
 test("oauth callback port defaults to 8080 and is overridable", () => {

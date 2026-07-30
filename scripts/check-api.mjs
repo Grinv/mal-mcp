@@ -6,9 +6,9 @@
 //   - TRANSIENT outage (5xx / 429 / timeout / network) → WARN only: the upstream
 //     is momentarily down; that is no reason to block shipping our own code.
 //
-// Run: `npm run check:api`. Requests are spaced to respect Jikan's rate limit.
+// Run: `npm run check:api`. Requests are spaced to respect Tenrai's rate limit.
 
-const JIKAN = process.env.JIKAN_BASE_URL ?? "https://api.jikan.moe/v4";
+const TENRAI = process.env.TENRAI_BASE_URL ?? "https://api.tenrai.org/v1";
 const MAL = process.env.MAL_BASE_URL ?? "https://api.myanimelist.net/v2";
 const SPACING_MS = 700;
 
@@ -34,11 +34,11 @@ async function fetchResilient(url, attempts = 3) {
 }
 
 const checks = [];
-const jikan = (name, path, assertFn) =>
+const tenrai = (name, path, assertFn) =>
   checks.push({
     name,
     run: async () => {
-      const res = await fetchResilient(`${JIKAN}${path}`);
+      const res = await fetchResilient(`${TENRAI}${path}`);
       if (res.status !== 200) throw new ContractError(`expected 200, got ${res.status}`);
       assertFn(await res.json());
     },
@@ -51,37 +51,35 @@ const hasArray = (b) => {
   if (!Array.isArray(b?.data)) throw new ContractError("`data` is not an array");
 };
 
-jikan("anime search", "/anime?q=frieren&limit=1", hasArray);
-jikan("anime details", "/anime/52991/full", hasData);
-jikan("anime characters", "/anime/52991/characters", hasArray);
-jikan("anime recommendations", "/anime/52991/recommendations", hasArray);
-jikan("anime reviews", "/anime/52991/reviews?limit=1", hasArray);
-jikan("anime episodes", "/anime/52991/episodes", hasArray);
-jikan("anime genres", "/genres/anime", hasArray);
-jikan("top anime", "/top/anime?limit=1", hasArray);
-jikan("seasonal (now)", "/seasons/now?limit=1", hasArray);
-jikan("schedule", "/schedules?filter=monday&limit=1", hasArray);
-jikan("manga search", "/manga?q=berserk&limit=1", hasArray);
-jikan("manga details", "/manga/2/full", hasData);
-jikan("manga characters", "/manga/2/characters", hasArray);
-jikan("manga recommendations", "/manga/2/recommendations", hasArray);
-jikan("manga reviews", "/manga/2/reviews?limit=1", hasArray);
-jikan("manga genres", "/genres/manga", hasArray);
-jikan("user profile", "/users/Xinil/full", hasData);
-jikan("user favorites", "/users/Xinil/favorites", hasData);
-jikan("character details", "/characters/1/full", hasData);
-jikan("character search", "/characters?q=spike&limit=1", hasArray);
-jikan("person details", "/people/1/full", hasData);
-jikan("anime staff", "/anime/52991/staff", hasArray);
-jikan("anime statistics", "/anime/52991/statistics", hasData);
-jikan("random anime", "/random/anime", hasData);
-jikan("upcoming season", "/seasons/upcoming?limit=1", hasArray);
-jikan("producers", "/producers?limit=1", hasArray);
-jikan("top people", "/top/people?limit=1", hasArray);
-jikan("top characters", "/top/characters?limit=1", hasArray);
-jikan("seasons list", "/seasons", hasArray);
-jikan("random character", "/random/characters", hasData);
-jikan("anime news", "/anime/52991/news", hasArray);
+tenrai("anime search", "/anime?q=frieren&limit=1", hasArray);
+tenrai("anime details", "/anime/52991/full", hasData);
+tenrai("anime characters", "/anime/52991/characters", hasArray);
+tenrai("anime recommendations", "/anime/52991/recommendations", hasArray);
+tenrai("anime reviews", "/anime/52991/reviews?limit=1", hasArray);
+tenrai("anime episodes", "/anime/52991/episodes", hasArray);
+tenrai("anime genres", "/genres/anime", hasArray);
+tenrai("top anime", "/top/anime?limit=1", hasArray);
+tenrai("seasonal (now)", "/seasons/now?limit=1", hasArray);
+tenrai("schedule", "/schedules?filter=monday&limit=1", hasArray);
+tenrai("manga search", "/manga?q=berserk&limit=1", hasArray);
+tenrai("manga details", "/manga/2/full", hasData);
+tenrai("manga characters", "/manga/2/characters", hasArray);
+tenrai("manga recommendations", "/manga/2/recommendations", hasArray);
+tenrai("manga reviews", "/manga/2/reviews?limit=1", hasArray);
+tenrai("manga genres", "/genres/manga", hasArray);
+tenrai("character details", "/characters/1/full", hasData);
+tenrai("character search", "/characters?q=spike&limit=1", hasArray);
+tenrai("person details", "/people/1/full", hasData);
+tenrai("anime staff", "/anime/52991/staff", hasArray);
+tenrai("anime statistics", "/anime/52991/statistics", hasData);
+tenrai("random anime", "/random/anime", hasData);
+tenrai("upcoming season", "/seasons/upcoming?limit=1", hasArray);
+tenrai("producers", "/producers?limit=1", hasArray);
+tenrai("top people", "/top/people?limit=1", hasArray);
+tenrai("top characters", "/top/characters?limit=1", hasArray);
+tenrai("seasons list", "/seasons", hasArray);
+tenrai("random character", "/random/characters", hasData);
+tenrai("anime news", "/anime/52991/news", hasArray);
 
 checks.push({
   name: "MAL reachability (auth required without token)",

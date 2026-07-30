@@ -1,8 +1,9 @@
 // Serializes calls and spaces them to respect both a minimum interval and any
-// number of sliding-window limits (e.g. Jikan's documented 3 req/s AND 60
-// req/min — see docs.api.jikan.moe "Rate Limiting"). A single min-interval can
-// satisfy the per-second cap but not the per-minute one, so the window rules are
-// what keep sustained traffic under the published ceiling.
+// number of sliding-window limits (e.g. Tenrai's documented 4 req/s AND 120
+// req/min public limits — see api.tenrai.org/llms.txt "Auth & Rate Limits"). A
+// single min-interval can satisfy the per-second cap but not the per-minute
+// one, so the window rules are what keep sustained traffic under the
+// published ceiling.
 //
 // Acquisitions are ordered through a tail-promise chain, so only one runs at a
 // time and the window bookkeeping stays consistent. In-flight network time still

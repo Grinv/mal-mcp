@@ -1,4 +1,4 @@
-// Trims verbose Jikan payloads down to the fields agents actually need, to
+// Trims verbose Tenrai payloads down to the fields agents actually need, to
 // keep responses token-efficient. Summaries are used for list endpoints;
 // `summarizeAnime`/`summarizeManga` with `detailed: true` keep the long fields
 // (full synopsis, relations, streaming) for single-item lookups.
@@ -19,7 +19,6 @@ import {
   characterEntrySchema,
   creditEntrySchema,
   episodesSchema,
-  favoritesSchema,
   genresSchema,
   mangaDetailSchema,
   mangaSummarySchema,
@@ -35,7 +34,6 @@ import {
   staffEntrySchema,
   staffSchema,
   statisticsSchema,
-  userSchema,
   voiceActorEntrySchema,
 } from "./format.schemas.js";
 
@@ -46,7 +44,7 @@ interface NamedRef {
   url?: string;
 }
 
-interface JikanImages {
+interface RawImages {
   jpg?: { image_url?: string; large_image_url?: string };
 }
 
@@ -54,7 +52,7 @@ interface DateRange {
   string?: string | null;
 }
 
-export interface JikanMedia {
+export interface AnimeMangaRaw {
   mal_id: number;
   url?: string;
   title?: string;
@@ -72,7 +70,7 @@ export interface JikanMedia {
   synopsis?: string | null;
   background?: string | null;
   rating?: string | null;
-  images?: JikanImages;
+  images?: RawImages;
   genres?: NamedRef[];
   themes?: NamedRef[];
   demographics?: NamedRef[];
@@ -105,7 +103,7 @@ export interface JikanMedia {
   serializations?: NamedRef[];
 }
 
-export interface JikanPagination {
+export interface RawPagination {
   current_page?: number;
   has_next_page?: boolean;
   last_visible_page?: number;
@@ -118,11 +116,11 @@ export function names(refs: NamedRef[] | undefined): string[] {
   return (refs ?? []).map((r) => r.name).filter((n): n is string => typeof n === "string");
 }
 
-function imageUrl(images: JikanImages | undefined): string | undefined {
+function imageUrl(images: RawImages | undefined): string | undefined {
   return images?.jpg?.large_image_url ?? images?.jpg?.image_url;
 }
 
-// Jikan returns score 0 to mean "no score yet" (see docs "JSON Notes"); surface
+// Tenrai returns score 0 to mean "no score yet" (see docs "JSON Notes"); surface
 // that as absent rather than a literal 0 an agent might read as a 0/10 rating.
 export function score(value: number | null | undefined): number | undefined {
   return value ? value : undefined;
@@ -156,7 +154,7 @@ export function clean<T extends object>(obj: T): Record<string, unknown> {
 
 /** Map each item through `build`, validating it against `itemSchema` individually — an item that
  *  fails its own schema (e.g. a genuinely malformed upstream entry missing a now-required field
- *  like mal_id) is dropped instead of failing the whole call. Mirrors `JikanClient`'s `#list()`
+ *  like mal_id) is dropped instead of failing the whole call. Mirrors `TenraiClient`'s `#list()`
  *  per-item-drop policy for endpoints that return a single top-level item per raw entry; this
  *  covers shapers that instead combine many entries into one outer `.parse()` call, where a lone
  *  bad entry would otherwise take the entire response down with it. */
@@ -173,7 +171,7 @@ export function mapLenient<T, S extends z.ZodTypeAny>(
   return out;
 }
 
-// The agent-facing anime/manga summary shape — shared by Jikan's summarizeAnime/summarizeManga
+// The agent-facing anime/manga summary shape — shared by Tenrai-backed summarizeAnime/summarizeManga
 // (below) and the official-API fallback's summarizeOfficialAnime/summarizeOfficialManga
 // (formatOfficial.ts). Both sources project their own raw shape into these fields and call
 // projectAnimeSummary/projectMangaSummary, so the two summary paths can't drift out of parity —
@@ -254,10 +252,13 @@ const _mangaSummaryFieldsMatchSchema: KeysMatch<
 // Overloads narrow the return type on the literal `detailed` argument — plain
 // `boolean` alone can't discriminate the union for callers (and tests) that
 // pass a literal `true`/`false`.
-export function summarizeAnime(a: JikanMedia, detailed: true): z.infer<typeof animeDetailSchema>;
-export function summarizeAnime(a: JikanMedia, detailed?: false): z.infer<typeof animeSummarySchema>;
+export function summarizeAnime(a: AnimeMangaRaw, detailed: true): z.infer<typeof animeDetailSchema>;
 export function summarizeAnime(
-  a: JikanMedia,
+  a: AnimeMangaRaw,
+  detailed?: false,
+): z.infer<typeof animeSummarySchema>;
+export function summarizeAnime(
+  a: AnimeMangaRaw,
   detailed = false,
 ): z.infer<typeof animeSummarySchema> | z.infer<typeof animeDetailSchema> {
   const fields: AnimeSummaryFields = {
@@ -314,10 +315,13 @@ export function summarizeAnime(
   );
 }
 
-export function summarizeManga(m: JikanMedia, detailed: true): z.infer<typeof mangaDetailSchema>;
-export function summarizeManga(m: JikanMedia, detailed?: false): z.infer<typeof mangaSummarySchema>;
+export function summarizeManga(m: AnimeMangaRaw, detailed: true): z.infer<typeof mangaDetailSchema>;
 export function summarizeManga(
-  m: JikanMedia,
+  m: AnimeMangaRaw,
+  detailed?: false,
+): z.infer<typeof mangaSummarySchema>;
+export function summarizeManga(
+  m: AnimeMangaRaw,
   detailed = false,
 ): z.infer<typeof mangaSummarySchema> | z.infer<typeof mangaDetailSchema> {
   const fields: MangaSummaryFields = {
@@ -360,7 +364,7 @@ export function summarizeManga(
   );
 }
 
-export function pageInfo(p: JikanPagination | undefined): z.infer<typeof pageSchema> {
+export function pageInfo(p: RawPagination | undefined): z.infer<typeof pageSchema> {
   return pageSchema.parse(
     clean({
       current_page: p?.current_page,
@@ -373,7 +377,7 @@ export function pageInfo(p: JikanPagination | undefined): z.infer<typeof pageSch
 
 // ---- Sub-resource raw shapes + summaries ----
 // Each summary takes the raw upstream `data` (array or object) and returns the
-// trimmed, agent-facing payload. The Jikan client only fetches + caches and
+// trimmed, agent-facing payload. The Tenrai client only fetches + caches and
 // delegates the shaping here, so all raw→trim logic lives in one place.
 
 export interface RawCharacter {
@@ -463,7 +467,7 @@ export interface RawEpisode {
 
 export function summarizeEpisodes(
   data: RawEpisode[],
-  pagination: JikanPagination | undefined,
+  pagination: RawPagination | undefined,
 ): z.infer<typeof episodesSchema> {
   return episodesSchema.parse({
     episodes: data.map((e) => ({
@@ -492,54 +496,6 @@ export function summarizeGenres(data: RawGenre[]): z.infer<typeof genresSchema> 
   });
 }
 
-export interface RawUser {
-  username?: string;
-  url?: string;
-  joined?: string;
-  location?: string | null;
-  gender?: string | null;
-  last_online?: string | null;
-  about?: string | null;
-  statistics?: unknown;
-}
-
-export function summarizeUser(u: RawUser): z.infer<typeof userSchema> {
-  return userSchema.parse({
-    username: u.username,
-    url: u.url,
-    joined: u.joined,
-    location: u.location ?? undefined,
-    gender: u.gender ?? undefined,
-    last_online: u.last_online ?? undefined,
-    about: typeof u.about === "string" ? u.about.slice(0, 600) : undefined,
-    statistics: u.statistics,
-  });
-}
-
-export interface RawFavEntry {
-  mal_id?: number;
-  title?: string;
-  name?: string;
-  url?: string;
-}
-export interface RawFavorites {
-  anime?: RawFavEntry[];
-  manga?: RawFavEntry[];
-  characters?: RawFavEntry[];
-  people?: RawFavEntry[];
-}
-
-export function summarizeFavorites(f: RawFavorites): z.infer<typeof favoritesSchema> {
-  const titles = (items: RawFavEntry[] | undefined): Record<string, unknown>[] =>
-    (items ?? []).map((i) => ({ mal_id: i.mal_id, title: i.title ?? i.name, url: i.url }));
-  return favoritesSchema.parse({
-    anime: titles(f.anime),
-    manga: titles(f.manga),
-    characters: titles(f.characters),
-    people: titles(f.people),
-  });
-}
-
 // ---- Characters & people (entity lookups + search) ----
 // A reference to another entry, used across the relation/voice fields below.
 interface RawRef {
@@ -552,7 +508,7 @@ interface RawRef {
 export interface RawCharacterEntity {
   mal_id?: number;
   url?: string;
-  images?: JikanImages;
+  images?: RawImages;
   name?: string;
   name_kanji?: string | null;
   nicknames?: string[];
@@ -602,7 +558,7 @@ export function summarizeCharacter(
 export interface RawPersonEntity {
   mal_id?: number;
   url?: string;
-  images?: JikanImages;
+  images?: RawImages;
   name?: string;
   given_name?: string | null;
   family_name?: string | null;
@@ -710,7 +666,7 @@ export interface RawProducer {
   mal_id?: number;
   url?: string;
   titles?: { type?: string; title?: string }[];
-  images?: JikanImages;
+  images?: RawImages;
   favorites?: number;
   established?: string | null;
   count?: number;

@@ -15,22 +15,9 @@ import { z } from "zod";
 
 // ---- shared sub-shapes -------------------------------------------------------
 
-// {mal_id, title, url} reference triple, used by favorites (no vote count).
-// mal_id is required: it's the real MAL id of an existing anime/manga/character/person record,
-// and every one of these entries exists specifically so a caller can chain it into get_anime/
-// get_manga/get_character/get_person — a shaper that ever drops it should fail loudly, not
-// silently ship an unusable entry (see the mal_id-required note in ../__tests__/format.test.ts).
-const refEntrySchema = z
-  .object({
-    mal_id: z.number(),
-    title: z.string().optional(),
-    url: z.string().optional(),
-  })
-  .strict();
-
 // {mal_id, title, votes, url}, used by summarizeRecommendations and
 // summarizeOfficialRecommendations — a ref plus its vote count. mal_id required — see
-// refEntrySchema's comment above; these entries exist to be chained into get_anime/get_manga.
+// characterEntrySchema's comment below; these entries exist to be chained into get_anime/get_manga.
 export const recommendationEntrySchema = z
   .object({
     mal_id: z.number(),
@@ -40,7 +27,7 @@ export const recommendationEntrySchema = z
   })
   .strict();
 
-// A {relation, entries} group, as produced by both Jikan's grouped `relations`
+// A {relation, entries} group, as produced by both Tenrai's grouped `relations`
 // and the official-API fallback's groupRelations().
 const relationSchema = z
   .object({
@@ -172,7 +159,13 @@ export const mangaDetailSchema = mangaSummarySchema
 // ---- summarizeCharacters -------------------------------------------------------
 
 // mal_id required — get_character's own description points here ("Obtain the mal_id from
-// search_characters or get_anime_characters"); see refEntrySchema's comment above.
+// search_characters or get_anime_characters"). This is the first of several schemas in this
+// file requiring mal_id/year for the same reason: the value is the real MAL id (or, for
+// get_seasons_list, year) of an existing record, and every one of these entries exists
+// specifically so a caller can chain it into another tool (get_anime/get_manga/get_character/
+// get_person/get_seasonal_anime) — a shaper that ever drops it should fail loudly, not silently
+// ship an unusable entry (see the mal_id-required note in ../__tests__/format.test.ts). Every
+// "see characterEntrySchema's comment above/below" reference in this file points back here.
 export const characterEntrySchema = z
   .object({
     mal_id: z.number(),
@@ -228,7 +221,7 @@ export const episodesSchema = z
 
 // mal_id required — this is exactly the numeric ID search_anime/search_manga's own `genres`
 // param expects (validated there against \d+(,\d+)* — see tools/read.ts's genreIds()); see
-// refEntrySchema's comment above.
+// characterEntrySchema's comment above.
 const genreEntrySchema = z
   .object({
     mal_id: z.number(),
@@ -240,38 +233,10 @@ const genreEntrySchema = z
 
 export const genresSchema = z.object({ genres: z.array(genreEntrySchema) }).strict();
 
-// ---- summarizeUser -----------------------------------------------------------
-
-export const userSchema = z
-  .object({
-    username: z.string().optional(),
-    url: z.string().optional(),
-    joined: z.string().optional(),
-    location: z.string().optional(),
-    gender: z.string().optional(),
-    last_online: z.string().optional(),
-    about: z.string().optional(),
-    // Jikan's own statistics blob is deliberately left unmodeled (see RawUser) —
-    // a large, rarely-consumed nested object not worth mirroring field-by-field.
-    statistics: z.unknown().optional(),
-  })
-  .strict();
-
-// ---- summarizeFavorites -----------------------------------------------------------
-
-export const favoritesSchema = z
-  .object({
-    anime: z.array(refEntrySchema),
-    manga: z.array(refEntrySchema),
-    characters: z.array(refEntrySchema),
-    people: z.array(refEntrySchema),
-  })
-  .strict();
-
 // ---- summarizeCharacter / summarizePerson -------------------------------------
 
 // mal_id required — an anime/manga a character/person appears in, meant to chain into
-// get_anime/get_manga; see refEntrySchema's comment above.
+// get_anime/get_manga; see characterEntrySchema's comment above.
 export const creditEntrySchema = z
   .object({
     role: z.string().optional(),
@@ -282,7 +247,7 @@ export const creditEntrySchema = z
   .strict();
 
 // mal_id required — this is exactly what get_person's description points to as the mal_id
-// source for get_anime_characters' names-only voice_actors; see refEntrySchema's comment above.
+// source for get_anime_characters' names-only voice_actors; see characterEntrySchema's comment above.
 export const voiceActorEntrySchema = z
   .object({
     language: z.string().optional(),
@@ -291,7 +256,7 @@ export const voiceActorEntrySchema = z
   })
   .strict();
 
-// mal_id required — it's this entity's own get_character lookup key; see refEntrySchema's
+// mal_id required — it's this entity's own get_character lookup key; see characterEntrySchema's
 // comment above.
 export const characterEntitySchema = z
   .object({
@@ -317,7 +282,7 @@ const voiceRoleEntrySchema = z
   })
   .strict();
 
-// mal_id required — it's this entity's own get_person lookup key; see refEntrySchema's
+// mal_id required — it's this entity's own get_person lookup key; see characterEntrySchema's
 // comment above.
 export const personEntitySchema = z
   .object({
@@ -339,7 +304,7 @@ export const personEntitySchema = z
 
 // ---- summarizeStaff -----------------------------------------------------------
 
-// mal_id required — meant to chain into get_person; see refEntrySchema's comment above.
+// mal_id required — meant to chain into get_person; see characterEntrySchema's comment above.
 export const staffEntrySchema = z
   .object({
     mal_id: z.number(),
@@ -363,7 +328,7 @@ const scoreEntrySchema = z
 
 // The official-API fallback only ever populates watching/completed/on_hold/
 // dropped/plan_to_watch/total (see summarizeOfficialAnimeStatistics) — a subset
-// of what Jikan can return, which this schema's optionality already allows.
+// of what Tenrai can return, which this schema's optionality already allows.
 export const statisticsSchema = z
   .object({
     watching: z.number().optional(),
@@ -380,7 +345,7 @@ export const statisticsSchema = z
 
 // ---- summarizeProducer -----------------------------------------------------------
 
-// mal_id required — the studio/producer's own canonical Jikan ID; see refEntrySchema's
+// mal_id required — the studio/producer's own canonical MAL producer ID; see characterEntrySchema's
 // comment above.
 export const producerSchema = z
   .object({
@@ -427,7 +392,7 @@ export const newsItemSchema = z
 // rule as every other schema in this file — they're .strict() and live here, not in mal.ts.
 
 // mal_id required — it's the anime_id/manga_id update_my_anime_status/update_my_manga_status
-// and delete_my_anime_list_item/delete_my_manga_list_item expect; see refEntrySchema's
+// and delete_my_anime_list_item/delete_my_manga_list_item expect; see characterEntrySchema's
 // comment above.
 export const myListItemSchema = z
   .object({

@@ -1,8 +1,8 @@
 // Shapes the official MAL API's search/ranking/season responses into the same
 // agent-facing keys as format.ts's summarizeAnime/summarizeManga (non-detailed
-// output). Used only by clients/officialReads.ts, the fallback for when Jikan's
-// live pass-through to MAL is degraded (see notes/jikan-reliability.md) — the
-// official API uses entirely different field names/shapes than Jikan, so this
+// output). Used only by clients/officialReads.ts, the fallback for when Tenrai's
+// read requests to it fail — the
+// official API uses entirely different field names/shapes than Tenrai, so this
 // keeps search_anime/search_manga/get_top_anime/get_top_manga/get_seasonal_anime/
 // get_upcoming_season returning a consistent shape regardless of which upstream
 // actually answered.
@@ -51,7 +51,7 @@ function officialImageUrl(p: OfficialPicture | undefined): string | undefined {
   return p?.large ?? p?.medium;
 }
 
-// MAL's `source` enum (snake_case) mapped to Jikan's own display text, so get_anime's fallback
+// MAL's `source` enum (snake_case) mapped to Tenrai's own display text, so get_anime's fallback
 // reads the same regardless of which upstream answered. Falls back to the raw value for any
 // enum member not covered here rather than dropping the field.
 const OFFICIAL_SOURCE_LABELS: Record<string, string> = {
@@ -80,7 +80,7 @@ function officialSource(s: string | null | undefined): string | undefined {
   return OFFICIAL_SOURCE_LABELS[s] ?? s;
 }
 
-// The official API gives episode duration in seconds; Jikan's own `duration` field is already
+// The official API gives episode duration in seconds; Tenrai's own `duration` field is already
 // a human string ("24 min per ep", "1 hr 30 min per ep") — mirror that format here.
 function formatDuration(seconds: number | null | undefined): string | undefined {
   if (!seconds) return undefined;
@@ -96,7 +96,7 @@ interface OfficialBroadcast {
   start_time?: string;
 }
 
-// MAL broadcast times are always JST — matches Jikan's own `broadcast.string` convention
+// MAL broadcast times are always JST — matches Tenrai's own `broadcast.string` convention
 // (e.g. "Fridays at 23:00 (JST)"), so the fallback reads the same as the primary source.
 function formatBroadcast(b: OfficialBroadcast | undefined): string | undefined {
   if (!b?.day_of_the_week || !b?.start_time) return undefined;
@@ -109,9 +109,9 @@ interface OfficialRelationEdge {
   relation_type_formatted?: string;
 }
 
-// The official API returns related_anime/related_manga as flat per-title edges; Jikan groups
+// The official API returns related_anime/related_manga as flat per-title edges; Tenrai groups
 // them by relation type instead. Merge both lists (an anime can relate to manga and vice versa)
-// into the same {relation, entries} shape Jikan uses, so get_anime/get_manga's `relations` field
+// into the same {relation, entries} shape Tenrai uses, so get_anime/get_manga's `relations` field
 // looks identical regardless of which upstream answered.
 function groupRelations(
   ...edgeLists: (OfficialRelationEdge[] | undefined)[]
@@ -186,7 +186,7 @@ export function summarizeOfficialAnime(
     rating: n.rating ?? undefined,
     aired: n.start_date ?? undefined,
     genres: names(n.genres),
-    // The official API doesn't split themes/demographics out of genres like Jikan does.
+    // The official API doesn't split themes/demographics out of genres like Tenrai does.
     themes: [],
     demographics: [],
     studios: names(n.studios),
@@ -197,7 +197,7 @@ export function summarizeOfficialAnime(
   return projectAnimeSummary(fields);
 }
 
-// Detail-mode fallback for get_anime: the official API covers most of Jikan's `detailed: true`
+// Detail-mode fallback for get_anime: the official API covers most of Tenrai's `detailed: true`
 // extras (title_japanese, source, duration, broadcast, background, relations, scored_by), but
 // these have no official-API equivalent at all and are simply absent during a fallback — a
 // degraded-mode trade-off, same spirit as the search/season fallback's dropped filters. See
@@ -259,7 +259,7 @@ export interface OfficialMangaNode {
 }
 
 // The official API's recommendations field is a summary edge (node + a raw vote count), not the
-// richer entry Jikan returns — shaped here into the same {mal_id,title,votes,url} keys as
+// richer entry Tenrai returns — shaped here into the same {mal_id,title,votes,url} keys as
 // format.ts's summarizeRecommendations so get_anime_recommendations/get_manga_recommendations
 // return a consistent shape regardless of which upstream answered.
 export interface OfficialRecommendationEdge {
@@ -284,7 +284,7 @@ export function summarizeOfficialRecommendations(
 }
 
 // Anime-only: MangaForDetails has no `statistics` property at all (verified against the schema
-// at myanimelist.net/apiconfig/references/api/v2) — get_manga_statistics stays fully Jikan-only.
+// at myanimelist.net/apiconfig/references/api/v2) — get_manga_statistics stays fully Tenrai-only.
 export interface OfficialAnimeStatistics {
   num_list_users?: number;
   // The official API sends these as numeric strings (e.g. "190892"), unlike
@@ -299,7 +299,7 @@ export interface OfficialAnimeStatistics {
   };
 }
 
-// Covers Jikan's watch-status counts, but the official API has no score-distribution histogram
+// Covers Tenrai's watch-status counts, but the official API has no score-distribution histogram
 // at all — `scores` is simply absent during this fallback, not approximated. See
 // ANIME_LIST_FALLBACK_GAPS above for how this list stays honest against the real function.
 export const ANIME_STATISTICS_FALLBACK_GAPS = ["scores"] as const;
@@ -354,7 +354,7 @@ export function summarizeOfficialManga(
 }
 
 // Detail-mode fallback for get_manga — see summarizeOfficialAnimeDetailed's comment for the
-// scope of what the official API can and can't reproduce from Jikan's `detailed: true` output.
+// scope of what the official API can and can't reproduce from Tenrai's `detailed: true` output.
 export const MANGA_DETAIL_FALLBACK_GAPS = ["favorites"] as const;
 
 export function summarizeOfficialMangaDetailed(
