@@ -440,6 +440,13 @@ export interface RawReview {
   date?: string;
   review?: string;
   url?: string;
+  is_spoiler?: boolean;
+  is_preliminary?: boolean;
+  // Tenrai names this field differently per media type: anime reviews carry
+  // `episodes_watched`, manga reviews carry `chapters_read` — never both on the same item.
+  episodes_watched?: number | null;
+  chapters_read?: number | null;
+  reactions?: Record<string, number>;
 }
 
 export function summarizeReviews(data: RawReview[]): z.infer<typeof reviewsSchema> {
@@ -451,6 +458,11 @@ export function summarizeReviews(data: RawReview[]): z.infer<typeof reviewsSchem
       date: r.date,
       review: typeof r.review === "string" ? r.review.slice(0, 1200) : undefined,
       url: r.url,
+      is_spoiler: r.is_spoiler,
+      is_preliminary: r.is_preliminary,
+      episodes_watched: r.episodes_watched ?? undefined,
+      chapters_read: r.chapters_read ?? undefined,
+      reactions: r.reactions,
     })),
   });
 }

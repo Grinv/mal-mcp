@@ -348,6 +348,178 @@ test("get_anime_reviews applies limit client-side (Tenrai's /reviews has no limi
   assert.equal((explicit.structuredContent as { reviews: unknown[] }).reviews.length, 8);
 });
 
+test("get_anime_reviews/get_manga_reviews accept sort/preliminary/spoilers/sentiment and reject bad values", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const ok = await client.callTool({
+    name: "get_anime_reviews",
+    arguments: {
+      id: 1,
+      page: 2,
+      sort: "newest",
+      preliminary: "only",
+      spoilers: "false",
+      sentiment: "mixed_feelings",
+    },
+  });
+  assert.notEqual(ok.isError, true);
+  assert.match(mock.calls.at(-1)!.url, /sort=newest/);
+  assert.match(mock.calls.at(-1)!.url, /preliminary=only/);
+  assert.match(mock.calls.at(-1)!.url, /spoilers=false/);
+  assert.match(mock.calls.at(-1)!.url, /sentiment=mixed_feelings/);
+
+  const badPreliminary = await client.callTool({
+    name: "get_manga_reviews",
+    arguments: { id: 1, preliminary: "maybe" },
+  });
+  assert.equal(badPreliminary.isError, true);
+
+  const badSentiment = await client.callTool({
+    name: "get_manga_reviews",
+    arguments: { id: 1, sentiment: "great" },
+  });
+  assert.equal(badSentiment.isError, true);
+});
+
+test("search_anime/search_manga accept multiple types (comma-joined) and reject an invalid rating", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const multiType = await client.callTool({
+    name: "search_anime",
+    arguments: { q: "x", type: ["tv", "movie"], rating: ["pg13", "r"] },
+  });
+  assert.notEqual(multiType.isError, true);
+  assert.match(mock.calls.at(-1)!.url, /type=tv%2Cmovie/);
+  assert.match(mock.calls.at(-1)!.url, /rating=pg13%2Cr/);
+
+  const mangaMultiType = await client.callTool({
+    name: "search_manga",
+    arguments: { q: "x", type: ["manga"] },
+  });
+  assert.notEqual(mangaMultiType.isError, true);
+
+  const invalidRating = await client.callTool({
+    name: "search_anime",
+    arguments: { q: "x", rating: ["nc17"] },
+  });
+  assert.equal(invalidRating.isError, true);
+});
+
+test("search_anime rejects more than 25 comma-separated genre IDs", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const tooMany = Array.from({ length: 26 }, (_, i) => i + 1).join(",");
+  const res = await client.callTool({
+    name: "search_anime",
+    arguments: { q: "x", genres: tooMany },
+  });
+  assert.equal(res.isError, true);
+  assert.equal(mock.calls.length, 0);
+});
+
+test("search_anime/search_manga reject a letter filter longer than one character", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const res = await client.callTool({
+    name: "search_anime",
+    arguments: { q: "x", letter: "ab" },
+  });
+  assert.equal(res.isError, true);
+  assert.equal(mock.calls.length, 0);
+});
+
+test("get_seasonal_anime/get_upcoming_season accept kids/continuing/unapproved/order_by", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const seasonal = await client.callTool({
+    name: "get_seasonal_anime",
+    arguments: {
+      year: 2024,
+      season: "fall",
+      kids: true,
+      continuing: false,
+      unapproved: false,
+      order_by: "start_date",
+      sort: "asc",
+    },
+  });
+  assert.notEqual(seasonal.isError, true);
+  assert.match(mock.calls.at(-1)!.url, /kids=true/);
+  assert.match(mock.calls.at(-1)!.url, /continuing=false/);
+  assert.match(mock.calls.at(-1)!.url, /order_by=start_date/);
+
+  const upcoming = await client.callTool({
+    name: "get_upcoming_season",
+    arguments: { kids: true, filter: ["tv"] },
+  });
+  assert.notEqual(upcoming.isError, true);
+  assert.match(mock.calls.at(-1)!.url, /kids=true/);
+  assert.match(mock.calls.at(-1)!.url, /filter=tv/);
+});
+
+test("get_top_anime accepts multi-type and rating filters", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const res = await client.callTool({
+    name: "get_top_anime",
+    arguments: { type: ["tv", "ova"], rating: ["g", "pg"] },
+  });
+  assert.notEqual(res.isError, true);
+  assert.match(mock.calls.at(-1)!.url, /type=tv%2Cova/);
+  assert.match(mock.calls.at(-1)!.url, /rating=g%2Cpg/);
+});
+
+test("get_anime_schedule accepts kids/unapproved/page", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const res = await client.callTool({
+    name: "get_anime_schedule",
+    arguments: { kids: true, unapproved: false, page: 2 },
+  });
+  assert.notEqual(res.isError, true);
+  assert.match(mock.calls.at(-1)!.url, /kids=true/);
+  assert.match(mock.calls.at(-1)!.url, /unapproved=false/);
+  assert.match(mock.calls.at(-1)!.url, /page=2/);
+});
+
+test("search_characters/search_people/get_producers accept a letter filter", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  for (const name of ["search_characters", "search_people"]) {
+    const res = await client.callTool({ name, arguments: { q: "x", letter: "a" } });
+    assert.notEqual(res.isError, true, `${name} should accept letter`);
+    assert.match(mock.calls.at(-1)!.url, /letter=a/);
+  }
+
+  const producers = await client.callTool({ name: "get_producers", arguments: { letter: "b" } });
+  assert.notEqual(producers.isError, true);
+  assert.match(mock.calls.at(-1)!.url, /letter=b/);
+});
+
 test("update_my_anime_status rejects a calendar-invalid start_date", async (t) => {
   const mock = mockFetch(() => jsonResponse({ status: "watching" }));
   installFetch(t, mock);

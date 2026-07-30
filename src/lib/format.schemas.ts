@@ -194,6 +194,11 @@ const reviewEntrySchema = z
     date: z.string().optional(),
     review: z.string().optional(),
     url: z.string().optional(),
+    is_spoiler: z.boolean().optional(),
+    is_preliminary: z.boolean().optional(),
+    episodes_watched: z.number().optional(),
+    chapters_read: z.number().optional(),
+    reactions: z.record(z.string(), z.number()).optional(),
   })
   .strict();
 

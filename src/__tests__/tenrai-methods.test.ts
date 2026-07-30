@@ -72,7 +72,7 @@ test("every Tenrai read method hits the expected endpoint and returns data", asy
   assert.ok((await c.getTopManga({}))["results"]);
   assert.ok((await c.getSeason({ year: 2024, season: "spring" }))["results"]);
   assert.ok((await c.getSeason({}))["results"]); // current season path
-  assert.ok((await c.getSchedule("monday", 5))["results"]);
+  assert.ok((await c.getSchedule({ day: "monday", limit: 5 }))["results"]);
 
   const urls = mock.calls.map((x) => x.url);
   assert.ok(urls.some((u) => /\/manga\/1\/full$/.test(u)));

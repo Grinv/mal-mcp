@@ -50,22 +50,41 @@ interface ItemResponse<T> {
   data: T;
 }
 
+// Shared by the plain-name-search endpoints (characters/people/producers) — no content
+// filtering, just find-by-name plus ordering/pagination/alphabetical browse.
 export interface SearchParams {
   q?: string;
-  type?: string;
-  status?: string;
-  genres?: string;
   order_by?: string;
   sort?: string;
-  sfw?: boolean;
-  sfw_strict?: boolean;
   limit?: number;
   page?: number;
+  letter?: string;
+}
+
+// searchAnime/searchManga's much larger filter set — kept separate from SearchParams so a
+// plain-name search interface doesn't carry a dozen anime/manga-only fields it never uses.
+export interface AnimeMangaSearchParams extends SearchParams {
+  type?: string[];
+  status?: string;
+  genres?: string;
+  genres_exclude?: string;
+  sfw?: boolean;
+  sfw_strict?: boolean;
+  rating?: string[];
+  score?: number;
+  min_score?: number;
+  max_score?: number;
+  producers?: string;
+  magazines?: string;
+  start_date?: string;
+  end_date?: string;
+  unapproved?: boolean;
 }
 
 export interface TopParams {
-  type?: string;
+  type?: string[];
   filter?: string;
+  rating?: string[];
   sfw?: boolean;
   sfw_strict?: boolean;
   limit?: number;
@@ -79,6 +98,31 @@ export interface SeasonParams {
   page?: number;
   sfw?: boolean;
   sfw_strict?: boolean;
+  filter?: string[];
+  rating?: string[];
+  unapproved?: boolean;
+  continuing?: boolean;
+  kids?: boolean;
+  order_by?: string;
+  sort?: string;
+}
+
+export interface ScheduleParams {
+  day?: string;
+  limit: number;
+  sfw?: boolean;
+  sfw_strict?: boolean;
+  kids?: boolean;
+  unapproved?: boolean;
+  page?: number;
+}
+
+export interface ReviewParams {
+  page?: number;
+  sort?: string;
+  preliminary?: string;
+  spoilers?: string;
+  sentiment?: string;
 }
 
 /** Tenrai's stricter NSFW filter is the hyphenated query param `sfw-strict` — not a valid JS
@@ -87,6 +131,30 @@ export interface SeasonParams {
  *  and adds the right one. */
 function sfwStrictQuery(sfwStrict: boolean | undefined): Record<string, boolean | undefined> {
   return { sfw_strict: undefined, "sfw-strict": sfwStrict };
+}
+
+/** Tenrai's array-typed query params (`type`, `rating`, seasonal `filter`) use OpenAPI's
+ *  `style: form, explode: false` — a single comma-joined string, not repeated query keys. */
+function csv(values: string[] | undefined): string | undefined {
+  return values && values.length > 0 ? values.join(",") : undefined;
+}
+
+/** Shared query-builder for the three `/seasons/*` list endpoints (`{year}/{season}`, `now`,
+ *  `upcoming`) — they all accept the same filter set. */
+function seasonQuery(p: SeasonParams): Query {
+  return {
+    filter: csv(p.filter),
+    rating: csv(p.rating),
+    limit: p.limit,
+    page: p.page,
+    sfw: p.sfw,
+    unapproved: p.unapproved,
+    continuing: p.continuing,
+    kids: p.kids,
+    order_by: p.order_by,
+    sort: p.sort,
+    ...sfwStrictQuery(p.sfw_strict),
+  };
 }
 
 // Tenrai's published limits (see api.tenrai.org/llms.txt "Auth & Rate Limits"): 4 req/s AND
@@ -155,14 +223,16 @@ export class TenraiClient {
     });
   }
 
-  async searchAnime(p: SearchParams): Promise<Record<string, unknown>> {
+  async searchAnime(p: AnimeMangaSearchParams): Promise<Record<string, unknown>> {
     return withFallback(
       this.#logger,
       this.#fallback,
       "anime search",
       () =>
-        this.#list<AnimeMangaRaw>("anime", { ...p, ...sfwStrictQuery(p.sfw_strict) }, (a) =>
-          summarizeAnime(a),
+        this.#list<AnimeMangaRaw>(
+          "anime",
+          { ...p, type: csv(p.type), rating: csv(p.rating), ...sfwStrictQuery(p.sfw_strict) },
+          (a) => summarizeAnime(a),
         ),
       () =>
         this.#fallback!.searchAnimeOfficial({
@@ -177,14 +247,16 @@ export class TenraiClient {
     );
   }
 
-  async searchManga(p: SearchParams): Promise<Record<string, unknown>> {
+  async searchManga(p: AnimeMangaSearchParams): Promise<Record<string, unknown>> {
     return withFallback(
       this.#logger,
       this.#fallback,
       "manga search",
       () =>
-        this.#list<AnimeMangaRaw>("manga", { ...p, ...sfwStrictQuery(p.sfw_strict) }, (m) =>
-          summarizeManga(m),
+        this.#list<AnimeMangaRaw>(
+          "manga",
+          { ...p, type: csv(p.type), rating: csv(p.rating), ...sfwStrictQuery(p.sfw_strict) },
+          (m) => summarizeManga(m),
         ),
       () =>
         this.#fallback!.searchMangaOfficial({
@@ -266,25 +338,37 @@ export class TenraiClient {
     );
   }
 
-  async getAnimeReviews(id: number, limit: number): Promise<Record<string, unknown>> {
-    return this.#reviews("anime", id, limit);
+  async getAnimeReviews(
+    id: number,
+    limit: number,
+    params: ReviewParams = {},
+  ): Promise<Record<string, unknown>> {
+    return this.#reviews("anime", id, limit, params);
   }
 
-  async getMangaReviews(id: number, limit: number): Promise<Record<string, unknown>> {
-    return this.#reviews("manga", id, limit);
+  async getMangaReviews(
+    id: number,
+    limit: number,
+    params: ReviewParams = {},
+  ): Promise<Record<string, unknown>> {
+    return this.#reviews("manga", id, limit, params);
   }
 
   // Reviews are not cached: they are paginated and change as users post.
   // Tenrai's `/{kind}/{id}/reviews` has no `limit` param at all (confirmed against its
   // OpenAPI spec and live: `?limit=1` and `?limit=2` both still return a full 20-review
   // page) — `limit` is applied here, client-side, to actually honor the tool's own
-  // documented default/cap instead of silently ignoring it.
+  // documented default/cap instead of silently ignoring it. `page`/`sort`/`preliminary`/
+  // `spoilers`/`sentiment` ARE real upstream params (unlike `limit`) and are forwarded as-is.
   async #reviews(
     kind: "anime" | "manga",
     id: number,
     limit: number,
+    params: ReviewParams,
   ): Promise<Record<string, unknown>> {
-    const res = await this.#http.getJson<ListResponse<RawReview>>(`${kind}/${id}/reviews`);
+    const res = await this.#http.getJson<ListResponse<RawReview>>(`${kind}/${id}/reviews`, {
+      query: { ...params },
+    });
     return summarizeReviews(res.data.slice(0, limit));
   }
 
@@ -321,12 +405,14 @@ export class TenraiClient {
       this.#fallback,
       "top anime",
       () =>
-        this.#list<AnimeMangaRaw>("top/anime", { ...p, ...sfwStrictQuery(p.sfw_strict) }, (a) =>
-          summarizeAnime(a),
+        this.#list<AnimeMangaRaw>(
+          "top/anime",
+          { ...p, type: csv(p.type), rating: csv(p.rating), ...sfwStrictQuery(p.sfw_strict) },
+          (a) => summarizeAnime(a),
         ),
       () =>
         this.#fallback!.topAnimeOfficial({
-          type: p.type,
+          type: csv(p.type),
           filter: p.filter,
           limit: p.limit,
           page: p.page,
@@ -341,12 +427,14 @@ export class TenraiClient {
       this.#fallback,
       "top manga",
       () =>
-        this.#list<AnimeMangaRaw>("top/manga", { ...p, ...sfwStrictQuery(p.sfw_strict) }, (m) =>
-          summarizeManga(m),
+        this.#list<AnimeMangaRaw>(
+          "top/manga",
+          { ...p, type: csv(p.type), rating: csv(p.rating), ...sfwStrictQuery(p.sfw_strict) },
+          (m) => summarizeManga(m),
         ),
       () =>
         this.#fallback!.topMangaOfficial({
-          type: p.type,
+          type: csv(p.type),
           filter: p.filter,
           limit: p.limit,
           page: p.page,
@@ -361,12 +449,7 @@ export class TenraiClient {
       this.#logger,
       this.#fallback,
       "seasonal anime",
-      () =>
-        this.#list<AnimeMangaRaw>(
-          path,
-          { limit: p.limit, page: p.page, sfw: p.sfw, ...sfwStrictQuery(p.sfw_strict) },
-          (a) => summarizeAnime(a),
-        ),
+      () => this.#list<AnimeMangaRaw>(path, seasonQuery(p), (a) => summarizeAnime(a)),
       () => {
         // The official API has no "current season" shortcut — an explicit year+season
         // is required either way, so use the caller's if given, else compute it.
@@ -386,12 +469,7 @@ export class TenraiClient {
       this.#logger,
       this.#fallback,
       "upcoming season",
-      () =>
-        this.#list<AnimeMangaRaw>(
-          "seasons/upcoming",
-          { limit: p.limit, page: p.page, sfw: p.sfw, ...sfwStrictQuery(p.sfw_strict) },
-          (a) => summarizeAnime(a),
-        ),
+      () => this.#list<AnimeMangaRaw>("seasons/upcoming", seasonQuery(p), (a) => summarizeAnime(a)),
       () => {
         const { year, season } = nextSeason(new Date());
         return this.#fallback!.seasonOfficial(year, season, {
@@ -403,15 +481,18 @@ export class TenraiClient {
     );
   }
 
-  async getSchedule(
-    day: string | undefined,
-    limit: number,
-    sfw?: boolean,
-    sfwStrict?: boolean,
-  ): Promise<Record<string, unknown>> {
+  async getSchedule(p: ScheduleParams): Promise<Record<string, unknown>> {
     return this.#list<AnimeMangaRaw>(
       "schedules",
-      { filter: day, limit, sfw, ...sfwStrictQuery(sfwStrict) },
+      {
+        filter: p.day,
+        limit: p.limit,
+        sfw: p.sfw,
+        kids: p.kids,
+        unapproved: p.unapproved,
+        page: p.page,
+        ...sfwStrictQuery(p.sfw_strict),
+      },
       (a) => summarizeAnime(a),
     );
   }
@@ -491,11 +572,11 @@ export class TenraiClient {
     return this.#list<RawProducer>("producers", { ...p }, summarizeProducer);
   }
 
-  async getTopPeople(p: TopParams): Promise<Record<string, unknown>> {
+  async getTopPeople(p: { limit?: number; page?: number }): Promise<Record<string, unknown>> {
     return this.#list<RawPersonEntity>("top/people", { ...p }, (person) => summarizePerson(person));
   }
 
-  async getTopCharacters(p: TopParams): Promise<Record<string, unknown>> {
+  async getTopCharacters(p: { limit?: number; page?: number }): Promise<Record<string, unknown>> {
     return this.#list<RawCharacterEntity>("top/characters", { ...p }, (c) => summarizeCharacter(c));
   }
 
