@@ -81,6 +81,14 @@ json.load(open('notes/tenrai-openapi-spec.json'))..."`) instead of re-fetching
     a mapping bug, but not independently confirmed non-empty on any title. `get_news`'s `q` param
     genuinely filters (a nonsense query returns 0 results) but matches more than the visible
     headline — a query like "Dragon Ball" returns articles whose titles don't contain the phrase.
+  - **`page` ceiling of 1000, undocumented outside `/anime`/`/manga`**: Tenrai's own OpenAPI spec
+    only declares `maximum: 1000` for `/anime` and `/manga`; every other page-taking route's
+    schema omits a `maximum`. Live testing (2026-07-30) shows the real ceiling is enforced almost
+    everywhere regardless — `page > 1000` 400s on `/producers`, `/magazines`, `/schedules`,
+    `/seasons/*`, `/{anime|manga}/{id}/reviews`, `/news`, `/recommendations/*`, `/characters`,
+    `/people`, and `/anime/{id}/episodes` too — except `/top/anime`, `/top/manga`, `/top/people`,
+    `/top/characters`, which serve real data well past it. `read.ts`'s shared `page`
+    constant caps at 1000 to match; `pageUnbounded` (no cap) is used only for those four tools.
 
 ## MyAnimeList official API
 

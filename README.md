@@ -246,14 +246,25 @@ credentials, and
 ## NSFW content
 
 NSFW (adult) results are **not** filtered by default — the server returns whatever
-the upstream API provides. Most read tools (`search_anime`, `search_manga`,
-`get_seasonal_anime`, `get_upcoming_season`, `get_anime_schedule`, `get_top_anime`,
-`get_top_manga`, `get_random_anime`, `get_random_manga`) accept two filter levels:
+the upstream API provides. Most read tools accept two filter levels:
 
 - `sfw: true` — excludes adult/explicit-rated entries (R+ Mild Nudity and up).
 - `sfw_strict: true` — also excludes anything tagged with the Ecchi genre, even
   otherwise mainstream, safely-rated shows that `sfw` alone still lets through
   (e.g. _No Game No Life_, _Kill la Kill_).
+
+On a list/search tool (`search_anime`, `search_manga`, `get_seasonal_anime`,
+`get_upcoming_season`, `get_anime_schedule`, `get_top_anime`, `get_top_manga`,
+`get_random_anime`, `get_random_manga`, `get_recent_anime_recommendations`,
+`get_recent_manga_recommendations`) this filters which entries come back. On a
+by-id lookup (`get_anime`, `get_manga`, `get_anime_recommendations`,
+`get_manga_recommendations`, `get_character`, `get_person`, `get_anime_news`,
+`get_manga_news`) the item you asked for is always returned regardless — it
+instead filters NSFW entries out of that item's own nested lists (e.g. an
+anime's `relations`, a person's own anime/manga credits), except on the two
+news tools, where it can empty the result entirely for an NSFW-rated
+anime/manga. `get_top_people`/`get_top_characters` have no such filter —
+people/characters aren't independently content-rated the way anime/manga are.
 
 `search_anime` and `get_top_anime`/`get_seasonal_anime`/`get_upcoming_season` also
 accept a `rating` filter for finer-grained control — target one or more specific
