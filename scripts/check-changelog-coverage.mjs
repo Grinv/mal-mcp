@@ -6,10 +6,9 @@
 // "correctly excluded, internal."
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const root = join(import.meta.dirname, "..");
 
 function sh(cmd) {
   return execSync(cmd, { cwd: root, encoding: "utf8" }).trim();

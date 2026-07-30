@@ -3,8 +3,7 @@
 // POSIX-only `(cd dir && ...)` shell idiom so it works on Windows cmd.exe too.
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 
 // Keep this in sync with the CI "Coverage gate" step (.github/workflows/ci.yml).
 const COVERAGE_LINES_THRESHOLD = 80;
@@ -31,7 +30,7 @@ if (coverage) {
 // real Jikan/MAL APIs. Those need real credentials (MAL_CLIENT_ID, MAL_ACCESS_TOKEN,
 // MAL_REFRESH_TOKEN) that live in the repo's gitignored .env, not process.env — load
 // it only in that opt-in path, via Node's built-in --env-file (no dotenv dependency).
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+const repoRoot = join(import.meta.dirname, "..");
 const envFile = join(repoRoot, ".env");
 if (process.env.RUN_LIVE && existsSync(envFile)) {
   args.push(`--env-file=${envFile}`);

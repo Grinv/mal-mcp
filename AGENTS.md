@@ -75,9 +75,14 @@ npm run check:api      # live upstream health-check (network)
 
 - **Docs and in-code text are English** (README, docs, comments, tool
   descriptions, error messages).
-- Runtime floor is **Node ≥ 20.3** (global `fetch`, `AbortSignal.any` in
-  `lib/http.ts`); tsup targets `node20`. Tests may run on newer Node but must
-  not raise the runtime floor.
+- Runtime floor is **Node ≥ 20.11** (global `fetch`/`AbortSignal.any` in
+  `lib/http.ts`, `import.meta.dirname` in `scripts/*.mjs`, and the test
+  suite's `mock.timers` `'Date'` API — that one lands exactly at 20.11.0, not
+  20.9.0 as `'Iron' (LTS)` might suggest). tsup targets `node20`. This floor
+  covers `scripts/` too, not just `src/` — CI's `node: 20` matrix entry always
+  resolves to the latest 20.x patch, so a script quietly needing a newer
+  Node than the declared floor won't fail CI (this is how the floor went
+  stale once already, 2026-07-30).
 - Log to **stderr only** — stdout is the MCP protocol channel. Use the logger;
   it redacts credentials. MCP protocol revision 2026-07-28 deprecated
   server→client log notifications in favor of stderr (SEP-2577); `createLogger()`

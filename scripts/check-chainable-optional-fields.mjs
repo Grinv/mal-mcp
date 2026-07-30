@@ -9,10 +9,9 @@
 // trigger list below). Treat its output as a candidate list for a human/agent to eyeball, the
 // same way check-changelog-coverage.mjs's "uncovered" list needs triage, not blind trust.
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const root = join(import.meta.dirname, "..");
 
 const TRIGGER_PHRASES = [
   /obtain the/i,
