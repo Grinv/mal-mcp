@@ -26,6 +26,15 @@ JavaScript, so a plain HTTP fetch returns only the title — open them in a brow
     characters, people, producers, genres, seasons, schedules,
     recommendations, reviews, statistics, news, and random) — this server's
     shapers required zero changes when the read backend moved onto Tenrai.
+  - **Two distinct content filters, not one:** `sfw` excludes adult/explicit-
+    rated entries (R+ Mild Nudity, Rx); `sfw-strict` (hyphenated query param —
+    `tenrai.ts` maps our `sfw_strict` field onto it) additionally excludes
+    anything tagged with the Ecchi genre. Verified live 2026-07-30: querying
+    the Ecchi genre (id 9) with `sfw=true` still returned mainstream,
+    safely-rated titles (_No Game No Life_, _Kill la Kill_, _Shokugeki no
+    Souma_); the same query with `sfw-strict=true` returned zero results.
+    `sfw`/`sfw-strict` are documented as plain `type: string` in Tenrai's
+    OpenAPI spec (no enum) — sent as the literal strings `"true"`/`"false"`.
   - **No user-data endpoints** (confirmed via `api.tenrai.org/llms.txt`): no
     `/users`, `/watch`, or `/clubs` routes exist — the operators state all
     data is pre-cached from MAL's public catalogue, which rules out

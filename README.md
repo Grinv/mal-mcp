@@ -245,8 +245,14 @@ credentials, and
 ## NSFW content
 
 NSFW (adult) results are **not** filtered by default — the server returns whatever
-the upstream API provides. Search tools accept an optional `sfw` parameter; set
-`sfw: true` to exclude adult entries via Tenrai.
+the upstream API provides. Most read tools (`search_anime`, `search_manga`,
+`get_seasonal_anime`, `get_upcoming_season`, `get_anime_schedule`, `get_top_anime`,
+`get_top_manga`, `get_random_anime`, `get_random_manga`) accept two filter levels:
+
+- `sfw: true` — excludes adult/explicit-rated entries (R+ Mild Nudity and up).
+- `sfw_strict: true` — also excludes anything tagged with the Ecchi genre, even
+  otherwise mainstream, safely-rated shows that `sfw` alone still lets through
+  (e.g. _No Game No Life_, _Kill la Kill_).
 
 ## Development
 
