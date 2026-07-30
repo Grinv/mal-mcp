@@ -66,6 +66,15 @@ json.load(open('notes/tenrai-openapi-spec.json'))..."`) instead of re-fetching
     `episodes_watched` — never both on the same item, despite sharing one response schema.
     Every comma-separated ID list (`genres`, `genres_exclude`, `producers`, `magazines`) caps
     at 25 IDs per Tenrai's own docs.
+  - **Endpoint-coverage sweep (2026-07-30)**, against the same local spec: `get_magazines`,
+    `get_producer` (single-producer detail — `/producers/{id}/full`'s `about`/`external` fields
+    had no tool at all before), `get_anime_videos` (`/anime/{id}/videos`), the site-wide
+    `get_recent_anime_recommendations`/`get_recent_manga_recommendations`
+    (`/recommendations/anime|manga`), and `get_news` (`/news`) were added to close real gaps —
+    endpoints Tenrai documents that this server didn't expose any tool for. Built directly
+    against the OpenAPI schema + unit-tested with synthetic fixtures, **not yet live-verified**
+    against the real API (unlike the query-param audit above) — worth a live smoke pass before
+    relying on their exact field names in a description as fact.
 
 ## MyAnimeList official API
 
