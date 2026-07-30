@@ -291,7 +291,7 @@ test("getRecentAnimeRecommendations/getRecentMangaRecommendations hit the site-w
 test("getNews hits the site-wide /news endpoint (not /anime/{id}/news)", async (t) => {
   const mock = mockFetch(() =>
     jsonResponse({
-      data: [{ mal_id: 1, url: "u", title: "Big Announcement", date: "2024-01-01" }],
+      data: [{ mal_id: 1, url: "u", title: "Big Announcement", date: "2024-01-01T00:00:00+00:00" }],
       pagination: {},
     }),
   );

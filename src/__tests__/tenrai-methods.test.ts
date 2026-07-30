@@ -33,7 +33,7 @@ function routedResponse(url: string): Response {
           user: { username: "bob" },
           score: 8,
           tags: ["Recommended"],
-          date: "2024",
+          date: "2024-01-01T00:00:00+00:00",
           review: "good",
           url: "u",
         },

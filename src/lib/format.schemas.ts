@@ -74,6 +74,9 @@ export const animeSummarySchema = z.strictObject({
   year: z.int().min(1900).max(2100).optional(),
   season: z.string().optional(),
   rating: z.string().optional(),
+  // A free-form display string ("Apr 3, 1998 to Apr 24, 1999"), not an ISO datetime — this
+  // maps DateRange's own pre-formatted `.string` field. Contrast episodeEntrySchema's `aired`
+  // below, which is a real ISO datetime straight off the raw episode record.
   aired: z.string().optional(),
   genres: z.array(z.string()).optional(),
   themes: z.array(z.string()).optional(),
@@ -194,7 +197,7 @@ const recentRecommendationEntitySchema = z.strictObject({
 export const recentRecommendationEntrySchema = z.strictObject({
   entries: z.array(recentRecommendationEntitySchema),
   content: z.string().optional(),
-  date: z.string().optional(),
+  date: z.iso.datetime({ offset: true }).optional(),
   user: z.string().optional(),
 });
 
@@ -208,7 +211,7 @@ const reviewEntrySchema = z.strictObject({
   // own decimal average `score`, e.g. 8.75).
   score: z.int().min(1).max(10).optional(),
   tags: z.array(z.string()),
-  date: z.string().optional(),
+  date: z.iso.datetime({ offset: true }).optional(),
   review: z.string().optional(),
   url: z.string().optional(),
   is_spoiler: z.boolean().optional(),
@@ -226,7 +229,7 @@ const episodeEntrySchema = z.strictObject({
   mal_id: z.int().positive().optional(),
   title: z.string().optional(),
   title_japanese: z.string().optional(),
-  aired: z.string().optional(),
+  aired: z.iso.datetime({ offset: true }).optional(),
   score: z.number().optional(),
   filler: z.boolean().optional(),
   recap: z.boolean().optional(),
@@ -355,7 +358,7 @@ export const producerSchema = z.strictObject({
   name: z.string().optional(),
   count: z.int().nonnegative().optional(),
   favorites: z.int().nonnegative().optional(),
-  established: z.string().optional(),
+  established: z.iso.datetime({ offset: true }).optional(),
   url: z.string().optional(),
   image_url: z.string().optional(),
 });
@@ -420,7 +423,7 @@ export const seasonsListSchema = z.strictObject({ seasons: z.array(seasonEntrySc
 export const newsItemSchema = z.strictObject({
   mal_id: z.int().positive().optional(),
   title: z.string().optional(),
-  date: z.string().optional(),
+  date: z.iso.datetime({ offset: true }).optional(),
   author: z.string().optional(),
   comments: z.int().nonnegative().optional(),
   excerpt: z.string().optional(),

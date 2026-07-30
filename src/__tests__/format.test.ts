@@ -240,7 +240,7 @@ test("summarizeRecentRecommendations drops a pair where either side has no resol
           { mal_id: 2, title: "B", url: "u2" },
         ],
         content: "Great pair",
-        date: "2024-01-01",
+        date: "2024-01-01T00:00:00+00:00",
         user: { username: "bob" },
       },
       {
@@ -311,7 +311,12 @@ test("summarizeRecommendations drops a malformed entry instead of failing the wh
 
 test("summarizeReviews truncates long review text", () => {
   const r = summarizeReviews([
-    { user: { username: "bob" }, score: 8, review: "x".repeat(2000), date: "2024" },
+    {
+      user: { username: "bob" },
+      score: 8,
+      review: "x".repeat(2000),
+      date: "2024-01-01T00:00:00+00:00",
+    },
   ]) as { reviews: { review: string; tags: string[] }[] };
   assert.equal(r.reviews[0]!.review.length, 1200);
   assert.deepEqual(r.reviews[0]!.tags, []); // missing tags default to []
@@ -319,7 +324,15 @@ test("summarizeReviews truncates long review text", () => {
 
 test("summarizeEpisodes maps fields and attaches pagination", () => {
   const r = summarizeEpisodes(
-    [{ mal_id: 1, title: "Asteroid Blues", aired: "1998", filler: false, recap: false }],
+    [
+      {
+        mal_id: 1,
+        title: "Asteroid Blues",
+        aired: "1998-10-24T00:00:00+00:00",
+        filler: false,
+        recap: false,
+      },
+    ],
     { has_next_page: true },
   ) as { episodes: Record<string, unknown>[]; page: Record<string, unknown> };
   assert.equal(r.episodes[0]!["title"], "Asteroid Blues");
@@ -453,7 +466,7 @@ test("summarizeSeasonsList and summarizeNewsItem map their fields", () => {
     title: "New season announced",
     author_username: "mod",
     excerpt: "z".repeat(500),
-    date: "2024",
+    date: "2024-01-01T00:00:00+00:00",
   });
   assert.equal(news["author"], "mod");
   assert.ok((news["excerpt"] as string).length < 500);
