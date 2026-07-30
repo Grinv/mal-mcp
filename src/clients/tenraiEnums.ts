@@ -103,11 +103,12 @@ export type ScheduleDay = (typeof SCHEDULE_DAYS)[number];
 export type ReviewSort = (typeof REVIEW_SORTS)[number];
 export type ReviewTriState = (typeof REVIEW_TRI_STATES)[number];
 export type ReviewSentiment = (typeof REVIEW_SENTIMENTS)[number];
-// Shared by search_characters/search_people/get_producers/get_magazines — each has its own
-// order_by enum; this unions all four since one interface serves all four tools.
-export type NameOrderBy =
-  | (typeof CHARACTER_ORDER_BY)[number]
-  | (typeof PEOPLE_ORDER_BY)[number]
-  | (typeof PRODUCER_ORDER_BY)[number]
-  | (typeof MAGAZINE_ORDER_BY)[number];
+// search_characters/search_people/get_producers/get_magazines each get their own order_by type —
+// deliberately NOT unioned into one shared type, since each endpoint's real enum differs (e.g.
+// only producers has "established") and a merged union would let any of the four tools
+// type-accept a value only valid for one of the others.
+export type CharacterOrderBy = (typeof CHARACTER_ORDER_BY)[number];
+export type PeopleOrderBy = (typeof PEOPLE_ORDER_BY)[number];
+export type ProducerOrderBy = (typeof PRODUCER_ORDER_BY)[number];
+export type MagazineOrderBy = (typeof MAGAZINE_ORDER_BY)[number];
 export type GenreFilter = (typeof GENRE_FILTERS)[number];

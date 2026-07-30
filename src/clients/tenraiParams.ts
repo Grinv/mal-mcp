@@ -19,29 +19,48 @@ import type {
   ReviewSort,
   ReviewTriState,
   ReviewSentiment,
-  NameOrderBy,
+  CharacterOrderBy,
+  PeopleOrderBy,
+  ProducerOrderBy,
+  MagazineOrderBy,
 } from "./tenraiEnums.js";
 
-// Shared by the plain-name-search endpoints (characters/people/producers) — no content
-// filtering, just find-by-name plus ordering/pagination/alphabetical browse.
-export interface SearchParams {
+// Shared by every "search by name" style endpoint — pagination, sort direction, and the
+// alphabetical `letter` browse are identical everywhere. `order_by` is deliberately NOT here:
+// each of characters/people/producers/magazines (and, below, anime/manga) has its own,
+// genuinely different order_by enum, so merging them into one union would let e.g.
+// searchCharacters type-accept "established" (a producer-only value) — the same over-wide-union
+// mistake AnimeMangaOrderBy was before it got split into AnimeOrderBy/MangaOrderBy.
+interface SearchParamsBase {
   q?: string;
-  order_by?: NameOrderBy;
   sort?: SortDir;
   limit?: number;
   page?: number;
   letter?: string;
 }
 
-// searchAnime/searchManga's much larger filter set — kept separate from SearchParams so a
-// plain-name search interface doesn't carry a dozen anime/manga-only fields it never uses.
-// (Omits SearchParams's own `order_by` rather than extending it — anime/manga order_by is a
-// different, larger enum than the plain-name-search one.)
-// Fields identical between the two (score range, genres, dates, sfw, ...) live in this
-// unexported base; everything that actually differs between anime and manga — `type`,
-// `status`, `order_by`, `rating` (anime-only), `producers` vs. `magazines` — is declared on
-// the two exported interfaces below instead of merged into one over-wide union/optional pair.
-interface AnimeMangaSearchParamsBase extends Omit<SearchParams, "order_by"> {
+export interface CharacterSearchParams extends SearchParamsBase {
+  order_by?: CharacterOrderBy;
+}
+
+export interface PersonSearchParams extends SearchParamsBase {
+  order_by?: PeopleOrderBy;
+}
+
+export interface ProducerSearchParams extends SearchParamsBase {
+  order_by?: ProducerOrderBy;
+}
+
+export interface MagazineSearchParams extends SearchParamsBase {
+  order_by?: MagazineOrderBy;
+}
+
+// searchAnime/searchManga's much larger filter set — kept separate from the name-search
+// interfaces above for the same reason: order_by differs (and is larger) here too.
+// Fields identical between anime and manga (score range, genres, dates, sfw, ...) live in this
+// unexported base; everything that actually differs — `type`, `status`, `order_by`, `rating`
+// (anime-only), `producers` vs. `magazines` — is declared on the two exported interfaces below.
+interface AnimeMangaSearchParamsBase extends SearchParamsBase {
   genres?: string;
   genres_exclude?: string;
   sfw?: boolean;

@@ -44,7 +44,10 @@ import type { Logger } from "../lib/logger.js";
 import type { Config } from "../config.js";
 import type { GenreFilter } from "./tenraiEnums.js";
 import type {
-  SearchParams,
+  CharacterSearchParams,
+  PersonSearchParams,
+  ProducerSearchParams,
+  MagazineSearchParams,
   AnimeSearchParams,
   MangaSearchParams,
   AnimeTopParams,
@@ -438,7 +441,7 @@ export class TenraiClient {
 
   // ---- characters & people (Tier 1) ----------------------------------------
 
-  async searchCharacters(p: SearchParams): Promise<Record<string, unknown>> {
+  async searchCharacters(p: CharacterSearchParams): Promise<Record<string, unknown>> {
     return this.#list<RawCharacterEntity>("characters", { ...p }, (c) => summarizeCharacter(c));
   }
 
@@ -448,7 +451,7 @@ export class TenraiClient {
     );
   }
 
-  async searchPeople(p: SearchParams): Promise<Record<string, unknown>> {
+  async searchPeople(p: PersonSearchParams): Promise<Record<string, unknown>> {
     return this.#list<RawPersonEntity>("people", { ...p }, (person) => summarizePerson(person));
   }
 
@@ -507,11 +510,11 @@ export class TenraiClient {
 
   // ---- broader surface (Tier 3) --------------------------------------------
 
-  async getProducers(p: SearchParams): Promise<Record<string, unknown>> {
+  async getProducers(p: ProducerSearchParams): Promise<Record<string, unknown>> {
     return this.#list<RawProducer>("producers", { ...p }, summarizeProducer);
   }
 
-  async getMagazines(p: SearchParams): Promise<Record<string, unknown>> {
+  async getMagazines(p: MagazineSearchParams): Promise<Record<string, unknown>> {
     return this.#list<RawMagazine>("magazines", { ...p }, summarizeMagazine);
   }
 
