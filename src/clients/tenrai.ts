@@ -214,14 +214,19 @@ export class TenraiClient {
     );
   }
 
-  async getAnime(id: number): Promise<Record<string, unknown>> {
-    return this.#cache.wrapStaleOnError(`anime:${id}`, () =>
+  // sfw/sfw_strict don't filter the requested anime/manga itself (its own id was asked for
+  // explicitly) — they filter NSFW entries out of its nested `relations` list. No effect during
+  // an official-API fallback: animeDetailsOfficial/mangaDetailsOfficial take no sfw param.
+  async getAnime(id: number, sfw?: boolean, sfwStrict?: boolean): Promise<Record<string, unknown>> {
+    return this.#cache.wrapStaleOnError(`anime:${id}:${Boolean(sfw)}:${Boolean(sfwStrict)}`, () =>
       withFallback(
         this.#logger,
         this.#fallback,
         "anime details",
         async () => {
-          const res = await this.#http.getJson<ItemResponse<RawAnime>>(`anime/${id}/full`);
+          const res = await this.#http.getJson<ItemResponse<RawAnime>>(`anime/${id}/full`, {
+            query: { sfw, ...sfwStrictQuery(sfwStrict) },
+          });
           return summarizeAnime(res.data, true);
         },
         () => this.#fallback!.animeDetailsOfficial(id),
@@ -229,14 +234,16 @@ export class TenraiClient {
     );
   }
 
-  async getManga(id: number): Promise<Record<string, unknown>> {
-    return this.#cache.wrapStaleOnError(`manga:${id}`, () =>
+  async getManga(id: number, sfw?: boolean, sfwStrict?: boolean): Promise<Record<string, unknown>> {
+    return this.#cache.wrapStaleOnError(`manga:${id}:${Boolean(sfw)}:${Boolean(sfwStrict)}`, () =>
       withFallback(
         this.#logger,
         this.#fallback,
         "manga details",
         async () => {
-          const res = await this.#http.getJson<ItemResponse<RawManga>>(`manga/${id}/full`);
+          const res = await this.#http.getJson<ItemResponse<RawManga>>(`manga/${id}/full`, {
+            query: { sfw, ...sfwStrictQuery(sfwStrict) },
+          });
           return summarizeManga(res.data, true);
         },
         () => this.#fallback!.mangaDetailsOfficial(id),
@@ -256,31 +263,50 @@ export class TenraiClient {
     );
   }
 
-  async getAnimeRecommendations(id: number): Promise<Record<string, unknown>> {
-    return this.#recommendations("anime", id);
+  async getAnimeRecommendations(
+    id: number,
+    sfw?: boolean,
+    sfwStrict?: boolean,
+  ): Promise<Record<string, unknown>> {
+    return this.#recommendations("anime", id, sfw, sfwStrict);
   }
 
-  async getMangaRecommendations(id: number): Promise<Record<string, unknown>> {
-    return this.#recommendations("manga", id);
+  async getMangaRecommendations(
+    id: number,
+    sfw?: boolean,
+    sfwStrict?: boolean,
+  ): Promise<Record<string, unknown>> {
+    return this.#recommendations("manga", id, sfw, sfwStrict);
   }
 
-  #recommendations(kind: "anime" | "manga", id: number): Promise<Record<string, unknown>> {
-    return this.#cache.wrapStaleOnError(`${kind}-recs:${id}`, () =>
-      withFallback(
-        this.#logger,
-        this.#fallback,
-        `${kind} recommendations`,
-        async () => {
-          const res = await this.#http.getJson<ItemResponse<RawRecommendation[]>>(
-            `${kind}/${id}/recommendations`,
-          );
-          return summarizeRecommendations(res.data);
-        },
-        () =>
-          kind === "anime"
-            ? this.#fallback!.animeRecommendationsOfficial(id)
-            : this.#fallback!.mangaRecommendationsOfficial(id),
-      ),
+  // sfw/sfw_strict filter NSFW entries out of the recommendation list itself. No effect during
+  // an official-API fallback: animeRecommendationsOfficial/mangaRecommendationsOfficial take no
+  // sfw param.
+  #recommendations(
+    kind: "anime" | "manga",
+    id: number,
+    sfw?: boolean,
+    sfwStrict?: boolean,
+  ): Promise<Record<string, unknown>> {
+    return this.#cache.wrapStaleOnError(
+      `${kind}-recs:${id}:${Boolean(sfw)}:${Boolean(sfwStrict)}`,
+      () =>
+        withFallback(
+          this.#logger,
+          this.#fallback,
+          `${kind} recommendations`,
+          async () => {
+            const res = await this.#http.getJson<ItemResponse<RawRecommendation[]>>(
+              `${kind}/${id}/recommendations`,
+              { query: { sfw, ...sfwStrictQuery(sfwStrict) } },
+            );
+            return summarizeRecommendations(res.data);
+          },
+          () =>
+            kind === "anime"
+              ? this.#fallback!.animeRecommendationsOfficial(id)
+              : this.#fallback!.mangaRecommendationsOfficial(id),
+        ),
     );
   }
 
@@ -483,9 +509,16 @@ export class TenraiClient {
     return this.#list<RawCharacterEntity>("characters", { ...p }, (c) => summarizeCharacter(c));
   }
 
-  async getCharacter(id: number): Promise<Record<string, unknown>> {
-    return this.#cached<RawCharacterEntity>(`character:${id}`, `characters/${id}/full`, (c) =>
-      summarizeCharacter(c, true),
+  async getCharacter(
+    id: number,
+    sfw?: boolean,
+    sfwStrict?: boolean,
+  ): Promise<Record<string, unknown>> {
+    return this.#cached<RawCharacterEntity>(
+      `character:${id}:${Boolean(sfw)}:${Boolean(sfwStrict)}`,
+      `characters/${id}/full`,
+      (c) => summarizeCharacter(c, true),
+      { sfw, ...sfwStrictQuery(sfwStrict) },
     );
   }
 
@@ -493,9 +526,16 @@ export class TenraiClient {
     return this.#list<RawPersonEntity>("people", { ...p }, (person) => summarizePerson(person));
   }
 
-  async getPerson(id: number): Promise<Record<string, unknown>> {
-    return this.#cached<RawPersonEntity>(`person:${id}`, `people/${id}/full`, (person) =>
-      summarizePerson(person, true),
+  async getPerson(
+    id: number,
+    sfw?: boolean,
+    sfwStrict?: boolean,
+  ): Promise<Record<string, unknown>> {
+    return this.#cached<RawPersonEntity>(
+      `person:${id}:${Boolean(sfw)}:${Boolean(sfwStrict)}`,
+      `people/${id}/full`,
+      (person) => summarizePerson(person, true),
+      { sfw, ...sfwStrictQuery(sfwStrict) },
     );
   }
 
@@ -587,8 +627,17 @@ export class TenraiClient {
     return summarizePerson(res.data, true);
   }
 
-  async getAnimeNews(id: number, page?: number): Promise<Record<string, unknown>> {
-    return this.#list<RawNewsItem>(`anime/${id}/news`, { page }, summarizeNewsItem);
+  async getAnimeNews(
+    id: number,
+    page?: number,
+    sfw?: boolean,
+    sfwStrict?: boolean,
+  ): Promise<Record<string, unknown>> {
+    return this.#list<RawNewsItem>(
+      `anime/${id}/news`,
+      { page, sfw, ...sfwStrictQuery(sfwStrict) },
+      summarizeNewsItem,
+    );
   }
 
   // Site-wide news feed, not tied to one anime — not cached (paginated/frequently-changing).

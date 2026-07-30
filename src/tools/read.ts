@@ -287,13 +287,19 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "synonyms, and related entries. `moreinfo` is a free-text field MAL editors sometimes " +
         "add (e.g. suggested viewing order for a franchise) — usually absent. Only carries the " +
         "single main `trailer` URL — use get_anime_videos for every promo/episode-preview/music " +
-        "video. Obtain the mal_id from search_anime first. If Tenrai is unavailable and " +
-        "MAL_CLIENT_ID is set, transparently retries via the official " +
-        `API, which omits ${gapList(ANIME_DETAIL_FALLBACK_GAPS)} (no equivalent fields there).`,
-      inputSchema: z.strictObject({ id: malId }),
+        "video. Obtain the mal_id from search_anime first. `sfw`/`sfw_strict` don't affect this " +
+        "anime itself (its id was requested explicitly) — they filter NSFW entries out of its " +
+        "`relations` list. If Tenrai is unavailable and MAL_CLIENT_ID is set, transparently " +
+        `retries via the official API, which omits ${gapList(ANIME_DETAIL_FALLBACK_GAPS)} (no ` +
+        "equivalent fields there) and ignores `sfw`/`sfw_strict` entirely.",
+      inputSchema: z.strictObject({
+        id: malId,
+        sfw: sfw.optional(),
+        sfw_strict: sfwStrict.optional(),
+      }),
       outputSchema: animeDetailSchema,
       annotations: READ_ONLY,
-      handler: ({ id }) => reply(() => tenrai.getAnime(id)),
+      handler: ({ id, sfw: s, sfw_strict: ss }) => reply(() => tenrai.getAnime(id, s, ss)),
     }),
     defineTool({
       name: "get_manga",
@@ -301,13 +307,20 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       description:
         "Get full details for one manga by mal_id: synopsis, score, genres, authors, " +
         "serialization, external links (official site, social media), alternate title " +
-        "synonyms, and related entries. Obtain the mal_id from search_manga first. If " +
-        "Tenrai is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
-        `API, which omits ${gapList(MANGA_DETAIL_FALLBACK_GAPS)} (no equivalent field there).`,
-      inputSchema: z.strictObject({ id: malId }),
+        "synonyms, and related entries. Obtain the mal_id from search_manga first. " +
+        "`sfw`/`sfw_strict` don't affect this manga itself (its id was requested explicitly) — " +
+        "they filter NSFW entries out of its `relations` list. If Tenrai is unavailable and " +
+        "MAL_CLIENT_ID is set, transparently retries via the official " +
+        `API, which omits ${gapList(MANGA_DETAIL_FALLBACK_GAPS)} (no equivalent field there) ` +
+        "and ignores `sfw`/`sfw_strict` entirely.",
+      inputSchema: z.strictObject({
+        id: malId,
+        sfw: sfw.optional(),
+        sfw_strict: sfwStrict.optional(),
+      }),
       outputSchema: mangaDetailSchema,
       annotations: READ_ONLY,
-      handler: ({ id }) => reply(() => tenrai.getManga(id)),
+      handler: ({ id, sfw: s, sfw_strict: ss }) => reply(() => tenrai.getManga(id, s, ss)),
     }),
     defineTool({
       name: "get_anime_characters",
@@ -363,14 +376,20 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "and capped at the top 25 (no pagination). Get the mal_id from search_anime. Use " +
         "get_top_anime instead for a global popularity/score ranking not tied to one title, or " +
         "get_recent_anime_recommendations for a site-wide feed of recommendation pairs not tied " +
-        "to this title either. If " +
+        "to this title either. `sfw`/`sfw_strict` filter NSFW entries out of the recommendation " +
+        "list itself. If " +
         "Tenrai is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
         "API's own recommendations field (same output shape, but ordering/counts may differ " +
-        "slightly from Tenrai's).",
-      inputSchema: z.strictObject({ id: malId }),
+        "slightly from Tenrai's, and `sfw`/`sfw_strict` are ignored entirely).",
+      inputSchema: z.strictObject({
+        id: malId,
+        sfw: sfw.optional(),
+        sfw_strict: sfwStrict.optional(),
+      }),
       outputSchema: recommendationsSchema,
       annotations: READ_ONLY,
-      handler: ({ id }) => reply(() => tenrai.getAnimeRecommendations(id)),
+      handler: ({ id, sfw: s, sfw_strict: ss }) =>
+        reply(() => tenrai.getAnimeRecommendations(id, s, ss)),
     }),
     defineTool({
       name: "get_recent_anime_recommendations",
@@ -426,14 +445,20 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "and capped at the top 25 (no pagination). Get the mal_id from search_manga. Use " +
         "get_top_manga instead for a global popularity/score ranking not tied to one title, or " +
         "get_recent_manga_recommendations for a site-wide feed of recommendation pairs not tied " +
-        "to this title either. If " +
+        "to this title either. `sfw`/`sfw_strict` filter NSFW entries out of the recommendation " +
+        "list itself. If " +
         "Tenrai is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
         "API's own recommendations field (same output shape, but ordering/counts may differ " +
-        "slightly from Tenrai's).",
-      inputSchema: z.strictObject({ id: malId }),
+        "slightly from Tenrai's, and `sfw`/`sfw_strict` are ignored entirely).",
+      inputSchema: z.strictObject({
+        id: malId,
+        sfw: sfw.optional(),
+        sfw_strict: sfwStrict.optional(),
+      }),
       outputSchema: recommendationsSchema,
       annotations: READ_ONLY,
-      handler: ({ id }) => reply(() => tenrai.getMangaRecommendations(id)),
+      handler: ({ id, sfw: s, sfw_strict: ss }) =>
+        reply(() => tenrai.getMangaRecommendations(id, s, ss)),
     }),
     defineTool({
       name: "get_recent_manga_recommendations",
@@ -664,11 +689,17 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       title: "Get character details",
       description:
         "Get full details for one character by mal_id: bio, the anime/manga they appear in, and " +
-        "their voice actors. Obtain the mal_id from search_characters or get_anime_characters.",
-      inputSchema: z.strictObject({ id: malId }),
+        "their voice actors. Obtain the mal_id from search_characters or get_anime_characters. " +
+        "`sfw`/`sfw_strict` filter NSFW/adult-adjacent titles out of the character's own " +
+        "anime/manga appearance lists (verified live) rather than affecting the character itself.",
+      inputSchema: z.strictObject({
+        id: malId,
+        sfw: sfw.optional(),
+        sfw_strict: sfwStrict.optional(),
+      }),
       outputSchema: characterEntitySchema,
       annotations: READ_ONLY,
-      handler: ({ id }) => reply(() => tenrai.getCharacter(id)),
+      handler: ({ id, sfw: s, sfw_strict: ss }) => reply(() => tenrai.getCharacter(id, s, ss)),
     }),
     defineTool({
       name: "search_people",
@@ -696,11 +727,17 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "voiced roles (capped to the first 50 for prolific people, in whatever order the " +
         "upstream API returns them — not necessarily their most notable roles). Obtain the " +
         "mal_id from search_people, or from get_character's voice_actors (which include each " +
-        "actor's mal_id — get_anime_characters' voice_actors are names only, with no id).",
-      inputSchema: z.strictObject({ id: malId }),
+        "actor's mal_id — get_anime_characters' voice_actors are names only, with no id). " +
+        "`sfw`/`sfw_strict` filter NSFW/adult-adjacent titles out of the person's own " +
+        "anime/manga credit lists (verified live) rather than affecting the person themselves.",
+      inputSchema: z.strictObject({
+        id: malId,
+        sfw: sfw.optional(),
+        sfw_strict: sfwStrict.optional(),
+      }),
       outputSchema: personEntitySchema,
       annotations: READ_ONLY,
-      handler: ({ id }) => reply(() => tenrai.getPerson(id)),
+      handler: ({ id, sfw: s, sfw_strict: ss }) => reply(() => tenrai.getPerson(id, s, ss)),
     }),
     defineTool({
       name: "get_anime_staff",
@@ -922,11 +959,20 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       description:
         "List recent news articles about an anime (by mal_id): headline, date, author and excerpt. " +
         "Useful for 'what's new / any announcements' questions. Get the mal_id from search_anime. " +
-        "Use get_news instead for a site-wide feed not tied to one anime.",
-      inputSchema: z.strictObject({ id: malId, page: page.optional() }),
+        "Use get_news instead for a site-wide feed not tied to one anime. `sfw` set to true " +
+        "returns an empty list entirely for an NSFW-rated anime (verified live) rather than " +
+        "filtering individual articles — `sfw_strict` behaves the same way, just for a wider " +
+        "content-rating cutoff.",
+      inputSchema: z.strictObject({
+        id: malId,
+        page: page.optional(),
+        sfw: sfw.optional(),
+        sfw_strict: sfwStrict.optional(),
+      }),
       outputSchema: listPageSchema(newsItemSchema),
       annotations: READ_ONLY,
-      handler: ({ id, page: pg }) => reply(() => tenrai.getAnimeNews(id, pg)),
+      handler: ({ id, page: pg, sfw: s, sfw_strict: ss }) =>
+        reply(() => tenrai.getAnimeNews(id, pg, s, ss)),
     }),
     defineTool({
       name: "get_news",

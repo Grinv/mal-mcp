@@ -58,6 +58,45 @@ test("getRandomAnime forwards sfw/sfw_strict as query params", async (t) => {
   assert.match(url, /sfw-strict=true/);
 });
 
+test("getAnime/getManga forward sfw/sfw_strict to the /full endpoint", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: { mal_id: 1, title: "T" } }));
+  installFetch(t, mock);
+  await tenrai().getAnime(1, true, true);
+  await tenrai().getManga(2, true, true);
+  assert.match(mock.calls[0]!.url, /anime\/1\/full\?.*sfw=true/);
+  assert.match(mock.calls[0]!.url, /sfw-strict=true/);
+  assert.match(mock.calls[1]!.url, /manga\/2\/full\?.*sfw=true/);
+  assert.match(mock.calls[1]!.url, /sfw-strict=true/);
+});
+
+test("getAnimeRecommendations/getMangaRecommendations forward sfw/sfw_strict", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [] }));
+  installFetch(t, mock);
+  await tenrai().getAnimeRecommendations(1, true, true);
+  await tenrai().getMangaRecommendations(2, true, true);
+  assert.match(mock.calls[0]!.url, /anime\/1\/recommendations\?.*sfw=true/);
+  assert.match(mock.calls[1]!.url, /manga\/2\/recommendations\?.*sfw=true/);
+});
+
+test("getAnimeNews forwards sfw/sfw_strict alongside page", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [] }));
+  installFetch(t, mock);
+  await tenrai().getAnimeNews(1, 2, true, true);
+  const url = mock.calls[0]!.url;
+  assert.match(url, /page=2/);
+  assert.match(url, /sfw=true/);
+  assert.match(url, /sfw-strict=true/);
+});
+
+test("getCharacter/getPerson forward sfw/sfw_strict to the /full endpoint", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: { mal_id: 1, name: "N" } }));
+  installFetch(t, mock);
+  await tenrai().getCharacter(1, true, true);
+  await tenrai().getPerson(2, true, true);
+  assert.match(mock.calls[0]!.url, /characters\/1\/full\?.*sfw=true/);
+  assert.match(mock.calls[1]!.url, /people\/2\/full\?.*sfw=true/);
+});
+
 test("searchAnime sends type/rating as comma-joined query params, not repeated keys", async (t) => {
   const mock = mockFetch(() => jsonResponse({ data: [] }));
   installFetch(t, mock);
@@ -220,6 +259,15 @@ test("getAnime caches by id (second call hits cache, no second fetch)", async (t
   assert.equal(b["title"], "Bebop");
   assert.equal(mock.calls.length, 1);
   assert.match(mock.calls[0]!.url, /\/anime\/1\/full$/);
+});
+
+test("getAnime caches sfw=true and sfw=false separately, since the response can differ", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: { mal_id: 1, title: "Bebop" } }));
+  installFetch(t, mock);
+  const client = tenrai();
+  await client.getAnime(1);
+  await client.getAnime(1, true);
+  assert.equal(mock.calls.length, 2);
 });
 
 test("getProducer hits /producers/{id}/full and surfaces about/external", async (t) => {
