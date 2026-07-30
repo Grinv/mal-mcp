@@ -19,6 +19,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Fix the same 404 for the README's Security link (`SECURITY.md` was likewise missing from the published npm files) ([2c827bb](https://github.com/Grinv/mal-mcp/commit/2c827bb)).
 - Reject a shaped response missing `mal_id` for characters, people, producers, genres, recommendations, staff, and personal-list items, instead of silently shipping a record the caller can't chain into another tool ([900aa45](https://github.com/Grinv/mal-mcp/commit/900aa45)).
 - Reject a `get_seasons_list` entry missing `year`, instead of silently shipping one the caller can't pass to `get_seasonal_anime` ([acdf72d](https://github.com/Grinv/mal-mcp/commit/acdf72d)).
+- Drop a single malformed entry (e.g. missing `mal_id`) from character/recommendation/staff/season lists and personal-list pages instead of failing the whole call, restoring the per-item resilience the `mal_id`/`year`-required fix above had traded away on these paths ([354f6c8](https://github.com/Grinv/mal-mcp/commit/354f6c8)).
 
 ### Security
 
