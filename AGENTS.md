@@ -38,12 +38,19 @@ src/
                   # accepts, as `as const` arrays — the single source of truth read.ts's
                   # z.enum(...) calls build from) + tenraiParams.ts (TenraiClient's param
                   # interfaces, split out once tenrai.ts grew too large to scan) +
-                  # readFallback.ts (retry policy), mal.ts (personal list + token refresh +
-                  # login — MyUserInfoSchema/MalListResponseSchema/ListStatusUpdateResponseSchema
-                  # stay here as .passthrough(), see below), officialReads.ts (Client-ID-only
-                  # public reads, the fallback's data source), httpClients.ts (shared HttpClient
-                  # factory for the official API, + withThrottle(), the rate-limit wiring
-                  # shared with tenrai.ts too)
+                  # readFallback.ts (retry policy), mal.ts (personal-list CRUD — MyUserInfoSchema/
+                  # MalListResponseSchema/ListStatusUpdateResponseSchema stay here as
+                  # .passthrough(), see below) + malEnums.ts (mal.ts's own enum arrays, same
+                  # reasoning/pattern as tenraiEnums.ts, shared with tools/mylist.ts) +
+                  # malAuth.ts (MalAuthManager: OAuth token refresh + the login_mal/
+                  # submit_mal_redirect PKCE flow, composed into MalClient — split out because
+                  # token lifecycle and personal-list CRUD are genuinely different concerns, not
+                  # because of anime/manga: unlike tenrai.ts's split, there's no anime/manga axis
+                  # here worth separating further, since #getMyList/#updateStatus/#deleteItem are
+                  # correctly DRY, resource-parameterized helpers, not a merged-domain mistake),
+                  # officialReads.ts (Client-ID-only public reads, the fallback's data source),
+                  # httpClients.ts (shared HttpClient factory for the official API, +
+                  # withThrottle(), the rate-limit wiring shared with tenrai.ts too)
   tools/          # read.ts, mylist.ts, login.ts (login_mal), guard.ts
   prompts.ts      # registerPrompts(server, tenrai) — clients get threaded in as needed,
                   # e.g. for completable() autocomplete on recommend_similar's title

@@ -1,21 +1,16 @@
 // Client for the official MyAnimeList API (v2). Handles the personal-list
-// operations that Tenrai cannot do (they require a user token). Implements
-// silent token refresh: on 401 (or when the cached access token is expired)
-// it refreshes via grant_type=refresh_token and persists the rotated token.
+// operations that Tenrai cannot do (they require a user token). OAuth token
+// lifecycle (silent refresh, the login_mal/submit_mal_redirect PKCE flow) is
+// delegated to MalAuthManager (malAuth.ts) — this class owns only the
+// personal-list CRUD calls and their request/response shaping.
 import { z } from "zod";
-import { HttpClient } from "../lib/http.js";
 import { ApiError } from "../lib/errors.js";
-import { TokenStore, type TokenState } from "../lib/tokenStore.js";
-import {
-  buildAuthorizeUrl,
-  extractCode,
-  generateVerifier,
-  listenForCode,
-  openBrowser,
-} from "../lib/oauthLogin.js";
+import { TokenStore } from "../lib/tokenStore.js";
 import { malApiHttpClient } from "./httpClients.js";
+import { MalAuthManager } from "./malAuth.js";
+import type { HttpClient } from "../lib/http.js";
 import type { Logger } from "../lib/logger.js";
-import type { Config, MalAuth } from "../config.js";
+import type { Config } from "../config.js";
 import {
   myListSchema,
   myListItemSchema,
@@ -24,8 +19,6 @@ import {
 } from "../lib/format.schemas.js";
 import { mapLenient } from "../lib/format.js";
 import type { AnimeListStatus, MangaListStatus, AnimeListSort, MangaListSort } from "./malEnums.js";
-
-const REFRESH_SKEW_MS = 60_000;
 
 // Request the full list_status the update tools can WRITE, so reads round-trip
 // them (priority/tags/comments/rewatch counters were previously write-only —
@@ -85,46 +78,15 @@ export interface MangaStatusUpdate {
 
 export class MalClient {
   readonly #http: HttpClient;
-  readonly #oauth: HttpClient;
-  readonly #oauthBaseUrl: string;
-  readonly #oauthPort: number;
-  readonly #auth: MalAuth;
-  readonly #logger: Logger;
-  readonly #store: TokenStore | undefined;
-  #state: TokenState;
-  // Single-flight: dedupe concurrent refreshes so parallel 401s don't each spend
-  // the (rotating) refresh token and clobber each other.
-  #refreshing: Promise<string> | undefined;
-  // In-progress interactive login (login_mal): the PKCE verifier + redirect URI
-  // awaiting a code, and the localhost listener (if one could be bound).
-  #pendingLogin: { verifier: string; redirectUri: string } | undefined;
-  #loginServer: { close: () => void } | undefined;
+  readonly #auth: MalAuthManager;
 
   constructor(config: Config, logger: Logger, store?: TokenStore) {
-    this.#auth = config.auth;
-    this.#logger = logger;
-    this.#store = store;
     // Deliberately no withThrottle() here (contrast OfficialReadsClient): personal-list
     // reads/writes are single user-initiated calls, not bulk enumeration, and MAL publishes
     // no rate limit for this API's OAuth-authenticated endpoints either way. Revisit if that
     // stops holding true.
     this.#http = malApiHttpClient(config, logger);
-    this.#oauth = new HttpClient({
-      baseUrl: config.malOauthBaseUrl,
-      logger,
-      timeoutMs: config.httpTimeoutMs,
-      retries: config.httpRetries,
-    });
-    this.#oauthBaseUrl = config.malOauthBaseUrl;
-    this.#oauthPort = config.oauthPort;
-
-    const stored = store?.load();
-    this.#state = stored ?? {
-      accessToken: this.#auth.accessToken ?? "",
-      refreshToken: this.#auth.refreshToken ?? "",
-      // Unknown expiry for an env-provided token: trust it until a 401.
-      expiresAt: this.#auth.accessToken ? Number.POSITIVE_INFINITY : 0,
-    };
+    this.#auth = new MalAuthManager(config, logger, store);
   }
 
   /** Whether the personal-list tools are usable right now — a valid access
@@ -132,14 +94,23 @@ export class MalClient {
    *  config snapshot) so a token obtained via login_mal during this session, or
    *  loaded from the token store, counts immediately. */
   isConfigured(): boolean {
-    return Boolean(this.#state.accessToken || this.#canRefresh());
+    return this.#auth.isConfigured();
   }
 
-  // Can we silently refresh? A client id plus a refresh token (from the live
-  // state — e.g. just saved by login — or from env). The client secret is
-  // optional (public PKCE client).
-  #canRefresh(): boolean {
-    return Boolean(this.#auth.clientId && (this.#state.refreshToken || this.#auth.refreshToken));
+  /** Begin an interactive OAuth login and return the authorize URL for the user
+   *  to open. See MalAuthManager.startLogin for the full contract. */
+  startLogin(options: { open?: (url: string) => void } = {}): Promise<{
+    authorizeUrl: string;
+    redirectUri: string;
+    listening: boolean;
+  }> {
+    return this.#auth.startLogin(options);
+  }
+
+  /** Finish an interactive login from the redirected URL (or bare code) the user
+   *  pasted back — the remote/headless path. */
+  submitRedirect(redirect: string): Promise<void> {
+    return this.#auth.submitRedirect(redirect);
   }
 
   // ---- personal list operations -------------------------------------------
@@ -147,7 +118,7 @@ export class MalClient {
   // so each public method delegates to one resource-parameterized private helper.
 
   async getMyUserInfo(): Promise<z.infer<typeof MyUserInfoSchema>> {
-    const data = await this.#authed((token) =>
+    const data = await this.#auth.withAuth((token) =>
       this.#http.getJson<unknown>("users/@me", {
         query: { fields: USER_FIELDS },
         headers: bearer(token),
@@ -169,7 +140,7 @@ export class MalClient {
     fields: string,
     p: AnimeListParams | MangaListParams,
   ): Promise<z.infer<typeof myListSchema>> {
-    const data = await this.#authed((token) =>
+    const data = await this.#auth.withAuth((token) =>
       this.#http.getJson<unknown>(`users/@me/${resource}list`, {
         query: { fields, status: p.status, sort: p.sort, limit: p.limit, offset: p.offset },
         headers: bearer(token),
@@ -198,7 +169,7 @@ export class MalClient {
     id: number,
     update: AnimeStatusUpdate | MangaStatusUpdate,
   ): Promise<z.infer<typeof ListStatusUpdateResponseSchema>> {
-    const data = await this.#authed((token) =>
+    const data = await this.#auth.withAuth((token) =>
       this.#http.requestJson<unknown>(`${resource}/${id}/my_list_status`, {
         method: "PATCH",
         body: formBody(update),
@@ -217,7 +188,7 @@ export class MalClient {
   }
 
   async #deleteItem(resource: Resource, id: number): Promise<Record<string, unknown>> {
-    await this.#authed((token) =>
+    await this.#auth.withAuth((token) =>
       this.#http.requestJson<unknown>(`${resource}/${id}/my_list_status`, {
         method: "DELETE",
         headers: bearer(token),
@@ -225,181 +196,6 @@ export class MalClient {
     );
     return { deleted: true, [`${resource}_id`]: id };
   }
-
-  // ---- auth ----------------------------------------------------------------
-
-  /** Run `fn` with a valid access token, refreshing once on 401 if possible. */
-  async #authed<T>(fn: (token: string) => Promise<T>): Promise<T> {
-    const token = await this.#ensureAccessToken();
-    try {
-      return await fn(token);
-    } catch (err) {
-      if (err instanceof ApiError && err.code === "unauthorized" && this.#canRefresh()) {
-        this.#logger.info("access token rejected; attempting silent refresh");
-        const fresh = await this.#refresh();
-        return await fn(fresh);
-      }
-      throw err;
-    }
-  }
-
-  async #ensureAccessToken(): Promise<string> {
-    const valid = this.#state.accessToken && this.#state.expiresAt - REFRESH_SKEW_MS > Date.now();
-    if (valid) return this.#state.accessToken;
-    if (this.#canRefresh()) return this.#refresh();
-    if (this.#state.accessToken) return this.#state.accessToken;
-    throw new ApiError({
-      code: "unauthorized",
-      message: "No MyAnimeList access token configured",
-    });
-  }
-
-  #refresh(): Promise<string> {
-    // Coalesce concurrent refreshes into one in-flight request.
-    this.#refreshing ??= this.#doRefresh().finally(() => {
-      this.#refreshing = undefined;
-    });
-    return this.#refreshing;
-  }
-
-  async #doRefresh(): Promise<string> {
-    const refreshToken = this.#state.refreshToken || this.#auth.refreshToken;
-    if (!this.#auth.clientId || !refreshToken) {
-      throw new ApiError({
-        code: "unauthorized",
-        message: "Cannot refresh: missing client id or refresh token",
-      });
-    }
-    // Public (secret-less) PKCE client → no client_secret in the request.
-    const body = formBody({
-      grant_type: "refresh_token",
-      client_id: this.#auth.clientId,
-      refresh_token: refreshToken,
-    });
-    const res = await this.#oauth.requestJson<TokenResponse>("token", {
-      method: "POST",
-      body,
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      retries: 0,
-    });
-
-    this.#state = {
-      accessToken: res.access_token,
-      refreshToken: res.refresh_token ?? refreshToken,
-      expiresAt: Date.now() + (res.expires_in ?? 0) * 1000,
-    };
-    this.#store?.save(this.#state);
-    this.#logger.info("refreshed MyAnimeList access token");
-    return this.#state.accessToken;
-  }
-
-  // ---- interactive login (login_mal / submit_mal_redirect) -----------------
-
-  /** The localhost Redirect URI the MAL app must be registered with. */
-  get redirectUri(): string {
-    return `http://localhost:${this.#oauthPort}/callback`;
-  }
-
-  /** Begin an interactive OAuth login and return the authorize URL for the user
-   *  to open. Best-effort, so it works in every environment: it also starts a
-   *  localhost listener (auto-completes when the browser is on the same machine)
-   *  and tries to open the browser. When the browser is remote/headless, the
-   *  user finishes by pasting the redirected URL into {@link submitRedirect}. */
-  async startLogin(options: { open?: (url: string) => void } = {}): Promise<{
-    authorizeUrl: string;
-    redirectUri: string;
-    listening: boolean;
-  }> {
-    if (!this.#auth.clientId) {
-      throw new ApiError({ code: "unauthorized", message: "Set MAL_CLIENT_ID before login." });
-    }
-    this.#loginServer?.close(); // supersede any prior pending login
-    this.#loginServer = undefined;
-
-    const verifier = generateVerifier();
-    const redirectUri = this.redirectUri;
-    this.#pendingLogin = { verifier, redirectUri };
-    const authorizeUrl = buildAuthorizeUrl({
-      oauthBaseUrl: this.#oauthBaseUrl,
-      clientId: this.#auth.clientId,
-      redirectUri,
-      verifier,
-      state: "login_mal",
-    });
-
-    let listening = false;
-    try {
-      this.#loginServer = await listenForCode({
-        port: this.#oauthPort,
-        path: "/callback",
-        onCode: (code) => {
-          void this.#completeWithCode(code).catch((err) =>
-            this.#logger.warn(`login_mal callback exchange failed: ${errMsg(err)}`),
-          );
-        },
-      });
-      listening = true;
-    } catch (err) {
-      // Port busy / can't bind → user completes via submit_mal_redirect instead.
-      this.#logger.info(`login_mal: local callback unavailable (${errMsg(err)}); use manual paste`);
-    }
-
-    (options.open ?? openBrowser)(authorizeUrl);
-    return { authorizeUrl, redirectUri, listening };
-  }
-
-  /** Finish an interactive login from the redirected URL (or bare code) the user
-   *  pasted back — the remote/headless path. */
-  async submitRedirect(redirect: string): Promise<void> {
-    if (!this.#pendingLogin) {
-      throw new ApiError({
-        code: "bad_request",
-        message: "No login in progress; run login_mal first.",
-      });
-    }
-    await this.#completeWithCode(extractCode(redirect));
-  }
-
-  // Exchange an authorization code for tokens (public PKCE client → no secret),
-  // persist them, and clear the pending-login state.
-  async #completeWithCode(code: string): Promise<void> {
-    const pending = this.#pendingLogin;
-    if (!pending) throw new ApiError({ code: "bad_request", message: "No login in progress." });
-    const body = formBody({
-      grant_type: "authorization_code",
-      client_id: this.#auth.clientId,
-      code,
-      code_verifier: pending.verifier,
-      redirect_uri: pending.redirectUri,
-    });
-    const res = await this.#oauth.requestJson<TokenResponse>("token", {
-      method: "POST",
-      body,
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      retries: 0,
-    });
-    this.#state = {
-      accessToken: res.access_token,
-      refreshToken: res.refresh_token ?? "",
-      expiresAt: Date.now() + (res.expires_in ?? 0) * 1000,
-    };
-    this.#store?.save(this.#state);
-    this.#pendingLogin = undefined;
-    this.#loginServer?.close();
-    this.#loginServer = undefined;
-    this.#logger.info("login_mal: obtained and stored a MyAnimeList token");
-  }
-}
-
-function errMsg(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
-
-interface TokenResponse {
-  access_token: string;
-  refresh_token?: string;
-  expires_in?: number;
-  token_type?: string;
 }
 
 // Response shapes are validated (not just cast) at the boundary: the official API drives
