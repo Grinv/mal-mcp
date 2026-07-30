@@ -82,7 +82,7 @@ const limit = z.int().min(1).max(50).describe("Max results per page (1-50).");
 // A handful of Tenrai list endpoints (magazines, the two site-wide recommendation feeds) have a
 // 100 (not 50) per-page ceiling.
 const limit100 = z.int().min(1).max(100).describe("Max results per page (1-100).");
-const page = z.int().min(1).describe("1-based page number for pagination.");
+const page = z.int().min(1).max(1000).describe("1-based page number for pagination.");
 const sfw = z
   .boolean()
   .describe(

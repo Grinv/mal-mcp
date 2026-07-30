@@ -447,6 +447,20 @@ test("search_anime/search_manga reject a letter filter longer than one character
   assert.equal(mock.calls.length, 0);
 });
 
+test("search_anime rejects a page past Tenrai's own 1000-page ceiling", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const res = await client.callTool({
+    name: "search_anime",
+    arguments: { q: "x", page: 1001 },
+  });
+  assert.equal(res.isError, true);
+  assert.equal(mock.calls.length, 0);
+});
+
 test("get_seasonal_anime/get_upcoming_season accept kids/continuing/unapproved/order_by", async (t) => {
   const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
   installFetch(t, mock);
