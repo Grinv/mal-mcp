@@ -22,6 +22,20 @@ const TRIGGER_PHRASES = [
   /chain(?:ed|s)? into/i,
 ];
 
+/** Given the index of an opening `{`, return the index of its matching `}` (brace-depth counted,
+ *  so nested object literals inside don't confuse the boundary), or -1 if unbalanced. */
+function findMatchingBrace(text, openBrace) {
+  let depth = 0;
+  for (let i = openBrace; i < text.length; i++) {
+    if (text[i] === "{") depth++;
+    else if (text[i] === "}") {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
 /** Find every top-level `defineTool({ ... })` block in a source file (brace-matched, so nested
  *  object literals inside a tool's own config don't confuse the boundary). */
 function findToolBlocks(text) {
@@ -32,18 +46,7 @@ function findToolBlocks(text) {
     const start = text.indexOf(marker, from);
     if (start === -1) break;
     const openBrace = start + "defineTool(".length;
-    let depth = 0;
-    let end = -1;
-    for (let i = openBrace; i < text.length; i++) {
-      if (text[i] === "{") depth++;
-      else if (text[i] === "}") {
-        depth--;
-        if (depth === 0) {
-          end = i;
-          break;
-        }
-      }
-    }
+    const end = findMatchingBrace(text, openBrace);
     if (end === -1) throw new Error(`Unbalanced defineTool( block at offset ${start}`);
     blocks.push(text.slice(openBrace, end + 1));
     from = end + 1;
@@ -99,18 +102,7 @@ function parseSchemaOptionalFields(text) {
   while ((m = declPattern.exec(text))) {
     const name = m[1];
     const openBrace = text.indexOf("{", m.index + m[0].length - 1);
-    let depth = 0;
-    let end = -1;
-    for (let i = openBrace; i < text.length; i++) {
-      if (text[i] === "{") depth++;
-      else if (text[i] === "}") {
-        depth--;
-        if (depth === 0) {
-          end = i;
-          break;
-        }
-      }
-    }
+    const end = findMatchingBrace(text, openBrace);
     const body = text.slice(openBrace + 1, end);
     const optionalFields = [...body.matchAll(/(\w+):[^,\n]*\.optional\(\)/g)].map((mm) => mm[1]);
     // A field wrapping z.array(someSchema) — e.g. `seasons: z.array(seasonEntrySchema)` — isn't
