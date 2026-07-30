@@ -60,3 +60,8 @@ test("oauth callback port defaults to 8080 and is overridable", () => {
   assert.equal(loadConfig({}).oauthPort, 8080);
   assert.equal(loadConfig({ MAL_OAUTH_PORT: "9123" }).oauthPort, 9123);
 });
+
+test("oauth callback port rejects a value outside the valid TCP port range", () => {
+  assert.throws(() => loadConfig({ MAL_OAUTH_PORT: "65536" }));
+  assert.throws(() => loadConfig({ MAL_OAUTH_PORT: "0" }));
+});

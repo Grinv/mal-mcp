@@ -24,7 +24,7 @@ export const EnvSchema = z.object({
   CACHE_TTL_MS: z.coerce.number().int().nonnegative().default(300_000),
   // Localhost port for the `login_mal` OAuth callback. Must match the port in
   // the Redirect URI registered for the MAL app (http://localhost:<port>/callback).
-  MAL_OAUTH_PORT: z.coerce.number().int().positive().default(8080),
+  MAL_OAUTH_PORT: z.coerce.number().int().min(1).max(65535).default(8080),
 
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error", "silent"]).default("info"),
 });
