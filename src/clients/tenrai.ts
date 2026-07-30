@@ -50,12 +50,60 @@ interface ItemResponse<T> {
   data: T;
 }
 
+// Tenrai's real enums (its own OpenAPI spec), mirrored here so a typo can't compile — the
+// zod schemas in tools/read.ts are the actual runtime gate (agent input is validated there
+// before it ever reaches this client), but that's no reason for this client's own params to
+// be typed as bare `string`: TenraiClient is called directly by tests (contract.test.ts) and
+// is a public API in its own right. Each type unions every enum Tenrai documents for that
+// query param across every endpoint that uses it, since several params (`order_by`, `status`,
+// `filter`, `type`) are shared by anime and manga routes with slightly different allowed values.
+type AnimeMediaType =
+  "tv" | "movie" | "ova" | "special" | "ona" | "music" | "cm" | "pv" | "tv_special";
+type MangaMediaType = "manga" | "novel" | "lightnovel" | "oneshot" | "doujin" | "manhwa" | "manhua";
+type ContentRating = "g" | "pg" | "pg13" | "r17" | "r" | "rx";
+type AnimeMangaStatus =
+  "airing" | "complete" | "upcoming" | "publishing" | "hiatus" | "discontinued";
+type SortDir = "asc" | "desc";
+type AnimeMangaOrderBy =
+  | "mal_id"
+  | "title"
+  | "start_date"
+  | "end_date"
+  | "episodes"
+  | "chapters"
+  | "volumes"
+  | "score"
+  | "scored_by"
+  | "rank"
+  | "popularity"
+  | "members"
+  | "favorites";
+type TopFilter = "airing" | "upcoming" | "bypopularity" | "favorite" | "publishing";
+type SeasonName = "winter" | "spring" | "summer" | "fall";
+type SeasonOrderBy = "score" | "members" | "start_date";
+type ScheduleDay =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday"
+  | "unknown"
+  | "other";
+type ReviewSort = "newest" | "oldest" | "most_helpful";
+type ReviewTriState = "true" | "false" | "only";
+type ReviewSentiment = "recommended" | "mixed_feelings" | "not_recommended";
+// Shared by search_characters/search_people/get_producers — each has its own order_by enum;
+// this unions all three since one interface serves all three tools.
+type NameOrderBy = "mal_id" | "name" | "favorites" | "birthday" | "count" | "established";
+
 // Shared by the plain-name-search endpoints (characters/people/producers) — no content
 // filtering, just find-by-name plus ordering/pagination/alphabetical browse.
 export interface SearchParams {
   q?: string;
-  order_by?: string;
-  sort?: string;
+  order_by?: NameOrderBy;
+  sort?: SortDir;
   limit?: number;
   page?: number;
   letter?: string;
@@ -63,14 +111,17 @@ export interface SearchParams {
 
 // searchAnime/searchManga's much larger filter set — kept separate from SearchParams so a
 // plain-name search interface doesn't carry a dozen anime/manga-only fields it never uses.
-export interface AnimeMangaSearchParams extends SearchParams {
-  type?: string[];
-  status?: string;
+// (Omits SearchParams's own `order_by` rather than extending it — anime/manga order_by is a
+// different, larger enum than the plain-name-search one.)
+export interface AnimeMangaSearchParams extends Omit<SearchParams, "order_by"> {
+  type?: (AnimeMediaType | MangaMediaType)[];
+  status?: AnimeMangaStatus;
+  order_by?: AnimeMangaOrderBy;
   genres?: string;
   genres_exclude?: string;
   sfw?: boolean;
   sfw_strict?: boolean;
-  rating?: string[];
+  rating?: ContentRating[];
   score?: number;
   min_score?: number;
   max_score?: number;
@@ -82,9 +133,9 @@ export interface AnimeMangaSearchParams extends SearchParams {
 }
 
 export interface TopParams {
-  type?: string[];
-  filter?: string;
-  rating?: string[];
+  type?: (AnimeMediaType | MangaMediaType)[];
+  filter?: TopFilter;
+  rating?: ContentRating[];
   sfw?: boolean;
   sfw_strict?: boolean;
   limit?: number;
@@ -93,22 +144,22 @@ export interface TopParams {
 
 export interface SeasonParams {
   year?: number;
-  season?: string;
+  season?: SeasonName;
   limit?: number;
   page?: number;
   sfw?: boolean;
   sfw_strict?: boolean;
-  filter?: string[];
-  rating?: string[];
+  filter?: AnimeMediaType[];
+  rating?: ContentRating[];
   unapproved?: boolean;
   continuing?: boolean;
   kids?: boolean;
-  order_by?: string;
-  sort?: string;
+  order_by?: SeasonOrderBy;
+  sort?: SortDir;
 }
 
 export interface ScheduleParams {
-  day?: string;
+  day?: ScheduleDay;
   limit: number;
   sfw?: boolean;
   sfw_strict?: boolean;
@@ -119,10 +170,10 @@ export interface ScheduleParams {
 
 export interface ReviewParams {
   page?: number;
-  sort?: string;
-  preliminary?: string;
-  spoilers?: string;
-  sentiment?: string;
+  sort?: ReviewSort;
+  preliminary?: ReviewTriState;
+  spoilers?: ReviewTriState;
+  sentiment?: ReviewSentiment;
 }
 
 /** Tenrai's stricter NSFW filter is the hyphenated query param `sfw-strict` — not a valid JS
