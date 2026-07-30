@@ -364,6 +364,20 @@ export const producerSchema = z
   })
   .strict();
 
+// ---- summarizeMagazine -----------------------------------------------------------
+
+// mal_id required — the magazine's own canonical MAL ID; see characterEntrySchema's comment
+// above. Unlike producerSchema, magazines have no titles/images/favorites/established fields —
+// Tenrai's own response shape for this endpoint is simply {mal_id, name, url, count}.
+export const magazineSchema = z
+  .object({
+    mal_id: z.number(),
+    name: z.string().optional(),
+    count: z.number().optional(),
+    url: z.string().optional(),
+  })
+  .strict();
+
 // ---- summarizeSeasonsList -----------------------------------------------------------
 
 // year required — get_seasons_list's own description says its whole purpose is picking a

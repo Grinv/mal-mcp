@@ -26,6 +26,7 @@ import {
   CHARACTER_ORDER_BY,
   PEOPLE_ORDER_BY,
   PRODUCER_ORDER_BY,
+  MAGAZINE_ORDER_BY,
   GENRE_FILTERS,
 } from "../clients/tenraiEnums.js";
 import { jsonResult, type ToolResult } from "../lib/result.js";
@@ -39,6 +40,7 @@ import {
   episodesSchema,
   genresSchema,
   listPageSchema,
+  magazineSchema,
   mangaDetailSchema,
   mangaSummarySchema,
   newsItemSchema,
@@ -74,6 +76,8 @@ const mangaType = z.enum(MANGA_MEDIA_TYPES).describe("A publication type.");
 const mangaStatus = z.enum(MANGA_STATUSES).describe("Filter by publication status.");
 const sortDir = z.enum(SORT_DIRS).describe("Sort direction.");
 const limit = z.number().int().min(1).max(50).describe("Max results per page (1-50).");
+// /magazines is the one Tenrai list endpoint with a 100 (not 50) per-page ceiling.
+const magazineLimit = z.number().int().min(1).max(100).describe("Max results per page (1-100).");
 const page = z.number().int().min(1).describe("1-based page number for pagination.");
 const sfw = z
   .boolean()
@@ -259,8 +263,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
           max_score: maxScore.optional(),
           magazines: commaIds
             .describe(
-              "Comma-separated MAL magazine IDs to restrict to (max 25). This server doesn't " +
-                "expose a magazine-lookup tool — obtain IDs from MyAnimeList itself.",
+              "Comma-separated MAL magazine IDs to restrict to (max 25). Look up IDs with get_magazines.",
             )
             .optional(),
           start_date: startDate.optional(),
@@ -796,6 +799,27 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       outputSchema: listPageSchema(producerSchema),
       annotations: READ_ONLY,
       handler: (args) => reply(() => tenrai.getProducers(args)),
+    }),
+    defineTool({
+      name: "get_magazines",
+      title: "Get manga magazines",
+      description:
+        "List or search manga serialization magazines/publishers (e.g. Weekly Shonen Jump) " +
+        "with their MAL IDs and manga counts. Use `q` to search by name, or look up an ID here " +
+        "for search_manga's `magazines` filter.",
+      inputSchema: z
+        .object({
+          q: z.string().describe("Filter by name.").optional(),
+          order_by: z.enum(MAGAZINE_ORDER_BY).describe("Field to order by.").optional(),
+          sort: sortDir.optional(),
+          letter: letterFilter.optional(),
+          limit: magazineLimit.optional(),
+          page: page.optional(),
+        })
+        .strict(),
+      outputSchema: listPageSchema(magazineSchema),
+      annotations: READ_ONLY,
+      handler: (args) => reply(() => tenrai.getMagazines(args)),
     }),
     defineTool({
       name: "get_top_people",

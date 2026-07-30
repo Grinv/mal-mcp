@@ -20,6 +20,7 @@ import {
   summarizeStaff,
   summarizeStatistics,
   summarizeProducer,
+  summarizeMagazine,
   summarizeSeasonsList,
   summarizeNewsItem,
   type RawAnime,
@@ -35,6 +36,7 @@ import {
   type RawStaff,
   type RawStatistics,
   type RawProducer,
+  type RawMagazine,
   type RawSeasonEntry,
   type RawNewsItem,
 } from "../lib/format.js";
@@ -507,6 +509,10 @@ export class TenraiClient {
 
   async getProducers(p: SearchParams): Promise<Record<string, unknown>> {
     return this.#list<RawProducer>("producers", { ...p }, summarizeProducer);
+  }
+
+  async getMagazines(p: SearchParams): Promise<Record<string, unknown>> {
+    return this.#list<RawMagazine>("magazines", { ...p }, summarizeMagazine);
   }
 
   async getTopPeople(p: { limit?: number; page?: number }): Promise<Record<string, unknown>> {

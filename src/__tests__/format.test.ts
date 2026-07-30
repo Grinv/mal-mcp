@@ -13,6 +13,7 @@ import {
   summarizeStaff,
   summarizeStatistics,
   summarizeProducer,
+  summarizeMagazine,
   summarizeSeasonsList,
   summarizeNewsItem,
   pageInfo,
@@ -282,6 +283,19 @@ test("summarizeStaff and summarizeProducer extract the key fields", () => {
     count: 100,
   });
   assert.equal(prod["name"], "Sunrise");
+});
+
+test("summarizeMagazine extracts mal_id/name/count/url", () => {
+  const mag = summarizeMagazine({
+    mal_id: 1,
+    name: "Shonen Jump",
+    url: "https://myanimelist.net/manga/magazine/1/Shonen_Jump",
+    count: 245,
+  });
+  assert.equal(mag["mal_id"], 1);
+  assert.equal(mag["name"], "Shonen Jump");
+  assert.equal(mag["count"], 245);
+  assert.equal(mag["url"], "https://myanimelist.net/manga/magazine/1/Shonen_Jump");
 });
 
 test("summarizeStaff drops a malformed entry instead of failing the whole list", () => {

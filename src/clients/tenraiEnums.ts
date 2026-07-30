@@ -84,6 +84,7 @@ export const REVIEW_SENTIMENTS = ["recommended", "mixed_feelings", "not_recommen
 export const CHARACTER_ORDER_BY = ["mal_id", "name", "favorites"] as const;
 export const PEOPLE_ORDER_BY = ["mal_id", "name", "birthday", "favorites"] as const;
 export const PRODUCER_ORDER_BY = ["mal_id", "count", "favorites", "established"] as const;
+export const MAGAZINE_ORDER_BY = ["mal_id", "name", "count"] as const;
 export const GENRE_FILTERS = ["genres", "explicit_genres", "themes", "demographics"] as const;
 
 export type AnimeMediaType = (typeof ANIME_MEDIA_TYPES)[number];
@@ -102,10 +103,11 @@ export type ScheduleDay = (typeof SCHEDULE_DAYS)[number];
 export type ReviewSort = (typeof REVIEW_SORTS)[number];
 export type ReviewTriState = (typeof REVIEW_TRI_STATES)[number];
 export type ReviewSentiment = (typeof REVIEW_SENTIMENTS)[number];
-// Shared by search_characters/search_people/get_producers — each has its own order_by enum;
-// this unions all three since one interface serves all three tools.
+// Shared by search_characters/search_people/get_producers/get_magazines — each has its own
+// order_by enum; this unions all four since one interface serves all four tools.
 export type NameOrderBy =
   | (typeof CHARACTER_ORDER_BY)[number]
   | (typeof PEOPLE_ORDER_BY)[number]
-  | (typeof PRODUCER_ORDER_BY)[number];
+  | (typeof PRODUCER_ORDER_BY)[number]
+  | (typeof MAGAZINE_ORDER_BY)[number];
 export type GenreFilter = (typeof GENRE_FILTERS)[number];

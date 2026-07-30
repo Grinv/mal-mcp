@@ -37,6 +37,7 @@ test("new read tools are wired and return structured content end-to-end", async 
     ["search_characters", { q: "spike" }, "results"],
     ["search_people", { q: "ito" }, "results"],
     ["get_producers", {}, "results"],
+    ["get_magazines", {}, "results"],
     ["get_top_characters", {}, "results"],
     ["get_upcoming_season", {}, "results"],
     ["get_anime_news", { id: 1 }, "results"],
@@ -242,11 +243,12 @@ test("the server advertises all expected tools", async (t) => {
   assert.ok(names.includes("search_people"));
   assert.ok(names.includes("get_random_anime"));
   assert.ok(names.includes("get_producers"));
+  assert.ok(names.includes("get_magazines"));
   assert.ok(names.includes("get_seasons_list"));
   assert.ok(names.includes("get_anime_news"));
   assert.ok(names.includes("login_mal"));
   assert.ok(names.includes("submit_mal_redirect"));
-  assert.equal(names.length, 43);
+  assert.equal(names.length, 44);
   // Destructive hint is set on deletions.
   const del = tools.find((tool) => tool.name === "delete_my_anime_list_item");
   assert.equal(del?.annotations?.destructiveHint, true);
@@ -503,7 +505,7 @@ test("get_anime_schedule accepts kids/unapproved/page", async (t) => {
   assert.match(mock.calls.at(-1)!.url, /page=2/);
 });
 
-test("search_characters/search_people/get_producers accept a letter filter", async (t) => {
+test("search_characters/search_people/get_producers/get_magazines accept a letter filter", async (t) => {
   const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
   installFetch(t, mock);
   const { client, close } = await connectServer({});
@@ -518,6 +520,30 @@ test("search_characters/search_people/get_producers accept a letter filter", asy
   const producers = await client.callTool({ name: "get_producers", arguments: { letter: "b" } });
   assert.notEqual(producers.isError, true);
   assert.match(mock.calls.at(-1)!.url, /letter=b/);
+
+  const magazines = await client.callTool({ name: "get_magazines", arguments: { letter: "c" } });
+  assert.notEqual(magazines.isError, true);
+  assert.match(mock.calls.at(-1)!.url, /letter=c/);
+});
+
+test("get_magazines' limit cap is 100, not 50 (Tenrai's own per-page ceiling for this endpoint)", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const atCap = await client.callTool({ name: "get_magazines", arguments: { limit: 100 } });
+  assert.notEqual(atCap.isError, true);
+
+  const overCap = await client.callTool({ name: "get_magazines", arguments: { limit: 101 } });
+  assert.equal(overCap.isError, true);
+
+  const orderBy = await client.callTool({
+    name: "get_magazines",
+    arguments: { order_by: "count", sort: "desc" },
+  });
+  assert.notEqual(orderBy.isError, true);
+  assert.match(mock.calls.at(-1)!.url, /order_by=count/);
 });
 
 test("update_my_anime_status rejects a calendar-invalid start_date", async (t) => {

@@ -20,6 +20,7 @@ import {
   creditEntrySchema,
   episodesSchema,
   genresSchema,
+  magazineSchema,
   mangaDetailSchema,
   mangaSummarySchema,
   newsItemSchema,
@@ -697,6 +698,24 @@ export function summarizeProducer(p: RawProducer): z.infer<typeof producerSchema
       established: p.established ?? undefined,
       url: p.url,
       image_url: imageUrl(p.images),
+    }),
+  );
+}
+
+// ---- Magazines (manga serialization publishers) ----
+export interface RawMagazine {
+  mal_id?: number;
+  name?: string;
+  url?: string;
+  count?: number;
+}
+export function summarizeMagazine(m: RawMagazine): z.infer<typeof magazineSchema> {
+  return magazineSchema.parse(
+    clean({
+      mal_id: m.mal_id,
+      name: m.name,
+      count: m.count,
+      url: m.url,
     }),
   );
 }

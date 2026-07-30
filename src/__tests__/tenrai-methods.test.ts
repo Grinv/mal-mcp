@@ -122,6 +122,7 @@ test("Tier 1-3 methods hit their endpoints and shape the response", async (t) =>
   assert.ok((await c.searchPeople({ q: "x" }))["results"]);
   assert.ok((await c.getAnimeStaff(1))["staff"]);
   assert.ok((await c.getProducers({}))["results"]);
+  assert.ok((await c.getMagazines({}))["results"]);
   assert.ok((await c.getTopPeople({}))["results"]);
   assert.ok((await c.getTopCharacters({}))["results"]);
   assert.ok((await c.getUpcomingSeason({}))["results"]);
@@ -137,6 +138,7 @@ test("Tier 1-3 methods hit their endpoints and shape the response", async (t) =>
   assert.ok(urls.some((u) => /\/random\/anime$/.test(u)));
   assert.ok(urls.some((u) => /\/anime\/1\/statistics$/.test(u)));
   assert.ok(urls.some((u) => /\/seasons\/upcoming/.test(u)));
+  assert.ok(urls.some((u) => /\/magazines/.test(u)));
 });
 
 test("getAnimeCharacters keeps only Japanese voice actors", async (t) => {

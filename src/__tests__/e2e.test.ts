@@ -23,7 +23,7 @@ import { CACHE_HINT } from "../server.js";
 const distPath = join(process.cwd(), "..", "dist", "index.js");
 
 // read.ts (34) + mylist.ts (7) + login.ts (2). Bump when a tool is added/removed.
-const EXPECTED_TOOLS = 43;
+const EXPECTED_TOOLS = 44;
 
 // Copy the bundle to a dir with no node_modules: if it weren't self-contained,
 // the child would die with ERR_MODULE_NOT_FOUND and connect() would reject.

@@ -153,6 +153,10 @@
       "description": "List or search anime producers/studios."
     },
     {
+      "name": "get_magazines",
+      "description": "List or search manga serialization magazines/publishers."
+    },
+    {
       "name": "get_top_people",
       "description": "Most popular voice actors, staff and authors, ranked."
     },
