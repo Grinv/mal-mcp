@@ -170,3 +170,10 @@ test("unreleasedHasBullets is false when Unreleased has no bullets", () => {
 test("unreleasedHasBullets throws if the Unreleased heading is missing", () => {
   assert.throws(() => unreleasedHasBullets("## [0.7.3] - x\n"));
 });
+
+test("unreleasedHasBullets is false when Unreleased has no blank line before the next heading", () => {
+  assert.equal(
+    unreleasedHasBullets("## [Unreleased]\n## [0.7.3] - x\n### Added\n- old bullet\n"),
+    false,
+  );
+});

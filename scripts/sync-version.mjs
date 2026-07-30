@@ -40,8 +40,13 @@ export function unreleasedHasBullets(text) {
     throw new Error(`sync-version: '${marker.trim()}' heading not found in CHANGELOG.md`);
   }
   const afterMarker = text.slice(idx + marker.length);
-  const bodyMatch = /^([\s\S]*?)(?=\n## \[|$)/.exec(afterMarker);
-  const body = bodyMatch ? bodyMatch[1] : afterMarker;
+  // afterMarker starts right after Unreleased's own heading line, so the next "## [" — however
+  // far away, with or without a blank line before it — always marks the next heading's start;
+  // no need to anchor on a preceding \n (a prior version of this regex did, and swallowed the
+  // whole rest of the file when Unreleased had no blank line before the next heading — see
+  // AGENTS.md, 2026-07-30).
+  const nextHeadingIdx = afterMarker.search(/## \[/);
+  const body = nextHeadingIdx === -1 ? afterMarker : afterMarker.slice(0, nextHeadingIdx);
   return /^-\s/m.test(body.trim());
 }
 
