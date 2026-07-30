@@ -197,7 +197,8 @@ const recentRecommendationEntitySchema = z.strictObject({
 export const recentRecommendationEntrySchema = z.strictObject({
   entries: z.array(recentRecommendationEntitySchema),
   content: z.string().optional(),
-  date: z.iso.datetime({ offset: true }).optional(),
+  // .catch(undefined): an unparseable date degrades to absent instead of dropping the whole pair.
+  date: z.iso.datetime({ offset: true }).optional().catch(undefined),
   user: z.string().optional(),
 });
 
@@ -211,7 +212,8 @@ export const reviewEntrySchema = z.strictObject({
   // own decimal average `score`, e.g. 8.75).
   score: z.int().min(1).max(10).optional(),
   tags: z.array(z.string()),
-  date: z.iso.datetime({ offset: true }).optional(),
+  // .catch(undefined): an unparseable date degrades to absent instead of dropping the whole review.
+  date: z.iso.datetime({ offset: true }).optional().catch(undefined),
   review: z.string().optional(),
   url: z.string().optional(),
   is_spoiler: z.boolean().optional(),
@@ -229,7 +231,8 @@ export const episodeEntrySchema = z.strictObject({
   mal_id: z.int().positive().optional(),
   title: z.string().optional(),
   title_japanese: z.string().optional(),
-  aired: z.iso.datetime({ offset: true }).optional(),
+  // .catch(undefined): an unparseable date degrades to absent instead of dropping the whole episode.
+  aired: z.iso.datetime({ offset: true }).optional().catch(undefined),
   score: z.number().optional(),
   filler: z.boolean().optional(),
   recap: z.boolean().optional(),
@@ -358,7 +361,9 @@ export const producerSchema = z.strictObject({
   name: z.string().optional(),
   count: z.int().nonnegative().optional(),
   favorites: z.int().nonnegative().optional(),
-  established: z.iso.datetime({ offset: true }).optional(),
+  // .catch(undefined): an unparseable date degrades to absent instead of failing the whole lookup
+  // (unlike list endpoints, a single-producer fetch has no sibling item to fall back on).
+  established: z.iso.datetime({ offset: true }).optional().catch(undefined),
   url: z.string().optional(),
   image_url: z.string().optional(),
 });
@@ -384,7 +389,7 @@ export const magazineSchema = z.strictObject({
 
 // ---- summarizeAnimeVideos -----------------------------------------------------------
 
-const videoClipEntrySchema = z.strictObject({
+export const videoClipEntrySchema = z.strictObject({
   title: z.string().optional(),
   url: z.string().optional(),
   image_url: z.string().optional(),
@@ -392,7 +397,7 @@ const videoClipEntrySchema = z.strictObject({
   likes: z.int().nonnegative().optional(),
 });
 
-const episodePreviewEntrySchema = z.strictObject({
+export const episodePreviewEntrySchema = z.strictObject({
   mal_id: z.int().positive().optional(),
   title: z.string().optional(),
   episode: z.string().optional(),
@@ -423,7 +428,8 @@ export const seasonsListSchema = z.strictObject({ seasons: z.array(seasonEntrySc
 export const newsItemSchema = z.strictObject({
   mal_id: z.int().positive().optional(),
   title: z.string().optional(),
-  date: z.iso.datetime({ offset: true }).optional(),
+  // .catch(undefined): an unparseable date degrades to absent instead of dropping the whole item.
+  date: z.iso.datetime({ offset: true }).optional().catch(undefined),
   author: z.string().optional(),
   comments: z.int().nonnegative().optional(),
   excerpt: z.string().optional(),

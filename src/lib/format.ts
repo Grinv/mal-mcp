@@ -31,6 +31,8 @@ import {
   producerSchema,
   producerDetailSchema,
   animeVideosSchema,
+  videoClipEntrySchema,
+  episodePreviewEntrySchema,
   recommendationEntrySchema,
   recommendationsSchema,
   recentRecommendationEntrySchema,
@@ -829,9 +831,11 @@ function clipUrl(clip: RawVideoClip | undefined): string | undefined {
 function clipImageUrl(clip: RawVideoClip | undefined): string | undefined {
   return clip?.images?.large_image_url ?? clip?.images?.image_url ?? undefined;
 }
+// A malformed clip/preview entry (e.g. a type violation on views/likes) is dropped rather than
+// failing the whole call — see `mapLenient`.
 export function summarizeAnimeVideos(v: RawAnimeVideos): z.infer<typeof animeVideosSchema> {
   return animeVideosSchema.parse({
-    promo: (v.promo ?? []).map((p) =>
+    promo: mapLenient(v.promo ?? [], videoClipEntrySchema, (p) =>
       clean({
         title: p.title,
         url: clipUrl(p.trailer),
@@ -840,7 +844,7 @@ export function summarizeAnimeVideos(v: RawAnimeVideos): z.infer<typeof animeVid
         likes: p.trailer?.likes ?? undefined,
       }),
     ),
-    episodes: (v.episodes ?? []).map((e) =>
+    episodes: mapLenient(v.episodes ?? [], episodePreviewEntrySchema, (e) =>
       clean({
         mal_id: e.mal_id,
         title: e.title,
@@ -849,7 +853,7 @@ export function summarizeAnimeVideos(v: RawAnimeVideos): z.infer<typeof animeVid
         image_url: imageUrl(e.images),
       }),
     ),
-    music_videos: (v.music_videos ?? []).map((m) =>
+    music_videos: mapLenient(v.music_videos ?? [], videoClipEntrySchema, (m) =>
       clean({
         title: m.title,
         url: clipUrl(m.video),

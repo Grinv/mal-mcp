@@ -188,6 +188,17 @@ test("summarizeProducer surfaces about/external in detailed mode only", () => {
   ]);
 });
 
+test("summarizeProducer keeps a producer with an unparseable established date, just without it", () => {
+  const producer = {
+    mal_id: 14,
+    titles: [{ type: "Default", title: "Sunrise" }],
+    established: "not-a-date",
+  };
+  const detailed = summarizeProducer(producer, true);
+  assert.equal(detailed["mal_id"], 14);
+  assert.equal(detailed["established"], undefined);
+});
+
 test("summarizeAnimeVideos maps promo/episodes/music_videos, preferring the watch URL and larger thumbnail", () => {
   const v = summarizeAnimeVideos({
     promo: [
@@ -229,6 +240,21 @@ test("summarizeAnimeVideos maps promo/episodes/music_videos, preferring the watc
   assert.equal(v.episodes[0]!["image_url"], "https://img/ep1.jpg");
   // No `url`/`embed_url` set for the trailer itself -> falls back to embed_url.
   assert.equal(v.music_videos[0]!["url"], "https://youtube-nocookie.com/embed/op1");
+});
+
+test("summarizeAnimeVideos drops a malformed clip entry instead of failing the whole call", () => {
+  const v = summarizeAnimeVideos({
+    promo: [
+      { title: "PV 1", trailer: { url: "https://youtube.com/watch?v=abc", views: 100 } },
+      // views is the wrong type — a malformed/edge-case upstream entry.
+      {
+        title: "PV 2",
+        trailer: { url: "https://youtube.com/watch?v=def", views: "many" as unknown as number },
+      },
+    ],
+  }) as { promo: Record<string, unknown>[] };
+  assert.equal(v.promo.length, 1);
+  assert.equal(v.promo[0]!["title"], "PV 1");
 });
 
 test("summarizeRecentRecommendations drops a pair where either side has no resolvable mal_id", () => {
@@ -330,11 +356,20 @@ test("summarizeReviews drops a malformed entry instead of failing the whole list
       review: "Good show.",
       date: "2024-01-01T00:00:00+00:00",
     },
-    // Unparseable date (not a real ISO 8601 datetime) — a malformed/edge-case upstream entry.
-    { user: { username: "eve" }, score: 5, review: "Bad show.", date: "not-a-date" },
+    // score out of the 1-10 range — a malformed/edge-case upstream entry.
+    { user: { username: "eve" }, score: 15, review: "Bad show." },
   ]) as { reviews: { user: string }[] };
   assert.equal(r.reviews.length, 1);
   assert.equal(r.reviews[0]!.user, "bob");
+});
+
+test("summarizeReviews keeps a review with an unparseable date, just without it", () => {
+  const r = summarizeReviews([
+    { user: { username: "bob" }, score: 8, review: "Good show.", date: "not-a-date" },
+  ]) as { reviews: { user: string; date?: string }[] };
+  assert.equal(r.reviews.length, 1);
+  assert.equal(r.reviews[0]!.user, "bob");
+  assert.equal(r.reviews[0]!.date, undefined);
 });
 
 test("summarizeEpisodes maps fields and attaches pagination", () => {
@@ -358,13 +393,23 @@ test("summarizeEpisodes drops a malformed entry instead of failing the whole lis
   const r = summarizeEpisodes(
     [
       { mal_id: 1, title: "Asteroid Blues", aired: "1998-10-24T00:00:00+00:00" },
-      // Unparseable aired date — a malformed/edge-case upstream entry.
-      { mal_id: 2, title: "Stray Dog Strut", aired: "not-a-date" },
+      // filler is the wrong type — a malformed/edge-case upstream entry.
+      { mal_id: 2, title: "Stray Dog Strut", filler: "yes" as unknown as boolean },
     ],
     undefined,
   ) as { episodes: { mal_id: number }[] };
   assert.equal(r.episodes.length, 1);
   assert.equal(r.episodes[0]!.mal_id, 1);
+});
+
+test("summarizeEpisodes keeps an episode with an unparseable aired date, just without it", () => {
+  const r = summarizeEpisodes(
+    [{ mal_id: 1, title: "Asteroid Blues", aired: "not-a-date" }],
+    undefined,
+  ) as { episodes: { mal_id: number; aired?: string }[] };
+  assert.equal(r.episodes.length, 1);
+  assert.equal(r.episodes[0]!.mal_id, 1);
+  assert.equal(r.episodes[0]!.aired, undefined);
 });
 
 test("summarizeGenres maps id/name/count", () => {
