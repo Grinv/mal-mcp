@@ -77,6 +77,24 @@ test("honors Retry-After on 429", async (t) => {
   assert.equal(mock.calls.length, 2);
 });
 
+test("waits the exact Retry-After delay, not blind exponential backoff", async (t) => {
+  let n = 0;
+  const mock = mockFetch(() => {
+    n += 1;
+    // 50ms — well under the ~500ms first-attempt blind backoff, so a passing
+    // test proves the hint drove the wait instead of being silently ignored.
+    return n === 1
+      ? jsonResponse({}, { status: 429, headers: { "retry-after": "0.05" } })
+      : jsonResponse({ ok: true });
+  });
+  installFetch(t, mock);
+  const start = Date.now();
+  const res = await client({ retries: 1 }).getJson<{ ok: boolean }>("limited");
+  const elapsed = Date.now() - start;
+  assert.equal(res.ok, true);
+  assert.ok(elapsed < 400, `expected the 50ms Retry-After hint to be honored, took ${elapsed}ms`);
+});
+
 test("throws ApiError when a 200 response body isn't valid JSON", async (t) => {
   const mock = mockFetch(
     () => new Response("not-json{", { status: 200, headers: { "content-type": "text/plain" } }),
@@ -110,15 +128,23 @@ test("honors Retry-After given as an HTTP date rather than seconds", async (t) =
   const mock = mockFetch(() => {
     n += 1;
     if (n === 1) {
-      const retryAt = new Date(Date.now() + 10).toUTCString();
+      // HTTP dates only have whole-second precision, so a small offset can truncate to a past
+      // (i.e. <=0) instant once Date.parse() rounds it — this must be large enough to stay
+      // reliably positive and clearly distinguishable from the ~500ms blind-backoff fallback.
+      const retryAt = new Date(Date.now() + 2000).toUTCString();
       return jsonResponse({}, { status: 429, headers: { "retry-after": retryAt } });
     }
     return jsonResponse({ ok: true });
   });
   installFetch(t, mock);
+  const start = Date.now();
   const res = await client({ retries: 1 }).getJson<{ ok: boolean }>("limited");
+  const elapsed = Date.now() - start;
   assert.equal(res.ok, true);
   assert.equal(mock.calls.length, 2);
+  // Comfortably above the ~500ms blind-backoff fallback: proves the parsed date, not a fallback,
+  // drove the wait.
+  assert.ok(elapsed >= 1200, `expected the HTTP-date Retry-After to be honored, took ${elapsed}ms`);
 });
 
 test("detectEmbeddedError converts a 200 response carrying an upstream's own error body into a retryable ApiError", async (t) => {
