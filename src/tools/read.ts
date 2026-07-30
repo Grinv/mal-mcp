@@ -547,13 +547,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "client-side (a filtered page can come back shorter than `limit`), and `sfw_strict` " +
         "degrades to the same filtering as `sfw` there (no Ecchi-genre distinction available).",
       inputSchema: z.strictObject({
-        year: z
-          .number()
-          .int()
-          .min(1900)
-          .max(2100)
-          .describe("Four-digit year, e.g. 2024.")
-          .optional(),
+        year: z.int().min(1900).max(2100).describe("Four-digit year, e.g. 2024.").optional(),
         season: z.enum(SEASON_NAMES).describe("Season name.").optional(),
         filter: z
           .array(animeType)
