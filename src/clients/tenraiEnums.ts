@@ -82,7 +82,7 @@ export const REVIEW_SORTS = ["newest", "oldest", "most_helpful"] as const;
 export const REVIEW_TRI_STATES = ["true", "false", "only"] as const;
 export const REVIEW_SENTIMENTS = ["recommended", "mixed_feelings", "not_recommended"] as const;
 export const CHARACTER_ORDER_BY = ["mal_id", "name", "favorites"] as const;
-export const PEOPLE_ORDER_BY = ["mal_id", "name", "birthday", "favorites"] as const;
+export const PERSON_ORDER_BY = ["mal_id", "name", "birthday", "favorites"] as const;
 export const PRODUCER_ORDER_BY = ["mal_id", "count", "favorites", "established"] as const;
 export const MAGAZINE_ORDER_BY = ["mal_id", "name", "count"] as const;
 export const GENRE_FILTERS = ["genres", "explicit_genres", "themes", "demographics"] as const;
@@ -108,7 +108,7 @@ export type ReviewSentiment = (typeof REVIEW_SENTIMENTS)[number];
 // only producers has "established") and a merged union would let any of the four tools
 // type-accept a value only valid for one of the others.
 export type CharacterOrderBy = (typeof CHARACTER_ORDER_BY)[number];
-export type PeopleOrderBy = (typeof PEOPLE_ORDER_BY)[number];
+export type PersonOrderBy = (typeof PERSON_ORDER_BY)[number];
 export type ProducerOrderBy = (typeof PRODUCER_ORDER_BY)[number];
 export type MagazineOrderBy = (typeof MAGAZINE_ORDER_BY)[number];
 export type GenreFilter = (typeof GENRE_FILTERS)[number];

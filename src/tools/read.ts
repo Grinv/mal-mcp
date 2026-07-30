@@ -24,7 +24,7 @@ import {
   REVIEW_TRI_STATES,
   REVIEW_SENTIMENTS,
   CHARACTER_ORDER_BY,
-  PEOPLE_ORDER_BY,
+  PERSON_ORDER_BY,
   PRODUCER_ORDER_BY,
   MAGAZINE_ORDER_BY,
   GENRE_FILTERS,
@@ -646,7 +646,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       inputSchema: z
         .object({
           q: z.string().trim().min(1).describe("Person name."),
-          order_by: z.enum(PEOPLE_ORDER_BY).describe("Field to order by.").optional(),
+          order_by: z.enum(PERSON_ORDER_BY).describe("Field to order by.").optional(),
           sort: sortDir.optional(),
           letter: letterFilter.optional(),
           limit: limit.optional(),

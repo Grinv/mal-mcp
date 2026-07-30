@@ -20,7 +20,7 @@ import type {
   ReviewTriState,
   ReviewSentiment,
   CharacterOrderBy,
-  PeopleOrderBy,
+  PersonOrderBy,
   ProducerOrderBy,
   MagazineOrderBy,
 } from "./tenraiEnums.js";
@@ -44,7 +44,7 @@ export interface CharacterSearchParams extends SearchParamsBase {
 }
 
 export interface PersonSearchParams extends SearchParamsBase {
-  order_by?: PeopleOrderBy;
+  order_by?: PersonOrderBy;
 }
 
 export interface ProducerSearchParams extends SearchParamsBase {
