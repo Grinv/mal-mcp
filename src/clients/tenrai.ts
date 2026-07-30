@@ -39,6 +39,17 @@ import {
 } from "../lib/format.js";
 import type { Logger } from "../lib/logger.js";
 import type { Config } from "../config.js";
+import type { GenreFilter } from "./tenraiEnums.js";
+import type {
+  SearchParams,
+  AnimeSearchParams,
+  MangaSearchParams,
+  AnimeTopParams,
+  MangaTopParams,
+  SeasonParams,
+  ScheduleParams,
+  ReviewParams,
+} from "./tenraiParams.js";
 
 type Query = Record<string, string | number | boolean | undefined>;
 
@@ -48,192 +59,6 @@ interface ListResponse<T> {
 }
 interface ItemResponse<T> {
   data: T;
-}
-
-// Tenrai's real enums (its own OpenAPI spec) — the single source of truth for every enum-shaped
-// query param this server exposes. Each is a runtime `as const` array (not just a TS type): the
-// zod schemas in tools/read.ts build their `z.enum(...)` directly from these same arrays instead
-// of re-typing the values, so the two layers cannot drift apart. TenraiClient's own interfaces
-// derive their TS types from the same arrays via `(typeof X)[number]`, for the same reason
-// covered before — this client is called directly by tests (contract.test.ts), not just through
-// the zod-validated tool layer, so its own params shouldn't be bare `string` either.
-export const ANIME_MEDIA_TYPES = [
-  "tv",
-  "movie",
-  "ova",
-  "special",
-  "ona",
-  "music",
-  "cm",
-  "pv",
-  "tv_special",
-] as const;
-export const MANGA_MEDIA_TYPES = [
-  "manga",
-  "novel",
-  "lightnovel",
-  "oneshot",
-  "doujin",
-  "manhwa",
-  "manhua",
-] as const;
-export const CONTENT_RATINGS = ["g", "pg", "pg13", "r17", "r", "rx"] as const;
-export const ANIME_STATUSES = ["airing", "complete", "upcoming"] as const;
-export const MANGA_STATUSES = [
-  "publishing",
-  "complete",
-  "hiatus",
-  "discontinued",
-  "upcoming",
-] as const;
-export const SORT_DIRS = ["asc", "desc"] as const;
-export const ANIME_ORDER_BY = [
-  "mal_id",
-  "title",
-  "start_date",
-  "end_date",
-  "episodes",
-  "score",
-  "scored_by",
-  "rank",
-  "popularity",
-  "members",
-  "favorites",
-] as const;
-export const MANGA_ORDER_BY = [
-  "mal_id",
-  "title",
-  "start_date",
-  "end_date",
-  "chapters",
-  "volumes",
-  "score",
-  "scored_by",
-  "rank",
-  "popularity",
-  "members",
-  "favorites",
-] as const;
-export const ANIME_TOP_FILTERS = ["airing", "upcoming", "bypopularity", "favorite"] as const;
-export const MANGA_TOP_FILTERS = ["publishing", "upcoming", "bypopularity", "favorite"] as const;
-export const SEASON_NAMES = ["winter", "spring", "summer", "fall"] as const;
-export const SEASON_ORDER_BY = ["score", "members", "start_date"] as const;
-export const SCHEDULE_DAYS = [
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-  "sunday",
-  "unknown",
-  "other",
-] as const;
-export const REVIEW_SORTS = ["newest", "oldest", "most_helpful"] as const;
-export const REVIEW_TRI_STATES = ["true", "false", "only"] as const;
-export const REVIEW_SENTIMENTS = ["recommended", "mixed_feelings", "not_recommended"] as const;
-export const CHARACTER_ORDER_BY = ["mal_id", "name", "favorites"] as const;
-export const PEOPLE_ORDER_BY = ["mal_id", "name", "birthday", "favorites"] as const;
-export const PRODUCER_ORDER_BY = ["mal_id", "count", "favorites", "established"] as const;
-export const GENRE_FILTERS = ["genres", "explicit_genres", "themes", "demographics"] as const;
-
-type AnimeMediaType = (typeof ANIME_MEDIA_TYPES)[number];
-type MangaMediaType = (typeof MANGA_MEDIA_TYPES)[number];
-type ContentRating = (typeof CONTENT_RATINGS)[number];
-type AnimeMangaStatus = (typeof ANIME_STATUSES)[number] | (typeof MANGA_STATUSES)[number];
-type SortDir = (typeof SORT_DIRS)[number];
-type AnimeMangaOrderBy = (typeof ANIME_ORDER_BY)[number] | (typeof MANGA_ORDER_BY)[number];
-type TopFilter = (typeof ANIME_TOP_FILTERS)[number] | (typeof MANGA_TOP_FILTERS)[number];
-type SeasonName = (typeof SEASON_NAMES)[number];
-type SeasonOrderBy = (typeof SEASON_ORDER_BY)[number];
-type ScheduleDay = (typeof SCHEDULE_DAYS)[number];
-type ReviewSort = (typeof REVIEW_SORTS)[number];
-type ReviewTriState = (typeof REVIEW_TRI_STATES)[number];
-type ReviewSentiment = (typeof REVIEW_SENTIMENTS)[number];
-// Shared by search_characters/search_people/get_producers — each has its own order_by enum;
-// this unions all three since one interface serves all three tools.
-type NameOrderBy =
-  | (typeof CHARACTER_ORDER_BY)[number]
-  | (typeof PEOPLE_ORDER_BY)[number]
-  | (typeof PRODUCER_ORDER_BY)[number];
-export type GenreFilter = (typeof GENRE_FILTERS)[number];
-
-// Shared by the plain-name-search endpoints (characters/people/producers) — no content
-// filtering, just find-by-name plus ordering/pagination/alphabetical browse.
-export interface SearchParams {
-  q?: string;
-  order_by?: NameOrderBy;
-  sort?: SortDir;
-  limit?: number;
-  page?: number;
-  letter?: string;
-}
-
-// searchAnime/searchManga's much larger filter set — kept separate from SearchParams so a
-// plain-name search interface doesn't carry a dozen anime/manga-only fields it never uses.
-// (Omits SearchParams's own `order_by` rather than extending it — anime/manga order_by is a
-// different, larger enum than the plain-name-search one.)
-export interface AnimeMangaSearchParams extends Omit<SearchParams, "order_by"> {
-  type?: (AnimeMediaType | MangaMediaType)[];
-  status?: AnimeMangaStatus;
-  order_by?: AnimeMangaOrderBy;
-  genres?: string;
-  genres_exclude?: string;
-  sfw?: boolean;
-  sfw_strict?: boolean;
-  rating?: ContentRating[];
-  score?: number;
-  min_score?: number;
-  max_score?: number;
-  producers?: string;
-  magazines?: string;
-  start_date?: string;
-  end_date?: string;
-  unapproved?: boolean;
-}
-
-export interface TopParams {
-  type?: (AnimeMediaType | MangaMediaType)[];
-  filter?: TopFilter;
-  rating?: ContentRating[];
-  sfw?: boolean;
-  sfw_strict?: boolean;
-  limit?: number;
-  page?: number;
-}
-
-export interface SeasonParams {
-  year?: number;
-  season?: SeasonName;
-  limit?: number;
-  page?: number;
-  sfw?: boolean;
-  sfw_strict?: boolean;
-  filter?: AnimeMediaType[];
-  rating?: ContentRating[];
-  unapproved?: boolean;
-  continuing?: boolean;
-  kids?: boolean;
-  order_by?: SeasonOrderBy;
-  sort?: SortDir;
-}
-
-export interface ScheduleParams {
-  day?: ScheduleDay;
-  limit: number;
-  sfw?: boolean;
-  sfw_strict?: boolean;
-  kids?: boolean;
-  unapproved?: boolean;
-  page?: number;
-}
-
-export interface ReviewParams {
-  page?: number;
-  sort?: ReviewSort;
-  preliminary?: ReviewTriState;
-  spoilers?: ReviewTriState;
-  sentiment?: ReviewSentiment;
 }
 
 /** Tenrai's stricter NSFW filter is the hyphenated query param `sfw-strict` — not a valid JS
@@ -334,7 +159,7 @@ export class TenraiClient {
     });
   }
 
-  async searchAnime(p: AnimeMangaSearchParams): Promise<Record<string, unknown>> {
+  async searchAnime(p: AnimeSearchParams): Promise<Record<string, unknown>> {
     return withFallback(
       this.#logger,
       this.#fallback,
@@ -358,7 +183,7 @@ export class TenraiClient {
     );
   }
 
-  async searchManga(p: AnimeMangaSearchParams): Promise<Record<string, unknown>> {
+  async searchManga(p: MangaSearchParams): Promise<Record<string, unknown>> {
     return withFallback(
       this.#logger,
       this.#fallback,
@@ -366,7 +191,7 @@ export class TenraiClient {
       () =>
         this.#list<AnimeMangaRaw>(
           "manga",
-          { ...p, type: csv(p.type), rating: csv(p.rating), ...sfwStrictQuery(p.sfw_strict) },
+          { ...p, type: csv(p.type), ...sfwStrictQuery(p.sfw_strict) },
           (m) => summarizeManga(m),
         ),
       () =>
@@ -510,7 +335,7 @@ export class TenraiClient {
     );
   }
 
-  async getTopAnime(p: TopParams): Promise<Record<string, unknown>> {
+  async getTopAnime(p: AnimeTopParams): Promise<Record<string, unknown>> {
     return withFallback(
       this.#logger,
       this.#fallback,
@@ -532,7 +357,7 @@ export class TenraiClient {
     );
   }
 
-  async getTopManga(p: TopParams): Promise<Record<string, unknown>> {
+  async getTopManga(p: MangaTopParams): Promise<Record<string, unknown>> {
     return withFallback(
       this.#logger,
       this.#fallback,
@@ -540,7 +365,7 @@ export class TenraiClient {
       () =>
         this.#list<AnimeMangaRaw>(
           "top/manga",
-          { ...p, type: csv(p.type), rating: csv(p.rating), ...sfwStrictQuery(p.sfw_strict) },
+          { ...p, type: csv(p.type), ...sfwStrictQuery(p.sfw_strict) },
           (m) => summarizeManga(m),
         ),
       () =>

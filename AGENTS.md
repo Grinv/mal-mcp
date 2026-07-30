@@ -34,11 +34,14 @@ src/
                   # here rather than in mal.ts); each tool's outputSchema, AND (schema-first)
                   # the paired shaper itself calls schema.parse() on its own result before
                   # returning
-  clients/        # tenrai.ts (reads) + readFallback.ts (retry policy), mal.ts
-                  # (personal list + token refresh + login — MyUserInfoSchema/
-                  # MalListResponseSchema/ListStatusUpdateResponseSchema stay here as
-                  # .passthrough(), see below), officialReads.ts (Client-ID-only public
-                  # reads, the fallback's data source), httpClients.ts (shared HttpClient
+  clients/        # tenrai.ts (reads) + tenraiEnums.ts (every enum-shaped query param Tenrai
+                  # accepts, as `as const` arrays — the single source of truth read.ts's
+                  # z.enum(...) calls build from) + tenraiParams.ts (TenraiClient's param
+                  # interfaces, split out once tenrai.ts grew too large to scan) +
+                  # readFallback.ts (retry policy), mal.ts (personal list + token refresh +
+                  # login — MyUserInfoSchema/MalListResponseSchema/ListStatusUpdateResponseSchema
+                  # stay here as .passthrough(), see below), officialReads.ts (Client-ID-only
+                  # public reads, the fallback's data source), httpClients.ts (shared HttpClient
                   # factory for the official API, + withThrottle(), the rate-limit wiring
                   # shared with tenrai.ts too)
   tools/          # read.ts, mylist.ts, login.ts (login_mal), guard.ts

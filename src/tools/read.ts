@@ -27,7 +27,7 @@ import {
   PEOPLE_ORDER_BY,
   PRODUCER_ORDER_BY,
   GENRE_FILTERS,
-} from "../clients/tenrai.js";
+} from "../clients/tenraiEnums.js";
 import { jsonResult, type ToolResult } from "../lib/result.js";
 import { guard } from "./guard.js";
 import { defineTool, registerTools } from "./spec.js";
