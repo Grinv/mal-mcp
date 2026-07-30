@@ -6,55 +6,56 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Changed
-
-- Replace the read backend with Tenrai, a free, unofficial MyAnimeList mirror — the previous backend's public API is reportedly being discontinued, and Tenrai answered every endpoint this server uses cleanly in cases where it was intermittently failing ([e2540ef](https://github.com/Grinv/mal-mcp/commit/e2540ef)).
-- Rename the `JIKAN_BASE_URL`/`JIKAN_MIN_INTERVAL_MS` env vars to `TENRAI_BASE_URL`/`TENRAI_MIN_INTERVAL_MS` ([e2540ef](https://github.com/Grinv/mal-mcp/commit/e2540ef)).
-- Raise every search/top/list tool's `limit` cap from 25 to 50, matching Tenrai's own per-page ceiling ([451aa4e](https://github.com/Grinv/mal-mcp/commit/451aa4e)).
-
-### Removed
-
-- Remove `get_user_profile`/`get_user_favorites` — Tenrai has no `/users` endpoint, and the official MyAnimeList API can only serve the OAuth-authenticated caller's own profile (`get_my_user_info`), not an arbitrary public username's ([e2540ef](https://github.com/Grinv/mal-mcp/commit/e2540ef)).
-
-### Fixed
-
-- Make `get_anime_reviews`/`get_manga_reviews`'s `limit` actually limit the results again — Tenrai's reviews endpoint has no `limit` query param at all (silently ignored), so both tools were always returning a full 20-review page regardless of the requested/defaulted count; now sliced client-side ([451aa4e](https://github.com/Grinv/mal-mcp/commit/451aa4e)).
-- Accept `get_anime_schedule`'s `unknown`/`other` day buckets and `search_anime`/`search_manga`'s `mal_id`/`end_date`/`scored_by` sort fields — all real, working values upstream that the input schemas previously rejected ([be9219f](https://github.com/Grinv/mal-mcp/commit/be9219f)).
-- Reject `page` above 1000 on every tool except `get_top_anime`/`get_top_manga`/`get_top_people`/`get_top_characters` — verified live that Tenrai enforces this ceiling almost everywhere (undocumented in its own OpenAPI spec for most of those routes), while those four genuinely serve data well past it ([4e8febe](https://github.com/Grinv/mal-mcp/commit/4e8febe), [7622dee](https://github.com/Grinv/mal-mcp/commit/7622dee)).
-- Make `get_anime_reviews`/`get_manga_reviews` backfill from later in the page instead of under-returning `limit` when an early review fails validation ([bb04202](https://github.com/Grinv/mal-mcp/commit/bb04202)).
-- Stop `get_producer` from failing entirely when a producer's `established` date isn't a clean timestamp — that field is now just omitted instead ([a7d92cf](https://github.com/Grinv/mal-mcp/commit/a7d92cf)).
-
 ### Added
 
 - Add `get_manga_news` for per-manga news, matching the existing `get_anime_news` ([95f5a61](https://github.com/Grinv/mal-mcp/commit/95f5a61)).
-- Add `sfw`/`sfw_strict` to `get_anime`, `get_manga`, `get_anime_recommendations`, `get_manga_recommendations`, `get_anime_news`, `get_character`, and `get_person` — found by auditing every Tenrai tool's parameters against the upstream OpenAPI spec; verified live that `sfw` filters NSFW entries out of `get_anime`/`get_manga`'s `relations` and `get_character`/`get_person`'s own anime/manga lists (the requested item itself is unaffected), and empties `get_anime_news`'s result entirely for an NSFW-rated anime ([691bca9](https://github.com/Grinv/mal-mcp/commit/691bca9)).
-- Add `get_producer` (single producer/studio detail, with `about`/external links — `get_producers` never had a detail-by-id counterpart before), `get_anime_videos` (every promo/episode-preview/music video, not just the one main trailer), `get_recent_anime_recommendations`/`get_recent_manga_recommendations` (site-wide recommendation-pair feed), and `get_news` (site-wide news feed) — five new tools found during a full sweep of Tenrai's OpenAPI spec for uncovered endpoints ([77f2a55](https://github.com/Grinv/mal-mcp/commit/77f2a55)).
-- Surface `external` links, `explicit_genres`, and `title_synonyms` on `get_anime`/`get_manga`, plus `moreinfo` (anime only) — Tenrai was already returning these fields on the `/full` detail response; they were just never mapped ([3bf96c8](https://github.com/Grinv/mal-mcp/commit/3bf96c8)).
-- Add `get_magazines` — lists/searches manga serialization magazines/publishers, giving `search_manga`'s `magazines` filter an actual ID lookup for the first time ([e80346d](https://github.com/Grinv/mal-mcp/commit/e80346d)).
-- Add `sort`/`preliminary`/`spoilers`/`sentiment` filters to `get_anime_reviews`/`get_manga_reviews`, plus `page`, and surface `is_spoiler`/`is_preliminary`/`reactions`/`episodes_watched`/`chapters_read` on each review — all real Tenrai fields the tools previously ignored ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
-- Add `rating`, `score`/`min_score`/`max_score`, `genres_exclude`, `letter`, `producers`/`magazines`, `start_date`/`end_date`, and `unapproved` to `search_anime`/`search_manga`; let their (and `get_top_anime`/`get_top_manga`'s) `type` accept multiple values at once instead of just one ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
+- Add `sfw`/`sfw_strict` to `get_anime`/`get_manga`, their recommendation tools, `get_anime_news`, and character/person lookups ([691bca9](https://github.com/Grinv/mal-mcp/commit/691bca9)).
+- Add `get_producer`, a single producer/studio's detail (`about`, external links) — `get_producers` never had a by-id counterpart ([77f2a55](https://github.com/Grinv/mal-mcp/commit/77f2a55)).
+- Add `get_anime_videos`, every promo/episode-preview/music video for an anime, not just the one main trailer ([77f2a55](https://github.com/Grinv/mal-mcp/commit/77f2a55)).
+- Add `get_recent_anime_recommendations`/`get_recent_manga_recommendations`, a site-wide feed of recommendation pairs ([77f2a55](https://github.com/Grinv/mal-mcp/commit/77f2a55)).
+- Add `get_news`, a site-wide MyAnimeList news feed ([77f2a55](https://github.com/Grinv/mal-mcp/commit/77f2a55)).
+- Surface `external`, `explicit_genres`, and `title_synonyms` on `get_anime`/`get_manga` (plus `moreinfo`, anime only) ([3bf96c8](https://github.com/Grinv/mal-mcp/commit/3bf96c8)).
+- Add `get_magazines`, for manga serialization magazines/publishers, giving `search_manga`'s `magazines` filter an ID lookup ([e80346d](https://github.com/Grinv/mal-mcp/commit/e80346d)).
+- Add `sort`/`preliminary`/`spoilers`/`sentiment`/`page` filters to `get_anime_reviews`/`get_manga_reviews` ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
+- Surface `is_spoiler`/`is_preliminary`/`reactions` and episode/chapter progress on each review from those two tools ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
+- Add several new search filters to `search_anime`/`search_manga`: rating, score range, exclude-genres, letter, producers/magazines, dates, unapproved ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
+- Let `type` accept multiple values at once on `search_anime`/`search_manga`/`get_top_anime`/`get_top_manga`, not just one ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
 - Add `rating` to `get_top_anime` ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
 - Add `filter`/`rating`/`unapproved`/`continuing`/`kids`/`order_by`/`sort` to `get_seasonal_anime`/`get_upcoming_season` ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
 - Add `kids`/`unapproved`/`page` to `get_anime_schedule` ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
 - Add `letter` to `search_characters`/`search_people`/`get_producers` ([488e8a5](https://github.com/Grinv/mal-mcp/commit/488e8a5)).
-- Add `sfw_strict` alongside `sfw` on `search_anime`, `search_manga`, `get_seasonal_anime`, `get_upcoming_season`, and `get_anime_schedule` — `sfw` alone still lets mainstream, safely-rated shows tagged with the Ecchi genre through; `sfw_strict` excludes those too ([e0b8b38](https://github.com/Grinv/mal-mcp/commit/e0b8b38)).
-- Add `sfw`/`sfw_strict` to `get_top_anime`, `get_top_manga`, `get_random_anime`, and `get_random_manga` — these had no content filter at all despite Tenrai supporting one ([e0b8b38](https://github.com/Grinv/mal-mcp/commit/e0b8b38)).
-- Add a privacy policy (`PRIVACY.md`) covering data collection, third-party sharing, storage/retention, and which tools read vs. mutate a connected MyAnimeList account, linked from the README ([d380b9a](https://github.com/Grinv/mal-mcp/commit/d380b9a)).
-- Add a security policy (`SECURITY.md`) covering tool tiers, write-tool blast radius, host configuration, and credential redaction, linked from the README ([ffa2868](https://github.com/Grinv/mal-mcp/commit/ffa2868)).
+- Add `sfw_strict` alongside `sfw` on `search_anime`/`search_manga` and other list tools, to also exclude Ecchi-tagged shows ([e0b8b38](https://github.com/Grinv/mal-mcp/commit/e0b8b38)).
+- Add `sfw`/`sfw_strict` to `get_top_anime`, `get_top_manga`, `get_random_anime`, and `get_random_manga` ([e0b8b38](https://github.com/Grinv/mal-mcp/commit/e0b8b38)).
+- Add a privacy policy (`PRIVACY.md`) covering data handling and what the personal-list tools can read/change on your account ([d380b9a](https://github.com/Grinv/mal-mcp/commit/d380b9a)).
+- Add a security policy (`SECURITY.md`) covering tool tiers, token storage, and credential redaction ([ffa2868](https://github.com/Grinv/mal-mcp/commit/ffa2868)).
 - Add a custom icon for the MCPB submission: an original kawaii creature head in MyAnimeList's brand blue ([bf9d6ec](https://github.com/Grinv/mal-mcp/commit/bf9d6ec), [cfecd36](https://github.com/Grinv/mal-mcp/commit/cfecd36), [83eafd3](https://github.com/Grinv/mal-mcp/commit/83eafd3)).
 
 ### Changed
 
+- Replace the read backend with Tenrai, a free, unofficial MyAnimeList mirror, after reliability problems with the previous one ([e2540ef](https://github.com/Grinv/mal-mcp/commit/e2540ef)).
+- Rename the `JIKAN_BASE_URL`/`JIKAN_MIN_INTERVAL_MS` env vars to `TENRAI_BASE_URL`/`TENRAI_MIN_INTERVAL_MS` ([e2540ef](https://github.com/Grinv/mal-mcp/commit/e2540ef)).
+- Raise every search/top/list tool's `limit` cap from 25 to 50, matching Tenrai's own per-page ceiling ([451aa4e](https://github.com/Grinv/mal-mcp/commit/451aa4e)).
 - Raise runtime floor to Node ≥ 20.11 (was ≥ 20.3) ([cfd8cca](https://github.com/Grinv/mal-mcp/commit/cfd8cca)).
+- Distinguish the `page` parameter description from the unbounded variant used by ranking tools ([09f65f1](https://github.com/Grinv/mal-mcp/commit/09f65f1)).
+
+### Removed
+
+- Remove `get_user_profile`/`get_user_favorites` — Tenrai has no `/users` endpoint, and the official API can't look up an arbitrary username ([e2540ef](https://github.com/Grinv/mal-mcp/commit/e2540ef)).
 
 ### Fixed
 
+- Make `get_anime_reviews`/`get_manga_reviews`'s `limit` actually limit the results — Tenrai silently ignores its own `limit` param ([451aa4e](https://github.com/Grinv/mal-mcp/commit/451aa4e)).
+- Accept `get_anime_schedule`'s extra day buckets and a few more real `search_anime`/`search_manga` sort fields the schemas previously rejected ([be9219f](https://github.com/Grinv/mal-mcp/commit/be9219f)).
+- Reject `page` above 1000 on every tool except the four `get_top_*` ranking tools, matching Tenrai's real per-endpoint ceiling ([4e8febe](https://github.com/Grinv/mal-mcp/commit/4e8febe), [7622dee](https://github.com/Grinv/mal-mcp/commit/7622dee)).
+- Make `get_anime_reviews`/`get_manga_reviews` backfill from later in the page instead of under-returning `limit` when an early review fails validation ([bb04202](https://github.com/Grinv/mal-mcp/commit/bb04202)).
+- Stop `get_producer` from failing entirely when a producer's `established` date isn't a clean timestamp — that field is now just omitted instead ([a7d92cf](https://github.com/Grinv/mal-mcp/commit/a7d92cf)).
 - Make README's and manifest.json's `docs/` links absolute so they still resolve from an installed extension, not just on GitHub ([2c51eec](https://github.com/Grinv/mal-mcp/commit/2c51eec)).
 - Fix a 404'ing Privacy Policy link on npm (`PRIVACY.md` was missing from the published files) and shrink the `.mcpb` bundle to runtime-only files ([4580a74](https://github.com/Grinv/mal-mcp/commit/4580a74), [8e513f6](https://github.com/Grinv/mal-mcp/commit/8e513f6)).
 - Fix the same 404 for the README's Security link (`SECURITY.md` was likewise missing from the published npm files) ([2c827bb](https://github.com/Grinv/mal-mcp/commit/2c827bb)).
-- Reject a shaped response missing `mal_id` for characters, people, producers, genres, recommendations, staff, and personal-list items, instead of silently shipping a record the caller can't chain into another tool ([900aa45](https://github.com/Grinv/mal-mcp/commit/900aa45)).
+- Reject a shaped response missing `mal_id` for characters, people, producers, genres, recommendations, staff, and personal-list items ([900aa45](https://github.com/Grinv/mal-mcp/commit/900aa45)).
 - Reject a `get_seasons_list` entry missing `year`, instead of silently shipping one the caller can't pass to `get_seasonal_anime` ([acdf72d](https://github.com/Grinv/mal-mcp/commit/acdf72d)).
-- Drop a single malformed entry (e.g. missing `mal_id`) from character/recommendation/staff/season lists and personal-list pages instead of failing the whole call, restoring the per-item resilience the `mal_id`/`year`-required fix above had traded away on these paths ([354f6c8](https://github.com/Grinv/mal-mcp/commit/354f6c8)).
+- Drop a single malformed entry (e.g. missing `mal_id`) from a list instead of failing the whole call ([354f6c8](https://github.com/Grinv/mal-mcp/commit/354f6c8), [ec4b032](https://github.com/Grinv/mal-mcp/commit/ec4b032)).
+- Reject `MAL_OAUTH_PORT` values outside the valid TCP port range (1-65535) ([ab25e99](https://github.com/Grinv/mal-mcp/commit/ab25e99)).
 
 ### Security
 
