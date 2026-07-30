@@ -12,6 +12,7 @@ import {
   score,
   trimSynopsis,
   clean,
+  mapLenient,
   projectAnimeSummary,
   projectMangaSummary,
   type AnimeSummaryFields,
@@ -20,6 +21,7 @@ import {
 import {
   animeDetailSchema,
   mangaDetailSchema,
+  recommendationEntrySchema,
   recommendationsSchema,
   statisticsSchema,
 } from "./format.schemas.js";
@@ -265,12 +267,14 @@ export interface OfficialRecommendationEdge {
   num_recommendations?: number;
 }
 
+/** A recommendation edge with no resolvable node id (a malformed/edge-case upstream record) is
+ *  dropped rather than failing the whole list — see `mapLenient`. */
 export function summarizeOfficialRecommendations(
   kind: "anime" | "manga",
   edges: OfficialRecommendationEdge[],
 ): z.infer<typeof recommendationsSchema> {
   return recommendationsSchema.parse({
-    recommendations: edges.slice(0, 25).map((e) => ({
+    recommendations: mapLenient(edges.slice(0, 25), recommendationEntrySchema, (e) => ({
       mal_id: e.node?.id,
       title: e.node?.title,
       votes: e.num_recommendations,

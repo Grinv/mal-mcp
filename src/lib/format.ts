@@ -16,6 +16,8 @@ import {
   animeSummarySchema,
   charactersSchema,
   characterEntitySchema,
+  characterEntrySchema,
+  creditEntrySchema,
   episodesSchema,
   favoritesSchema,
   genresSchema,
@@ -25,12 +27,16 @@ import {
   pageSchema,
   personEntitySchema,
   producerSchema,
+  recommendationEntrySchema,
   recommendationsSchema,
   reviewsSchema,
+  seasonEntrySchema,
   seasonsListSchema,
+  staffEntrySchema,
   staffSchema,
   statisticsSchema,
   userSchema,
+  voiceActorEntrySchema,
 } from "./format.schemas.js";
 
 interface NamedRef {
@@ -144,6 +150,25 @@ export function clean<T extends object>(obj: T): Record<string, unknown> {
     if (v === undefined || v === null) continue;
     if (Array.isArray(v) && v.length === 0) continue;
     out[k] = v;
+  }
+  return out;
+}
+
+/** Map each item through `build`, validating it against `itemSchema` individually — an item that
+ *  fails its own schema (e.g. a genuinely malformed upstream entry missing a now-required field
+ *  like mal_id) is dropped instead of failing the whole call. Mirrors `JikanClient`'s `#list()`
+ *  per-item-drop policy for endpoints that return a single top-level item per raw entry; this
+ *  covers shapers that instead combine many entries into one outer `.parse()` call, where a lone
+ *  bad entry would otherwise take the entire response down with it. */
+export function mapLenient<T, S extends z.ZodTypeAny>(
+  items: T[],
+  itemSchema: S,
+  build: (item: T) => unknown,
+): z.infer<S>[] {
+  const out: z.infer<S>[] = [];
+  for (const item of items) {
+    const result = itemSchema.safeParse(build(item));
+    if (result.success) out.push(result.data);
   }
   return out;
 }
@@ -357,13 +382,15 @@ export interface RawCharacter {
   voice_actors?: { language?: string; person?: { name?: string } }[];
 }
 
-/** Characters of an anime/manga. Anime keeps Japanese voice actors; manga has none. */
+/** Characters of an anime/manga. Anime keeps Japanese voice actors; manga has none. A character
+ *  entry with no resolvable mal_id (a malformed/edge-case upstream record) is dropped rather than
+ *  failing the whole list — see `mapLenient`. */
 export function summarizeCharacters(
   data: RawCharacter[],
   withVoiceActors: boolean,
 ): z.infer<typeof charactersSchema> {
   return charactersSchema.parse({
-    characters: data.map((c) => {
+    characters: mapLenient(data, characterEntrySchema, (c) => {
       const base = {
         mal_id: c.character?.mal_id,
         name: c.character?.name,
@@ -387,11 +414,13 @@ export interface RawRecommendation {
   votes?: number;
 }
 
+/** A recommendation entry with no resolvable mal_id (a malformed/edge-case upstream record) is
+ *  dropped rather than failing the whole list — see `mapLenient`. */
 export function summarizeRecommendations(
   data: RawRecommendation[],
 ): z.infer<typeof recommendationsSchema> {
   return recommendationsSchema.parse({
-    recommendations: data.slice(0, 25).map((r) => ({
+    recommendations: mapLenient(data.slice(0, 25), recommendationEntrySchema, (r) => ({
       mal_id: r.entry?.mal_id,
       title: r.entry?.title,
       votes: r.votes,
@@ -551,16 +580,19 @@ export function summarizeCharacter(
     image_url: imageUrl(c.images),
   });
   if (!detailed) return characterEntitySchema.parse(base);
+  // A credit/voice-actor entry with no resolvable mal_id (a malformed/edge-case upstream record,
+  // e.g. an unlinked person record) is dropped rather than failing the whole character lookup —
+  // see `mapLenient`.
   return characterEntitySchema.parse(
     clean({
       ...base,
-      anime: (c.anime ?? []).map((a) =>
+      anime: mapLenient(c.anime ?? [], creditEntrySchema, (a) =>
         clean({ role: a.role, mal_id: a.anime?.mal_id, title: a.anime?.title }),
       ),
-      manga: (c.manga ?? []).map((m) =>
+      manga: mapLenient(c.manga ?? [], creditEntrySchema, (m) =>
         clean({ role: m.role, mal_id: m.manga?.mal_id, title: m.manga?.title }),
       ),
-      voice_actors: (c.voices ?? []).map((v) =>
+      voice_actors: mapLenient(c.voices ?? [], voiceActorEntrySchema, (v) =>
         clean({ language: v.language, mal_id: v.person?.mal_id, name: v.person?.name }),
       ),
     }),
@@ -600,13 +632,16 @@ export function summarizePerson(
     image_url: imageUrl(p.images),
   });
   if (!detailed) return personEntitySchema.parse(base);
+  // A credit entry with no resolvable mal_id (a malformed/edge-case upstream record) is dropped
+  // rather than failing the whole person lookup — see `mapLenient`. voice_roles has no mal_id
+  // field at all (format.schemas.ts's voiceRoleEntrySchema), so it needs no such handling.
   return personEntitySchema.parse(
     clean({
       ...base,
-      anime: (p.anime ?? []).map((a) =>
+      anime: mapLenient(p.anime ?? [], creditEntrySchema, (a) =>
         clean({ position: a.position, mal_id: a.anime?.mal_id, title: a.anime?.title }),
       ),
-      manga: (p.manga ?? []).map((m) =>
+      manga: mapLenient(p.manga ?? [], creditEntrySchema, (m) =>
         clean({ position: m.position, mal_id: m.manga?.mal_id, title: m.manga?.title }),
       ),
       // Voiced roles can be huge for prolific actors; cap to keep the payload sane.
@@ -621,9 +656,11 @@ export interface RawStaff {
   person?: { mal_id?: number; name?: string; url?: string };
   positions?: string[];
 }
+/** A staff entry with no resolvable mal_id (a malformed/edge-case upstream record) is dropped
+ *  rather than failing the whole list — see `mapLenient`. */
 export function summarizeStaff(data: RawStaff[]): z.infer<typeof staffSchema> {
   return staffSchema.parse({
-    staff: data.map((s) =>
+    staff: mapLenient(data, staffEntrySchema, (s) =>
       clean({
         mal_id: s.person?.mal_id,
         name: s.person?.name,
@@ -698,9 +735,14 @@ export interface RawSeasonEntry {
   year?: number;
   seasons?: string[];
 }
+/** A season entry with no resolvable year (a malformed/edge-case upstream record) is dropped
+ *  rather than failing the whole list — see `mapLenient`. */
 export function summarizeSeasonsList(data: RawSeasonEntry[]): z.infer<typeof seasonsListSchema> {
   return seasonsListSchema.parse({
-    seasons: data.map((s) => ({ year: s.year, seasons: s.seasons ?? [] })),
+    seasons: mapLenient(data, seasonEntrySchema, (s) => ({
+      year: s.year,
+      seasons: s.seasons ?? [],
+    })),
   });
 }
 

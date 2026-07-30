@@ -6,6 +6,7 @@ import {
   summarizeOfficialAnimeStatistics,
   summarizeOfficialManga,
   summarizeOfficialMangaDetailed,
+  summarizeOfficialRecommendations,
   ANIME_LIST_FALLBACK_GAPS,
   ANIME_DETAIL_FALLBACK_GAPS,
   ANIME_STATISTICS_FALLBACK_GAPS,
@@ -196,4 +197,13 @@ test("summarizeOfficialAnimeStatistics populates every anime-relevant field exce
       assert.ok(key in s, `${key} should be present (not declared as a statistics-fallback gap)`);
     }
   }
+});
+
+test("summarizeOfficialRecommendations drops an edge with no resolvable node id", () => {
+  const r = summarizeOfficialRecommendations("anime", [
+    { node: { id: 1, title: "Real" }, num_recommendations: 5 },
+    { num_recommendations: 1 }, // no `node` at all
+  ]) as { recommendations: { mal_id: number }[] };
+  assert.equal(r.recommendations.length, 1);
+  assert.equal(r.recommendations[0]!.mal_id, 1);
 });

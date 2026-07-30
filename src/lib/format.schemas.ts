@@ -31,7 +31,7 @@ const refEntrySchema = z
 // {mal_id, title, votes, url}, used by summarizeRecommendations and
 // summarizeOfficialRecommendations — a ref plus its vote count. mal_id required — see
 // refEntrySchema's comment above; these entries exist to be chained into get_anime/get_manga.
-const recommendationEntrySchema = z
+export const recommendationEntrySchema = z
   .object({
     mal_id: z.number(),
     title: z.string().optional(),
@@ -173,7 +173,7 @@ export const mangaDetailSchema = mangaSummarySchema
 
 // mal_id required — get_character's own description points here ("Obtain the mal_id from
 // search_characters or get_anime_characters"); see refEntrySchema's comment above.
-const characterEntrySchema = z
+export const characterEntrySchema = z
   .object({
     mal_id: z.number(),
     name: z.string().optional(),
@@ -272,7 +272,7 @@ export const favoritesSchema = z
 
 // mal_id required — an anime/manga a character/person appears in, meant to chain into
 // get_anime/get_manga; see refEntrySchema's comment above.
-const creditEntrySchema = z
+export const creditEntrySchema = z
   .object({
     role: z.string().optional(),
     position: z.string().optional(),
@@ -283,7 +283,7 @@ const creditEntrySchema = z
 
 // mal_id required — this is exactly what get_person's description points to as the mal_id
 // source for get_anime_characters' names-only voice_actors; see refEntrySchema's comment above.
-const voiceActorEntrySchema = z
+export const voiceActorEntrySchema = z
   .object({
     language: z.string().optional(),
     mal_id: z.number(),
@@ -340,7 +340,7 @@ export const personEntitySchema = z
 // ---- summarizeStaff -----------------------------------------------------------
 
 // mal_id required — meant to chain into get_person; see refEntrySchema's comment above.
-const staffEntrySchema = z
+export const staffEntrySchema = z
   .object({
     mal_id: z.number(),
     name: z.string().optional(),
@@ -399,7 +399,9 @@ export const producerSchema = z
 // year required — get_seasons_list's own description says its whole purpose is picking a
 // valid `year` argument for get_seasonal_anime; an entry missing it can't serve that purpose.
 // Same reasoning as mal_id in the entity schemas above.
-const seasonEntrySchema = z.object({ year: z.number(), seasons: z.array(z.string()) }).strict();
+export const seasonEntrySchema = z
+  .object({ year: z.number(), seasons: z.array(z.string()) })
+  .strict();
 
 export const seasonsListSchema = z.object({ seasons: z.array(seasonEntrySchema) }).strict();
 
@@ -427,7 +429,7 @@ export const newsItemSchema = z
 // mal_id required — it's the anime_id/manga_id update_my_anime_status/update_my_manga_status
 // and delete_my_anime_list_item/delete_my_manga_list_item expect; see refEntrySchema's
 // comment above.
-const myListItemSchema = z
+export const myListItemSchema = z
   .object({
     mal_id: z.number(),
     title: z.string().optional(),

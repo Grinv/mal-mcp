@@ -18,9 +18,11 @@ import type { Logger } from "../lib/logger.js";
 import type { Config, MalAuth } from "../config.js";
 import {
   myListSchema,
+  myListItemSchema,
   deleteAnimeItemSchema,
   deleteMangaItemSchema,
 } from "../lib/format.schemas.js";
+import { mapLenient } from "../lib/format.js";
 
 const REFRESH_SKEW_MS = 60_000;
 
@@ -455,9 +457,12 @@ function parseUpstream<T>(schema: z.ZodType<T>, data: unknown, context: string):
   return result.data;
 }
 
+// A list entry with no resolvable mal_id (e.g. an orphaned entry pointing at a removed/merged
+// MAL title — a real, if rare, MAL data quirk) is dropped rather than failing the whole page —
+// see format.ts's `mapLenient`.
 function trimList(res: z.infer<typeof MalListResponseSchema>): z.infer<typeof myListSchema> {
   return myListSchema.parse({
-    items: (res.data ?? []).map((entry) => ({
+    items: mapLenient(res.data ?? [], myListItemSchema, (entry) => ({
       mal_id: entry.node?.id,
       title: entry.node?.title,
       list_status: entry.list_status,

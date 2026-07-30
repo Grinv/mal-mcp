@@ -159,6 +159,27 @@ test("summarizeRecommendations caps at 25 and maps the entry", () => {
   assert.equal(r.recommendations.length, 25);
 });
 
+test("summarizeCharacters drops a malformed entry instead of failing the whole list", () => {
+  const raw = [
+    { character: { mal_id: 5, name: "Spike", url: "u" }, role: "Main" },
+    // No nested `character` object at all — a malformed/edge-case upstream entry.
+    { role: "Support" },
+  ];
+  const r = summarizeCharacters(raw, false) as { characters: { mal_id: number }[] };
+  assert.equal(r.characters.length, 1);
+  assert.equal(r.characters[0]!.mal_id, 5);
+});
+
+test("summarizeRecommendations drops a malformed entry instead of failing the whole list", () => {
+  const raw = [
+    { entry: { mal_id: 1, title: "Real", url: "u" }, votes: 5 },
+    { votes: 1 }, // no `entry` at all
+  ];
+  const r = summarizeRecommendations(raw) as { recommendations: { mal_id: number }[] };
+  assert.equal(r.recommendations.length, 1);
+  assert.equal(r.recommendations[0]!.mal_id, 1);
+});
+
 test("summarizeReviews truncates long review text", () => {
   const r = summarizeReviews([
     { user: { username: "bob" }, score: 8, review: "x".repeat(2000), date: "2024" },
@@ -215,6 +236,29 @@ test("summarizeCharacter is compact in list mode and expands when detailed", () 
   assert.equal(full.voice_actors.length, 1);
 });
 
+test("summarizeCharacter drops a malformed nested credit/voice-actor instead of failing the whole lookup", () => {
+  const raw = {
+    mal_id: 1,
+    name: "Spike",
+    anime: [
+      { role: "Main", anime: { mal_id: 1, title: "Bebop" } },
+      { role: "Support" }, // no nested `anime` ref at all
+    ],
+    voices: [
+      { language: "Japanese", person: { mal_id: 9, name: "Yamadera" } },
+      { language: "English" }, // no nested `person` ref at all
+    ],
+  };
+  const full = summarizeCharacter(raw, true) as {
+    anime: { mal_id: number }[];
+    voice_actors: { mal_id: number }[];
+  };
+  assert.equal(full.anime.length, 1);
+  assert.equal(full.anime[0]!.mal_id, 1);
+  assert.equal(full.voice_actors.length, 1);
+  assert.equal(full.voice_actors[0]!.mal_id, 9);
+});
+
 test("summarizePerson maps names and caps voiced roles", () => {
   const voices = Array.from({ length: 80 }, (_v, i) => ({
     role: "Main",
@@ -225,6 +269,20 @@ test("summarizePerson maps names and caps voiced roles", () => {
     voice_roles: unknown[];
   };
   assert.equal(full.voice_roles.length, 50);
+});
+
+test("summarizePerson drops a malformed nested credit instead of failing the whole lookup", () => {
+  const raw = {
+    mal_id: 1,
+    name: "Ito",
+    anime: [
+      { position: "Main", anime: { mal_id: 1, title: "Bebop" } },
+      { position: "Support" }, // no nested `anime` ref at all
+    ],
+  };
+  const full = summarizePerson(raw, true) as { anime: { mal_id: number }[] };
+  assert.equal(full.anime.length, 1);
+  assert.equal(full.anime[0]!.mal_id, 1);
 });
 
 test("summarizeStaff and summarizeProducer extract the key fields", () => {
@@ -240,6 +298,15 @@ test("summarizeStaff and summarizeProducer extract the key fields", () => {
     count: 100,
   });
   assert.equal(prod["name"], "Sunrise");
+});
+
+test("summarizeStaff drops a malformed entry instead of failing the whole list", () => {
+  const staff = summarizeStaff([
+    { person: { mal_id: 1, name: "Watanabe" }, positions: ["Director"] },
+    { positions: ["Producer"] }, // no nested `person` at all
+  ]) as { staff: { mal_id: number }[] };
+  assert.equal(staff.staff.length, 1);
+  assert.equal(staff.staff[0]!.mal_id, 1);
 });
 
 test("summarizeStatistics keeps only the relevant status keys", () => {
@@ -263,6 +330,15 @@ test("summarizeSeasonsList and summarizeNewsItem map their fields", () => {
   });
   assert.equal(news["author"], "mod");
   assert.ok((news["excerpt"] as string).length < 500);
+});
+
+test("summarizeSeasonsList drops a malformed entry instead of failing the whole list", () => {
+  const seasons = summarizeSeasonsList([
+    { year: 2024, seasons: ["winter", "spring"] },
+    { seasons: ["fall"] }, // no `year` at all
+  ]) as { seasons: { year: number }[] };
+  assert.equal(seasons.seasons.length, 1);
+  assert.equal(seasons.seasons[0]!.year, 2024);
 });
 
 test("pageInfo extracts pagination fields", () => {

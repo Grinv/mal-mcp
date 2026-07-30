@@ -226,6 +226,26 @@ test("getMyMangaList requests the manga-specific annotation fields", async (t) =
     assert.ok(url.includes(f), `manga list request should request ${f}`);
 });
 
+test("getMyAnimeList drops a list entry with no node instead of failing the whole page", async (t) => {
+  // A real (if rare) MAL data quirk: an entry pointing at a removed/merged title comes back
+  // with no `node` at all.
+  const config = loadConfig({ MAL_ACCESS_TOKEN: "tok" });
+  const mock = mockFetch(() =>
+    jsonResponse({
+      data: [
+        { node: { id: 1, title: "Real" }, list_status: { status: "completed" } },
+        { list_status: { status: "completed" } },
+      ],
+      paging: {},
+    }),
+  );
+  installFetch(t, mock);
+  const client = new MalClient(config, silentLogger());
+  const res = (await client.getMyAnimeList({})) as { items: { mal_id: number }[] };
+  assert.equal(res.items.length, 1);
+  assert.equal(res.items[0]!.mal_id, 1);
+});
+
 test("a stored token takes precedence over the env access token", async (t) => {
   const storePath = tempStorePath("precedence");
   const store = new TokenStore(storePath, silentLogger());
