@@ -20,7 +20,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Make `get_anime_reviews`/`get_manga_reviews`'s `limit` actually limit the results again — Tenrai's reviews endpoint has no `limit` query param at all (silently ignored), so both tools were always returning a full 20-review page regardless of the requested/defaulted count; now sliced client-side ([451aa4e](https://github.com/Grinv/mal-mcp/commit/451aa4e)).
 - Accept `get_anime_schedule`'s `unknown`/`other` day buckets and `search_anime`/`search_manga`'s `mal_id`/`end_date`/`scored_by` sort fields — all real, working values upstream that the input schemas previously rejected ([be9219f](https://github.com/Grinv/mal-mcp/commit/be9219f)).
-- Reject `page` above 1000, matching Tenrai's own `/anime`/`/manga` ceiling, instead of forwarding an out-of-range value ([4e8febe](https://github.com/Grinv/mal-mcp/commit/4e8febe)).
+- Reject `page` above 1000 on every tool except `get_top_anime`/`get_top_manga`/`get_top_people`/`get_top_characters` — verified live that Tenrai enforces this ceiling almost everywhere (undocumented in its own OpenAPI spec for most of those routes), while those four genuinely serve data well past it ([4e8febe](https://github.com/Grinv/mal-mcp/commit/4e8febe), [7622dee](https://github.com/Grinv/mal-mcp/commit/7622dee)).
+- Make `get_anime_reviews`/`get_manga_reviews` backfill from later in the page instead of under-returning `limit` when an early review fails validation ([bb04202](https://github.com/Grinv/mal-mcp/commit/bb04202)).
+- Stop `get_producer` from failing entirely when a producer's `established` date isn't a clean timestamp — that field is now just omitted instead ([a7d92cf](https://github.com/Grinv/mal-mcp/commit/a7d92cf)).
 
 ### Added
 
