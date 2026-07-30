@@ -156,6 +156,13 @@ export class TenraiClient {
     return { results, page: pageInfo(res.pagination) };
   }
 
+  /** Cache-key suffix for a query affected by sfw/sfw_strict — the response genuinely differs
+   *  between values (see e.g. `#details`'s own comment), so a cached entry can't be shared across
+   *  different sfw/sfwStrict combinations. */
+  #sfwCacheKey(prefix: string, sfw: boolean | undefined, sfwStrict: boolean | undefined): string {
+    return `${prefix}:${Boolean(sfw)}:${Boolean(sfwStrict)}`;
+  }
+
   /** Cache by `key`, GET `path`, then shape the raw `data` (item or array). */
   async #cached<T>(
     key: string,
@@ -214,39 +221,41 @@ export class TenraiClient {
     );
   }
 
-  // sfw/sfw_strict don't filter the requested anime/manga itself (its own id was asked for
-  // explicitly) — they filter NSFW entries out of its nested `relations` list. No effect during
-  // an official-API fallback: animeDetailsOfficial/mangaDetailsOfficial take no sfw param.
   async getAnime(id: number, sfw?: boolean, sfwStrict?: boolean): Promise<Record<string, unknown>> {
-    return this.#cache.wrapStaleOnError(`anime:${id}:${Boolean(sfw)}:${Boolean(sfwStrict)}`, () =>
-      withFallback(
-        this.#logger,
-        this.#fallback,
-        "anime details",
-        async () => {
-          const res = await this.#http.getJson<ItemResponse<RawAnime>>(`anime/${id}/full`, {
-            query: { sfw, ...sfwStrictQuery(sfwStrict) },
-          });
-          return summarizeAnime(res.data, true);
-        },
-        () => this.#fallback!.animeDetailsOfficial(id),
-      ),
-    );
+    return this.#details("anime", id, sfw, sfwStrict);
   }
 
   async getManga(id: number, sfw?: boolean, sfwStrict?: boolean): Promise<Record<string, unknown>> {
-    return this.#cache.wrapStaleOnError(`manga:${id}:${Boolean(sfw)}:${Boolean(sfwStrict)}`, () =>
+    return this.#details("manga", id, sfw, sfwStrict);
+  }
+
+  // sfw/sfw_strict don't filter the requested anime/manga itself (its own id was asked for
+  // explicitly) — they filter NSFW entries out of its nested `relations` list. No effect during
+  // an official-API fallback: animeDetailsOfficial/mangaDetailsOfficial take no sfw param.
+  #details(
+    kind: "anime" | "manga",
+    id: number,
+    sfw?: boolean,
+    sfwStrict?: boolean,
+  ): Promise<Record<string, unknown>> {
+    return this.#cache.wrapStaleOnError(this.#sfwCacheKey(`${kind}:${id}`, sfw, sfwStrict), () =>
       withFallback(
         this.#logger,
         this.#fallback,
-        "manga details",
+        `${kind} details`,
         async () => {
-          const res = await this.#http.getJson<ItemResponse<RawManga>>(`manga/${id}/full`, {
-            query: { sfw, ...sfwStrictQuery(sfwStrict) },
-          });
-          return summarizeManga(res.data, true);
+          const res = await this.#http.getJson<ItemResponse<RawAnime | RawManga>>(
+            `${kind}/${id}/full`,
+            { query: { sfw, ...sfwStrictQuery(sfwStrict) } },
+          );
+          return kind === "anime"
+            ? summarizeAnime(res.data as RawAnime, true)
+            : summarizeManga(res.data as RawManga, true);
         },
-        () => this.#fallback!.mangaDetailsOfficial(id),
+        () =>
+          kind === "anime"
+            ? this.#fallback!.animeDetailsOfficial(id)
+            : this.#fallback!.mangaDetailsOfficial(id),
       ),
     );
   }
@@ -289,7 +298,7 @@ export class TenraiClient {
     sfwStrict?: boolean,
   ): Promise<Record<string, unknown>> {
     return this.#cache.wrapStaleOnError(
-      `${kind}-recs:${id}:${Boolean(sfw)}:${Boolean(sfwStrict)}`,
+      this.#sfwCacheKey(`${kind}-recs:${id}`, sfw, sfwStrict),
       () =>
         withFallback(
           this.#logger,
@@ -518,7 +527,7 @@ export class TenraiClient {
     sfwStrict?: boolean,
   ): Promise<Record<string, unknown>> {
     return this.#cached<RawCharacterEntity>(
-      `character:${id}:${Boolean(sfw)}:${Boolean(sfwStrict)}`,
+      this.#sfwCacheKey(`character:${id}`, sfw, sfwStrict),
       `characters/${id}/full`,
       (c) => summarizeCharacter(c, true),
       { sfw, ...sfwStrictQuery(sfwStrict) },
@@ -535,7 +544,7 @@ export class TenraiClient {
     sfwStrict?: boolean,
   ): Promise<Record<string, unknown>> {
     return this.#cached<RawPersonEntity>(
-      `person:${id}:${Boolean(sfw)}:${Boolean(sfwStrict)}`,
+      this.#sfwCacheKey(`person:${id}`, sfw, sfwStrict),
       `people/${id}/full`,
       (person) => summarizePerson(person, true),
       { sfw, ...sfwStrictQuery(sfwStrict) },
