@@ -117,36 +117,29 @@ npm run check:api      # live upstream health-check (network)
   any tool's description promises a field is chainable ("obtain the mal_id from
   X," "pick a valid argument for Y"), that field must be required there, backed
   by a test that feeds a fully-populated fixture through the shaper. See the
-  `tool-description-check` skill's "Reads — behavioral transparency" section for
-  the full rationale and the 2026-07-30 `mal_id`/`get_seasons_list` `year`
-  incidents that motivated it.
-- Known upstream gotcha ([typescript-sdk#2464](https://github.com/modelcontextprotocol/typescript-sdk/issues/2464),
-  open as of 2026-07-29): the SDK's Zod-v4-to-JSON-Schema conversion mishandles
-  three patterns — raw `z.date()` throws and crashes `tools/list` entirely; a
-  `.default()` on an **output** schema field still lists it in the advertised
-  `required`, which the SDK's own client then uses to reject a response that
-  omitted it in reliance on the default; and a plain (neither `.strict()` nor
-  `.passthrough()`) **output** object gets `additionalProperties: false`
+  `tool-description-check` skill's "Reads — behavioral transparency" section
+  for the full rationale.
+- Known upstream gotcha ([typescript-sdk#2464](https://github.com/modelcontextprotocol/typescript-sdk/issues/2464)):
+  the SDK's Zod-v4-to-JSON-Schema conversion mishandles three patterns — raw
+  `z.date()` throws and crashes `tools/list` entirely; a `.default()` on an
+  **output** schema field still lists it in the advertised `required`, which
+  the SDK's own client then uses to reject a response that omitted it in
+  reliance on the default; and a plain (neither `z.strictObject()` nor
+  `z.looseObject()`) **output** object gets `additionalProperties: false`
   advertised even though a lenient `z.object()` actually tolerates extras at
-  parse time. None of these currently reproduce here — we use `z.iso.date()`
-  (a string schema) instead of `z.date()`, every `.default()` we use is on an
-  **input** field (confirmed unaffected: verified via both a raw
-  `z.toJSONSchema` call and a live `tools/list` round-trip that a defaulted
-  input field is correctly omitted from `required`), and every output schema
-  is consistently `z.strictObject()` or `z.looseObject()` per the rule above
-  (no lenient output object exists to trigger the third symptom). Re-check this
-  note before adding `z.date()` anywhere, or a `.default()` to any schema in
-  `format.schemas.ts`/`clients/mal.ts`.
+  parse time. None of these apply here: we use `z.iso.date()` (a string
+  schema) instead of `z.date()`, every `.default()` we use is on an **input**
+  field, and every output schema is `z.strictObject()` or `z.looseObject()`
+  per the rule above. Re-check this note before adding `z.date()` anywhere,
+  or a `.default()` to any schema in `format.schemas.ts`/`clients/mal.ts`.
 - Broader than the `z.date()` case above: the SDK converts every registered
   tool's `inputSchema`/`outputSchema` via zod's own JSON Schema generator
-  (`schema['~standard'].jsonSchema[io](...)` — the zod ≥4.2.0 bridge our zod
-  4.4.3 provides; `@modelcontextprotocol/server/dist/*.mjs`'s direct
-  `z.toJSONSchema(schema, {...})` call is only a fallback for zod 3.x, unused
-  here) with `unrepresentable` left at zod's own default, `"throw"` — not
-  this project's bug, just zod's documented default behavior, so it won't go
-  away if typescript-sdk#2464 above ever gets fixed. Confirmed live (both
-  code paths throw the same `"Date cannot be represented in JSON Schema"`):
-  any of `z.date()`, `z.bigint()`, `z.int64()`, `z.symbol()`, `z.nan()`,
+  (the zod ≥4.2.0 `schema['~standard'].jsonSchema[io](...)` bridge; the raw
+  `z.toJSONSchema(schema, {...})` call in `@modelcontextprotocol/server` is
+  only a fallback for zod 3.x, unused here) with `unrepresentable` left at
+  zod's own default, `"throw"` — zod's documented default behavior, not an
+  SDK bug, so it won't go away if typescript-sdk#2464 above ever gets fixed.
+  Any of `z.date()`, `z.bigint()`, `z.int64()`, `z.symbol()`, `z.nan()`,
   `z.void()`, `z.undefined()`, `z.map()`, `z.set()`, `.transform()`, or
   `z.custom()` anywhere in a tool's `inputSchema`/`outputSchema` throws at
   _registration_ time (crashes `tools/list` for every tool, not just the

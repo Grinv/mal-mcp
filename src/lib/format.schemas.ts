@@ -12,8 +12,8 @@
 // this file doesn't know about must fail validation instead of silently dropping the extra key.
 // `.extend()` on a strictObject-derived schema stays strict automatically, so a `.extend({...})`
 // chain (animeDetailSchema, mangaDetailSchema, producerDetailSchema below) needs no trailing
-// `.strict()`/`z.strictObject()` of its own — verified live:
-// `z.strictObject({a:...}).extend({b:...})` still rejects an unrecognized `c`.
+// `.strict()`/`z.strictObject()` of its own: `.extend()` on a strictObject
+// still rejects any key its shape doesn't declare.
 // `.optional()` marks a field that can be a genuinely absent key —
 // either because format.ts's `clean()` dropped an undefined/empty-array value,
 // or because the raw upstream field itself was never guaranteed present.
