@@ -981,7 +981,14 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "Use get_anime_news instead for news about one specific anime by mal_id.",
       inputSchema: z
         .object({
-          q: z.string().describe("Search query, e.g. a keyword or title.").optional(),
+          q: z
+            .string()
+            .describe(
+              "Search query, e.g. a keyword or title. Verified live to search beyond just the " +
+                "headline (a real, unfamiliar-sounding title can still match) — don't assume a " +
+                "result's title visibly contains the term.",
+            )
+            .optional(),
           tag: z.string().describe("Filter by topic tag.").optional(),
           limit: limit.optional(),
           page: page.optional(),

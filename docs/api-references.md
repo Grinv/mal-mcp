@@ -71,10 +71,16 @@ json.load(open('notes/tenrai-openapi-spec.json'))..."`) instead of re-fetching
     had no tool at all before), `get_anime_videos` (`/anime/{id}/videos`), the site-wide
     `get_recent_anime_recommendations`/`get_recent_manga_recommendations`
     (`/recommendations/anime|manga`), and `get_news` (`/news`) were added to close real gaps —
-    endpoints Tenrai documents that this server didn't expose any tool for. Built directly
-    against the OpenAPI schema + unit-tested with synthetic fixtures, **not yet live-verified**
-    against the real API (unlike the query-param audit above) — worth a live smoke pass before
-    relying on their exact field names in a description as fact.
+    endpoints Tenrai documents that this server didn't expose any tool for. Verified live
+    2026-07-30 against the real API (a fresh build, not the pre-session stdio process): all five
+    return real data end-to-end, and `get_anime`/`get_manga`'s new `external`/`title_synonyms`
+    fields are populated live too — `moreinfo` specifically reproduced the exact "Suggested Order
+    of Viewing" text for Cowboy Bebop (mal_id 1) that the OpenAPI spec's own example shows.
+    `explicit_genres` stayed empty on every title tried (including one MAL tags "Ecchi" in its
+    plain `genres`, not `explicit_genres`) — plausibly a real, rarely-populated field rather than
+    a mapping bug, but not independently confirmed non-empty on any title. `get_news`'s `q` param
+    genuinely filters (a nonsense query returns 0 results) but matches more than the visible
+    headline — a query like "Dragon Ball" returns articles whose titles don't contain the phrase.
 
 ## MyAnimeList official API
 
