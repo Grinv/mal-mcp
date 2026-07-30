@@ -287,8 +287,11 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       title: "Get anime details",
       description:
         "Get full details for one anime by mal_id: synopsis, score, genres, studios, " +
-        "streaming links and related entries. Obtain the mal_id from search_anime first. If " +
-        "Tenrai is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
+        "streaming links, external links (official site, social media), alternate title " +
+        "synonyms, and related entries. `moreinfo` is a free-text field MAL editors sometimes " +
+        "add (e.g. suggested viewing order for a franchise) — usually absent. Obtain the " +
+        "mal_id from search_anime first. If Tenrai is unavailable and MAL_CLIENT_ID is set, " +
+        "transparently retries via the official " +
         `API, which omits ${gapList(ANIME_DETAIL_FALLBACK_GAPS)} (no equivalent fields there).`,
       inputSchema: z.object({ id: malId }).strict(),
       outputSchema: animeDetailSchema,
@@ -300,7 +303,8 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       title: "Get manga details",
       description:
         "Get full details for one manga by mal_id: synopsis, score, genres, authors, " +
-        "serialization, and related entries. Obtain the mal_id from search_manga first. If " +
+        "serialization, external links (official site, social media), alternate title " +
+        "synonyms, and related entries. Obtain the mal_id from search_manga first. If " +
         "Tenrai is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
         `API, which omits ${gapList(MANGA_DETAIL_FALLBACK_GAPS)} (no equivalent field there).`,
       inputSchema: z.object({ id: malId }).strict(),

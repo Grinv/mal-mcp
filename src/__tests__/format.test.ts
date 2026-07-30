@@ -82,6 +82,43 @@ test("summarizeAnime surfaces detailed /full fields (duration, broadcast, traile
   assert.deepEqual(s["licensors"], ["Crunchyroll"]);
 });
 
+test("summarizeAnime surfaces moreinfo/explicit_genres/title_synonyms/external in detailed mode only", () => {
+  const full: RawAnime = {
+    ...anime,
+    moreinfo: "Suggested Order of Viewing: 1. TV Series 2. Movie",
+    explicit_genres: [{ name: "Ecchi" }],
+    title_synonyms: ["Alt Title"],
+    external: [{ name: "Official Site", url: "https://bebop.example" }],
+  };
+  const list = summarizeAnime(full);
+  for (const k of ["moreinfo", "explicit_genres", "title_synonyms", "external"]) {
+    assert.ok(!(k in list), `${k} should not appear in list mode`);
+  }
+  const s = summarizeAnime(full, true);
+  assert.equal(s["moreinfo"], "Suggested Order of Viewing: 1. TV Series 2. Movie");
+  assert.deepEqual(s["explicit_genres"], ["Ecchi"]);
+  assert.deepEqual(s["title_synonyms"], ["Alt Title"]);
+  assert.deepEqual(s["external"], [{ name: "Official Site", url: "https://bebop.example" }]);
+});
+
+test("summarizeManga surfaces explicit_genres/title_synonyms/external in detailed mode only", () => {
+  const full: RawManga = {
+    mal_id: 2,
+    title: "Berserk",
+    explicit_genres: [{ name: "Gore" }],
+    title_synonyms: ["Berserk Alt"],
+    external: [{ name: "Official Site", url: "https://berserk.example" }],
+  };
+  const list = summarizeManga(full);
+  for (const k of ["explicit_genres", "title_synonyms", "external"]) {
+    assert.ok(!(k in list), `${k} should not appear in list mode`);
+  }
+  const s = summarizeManga(full, true);
+  assert.deepEqual(s["explicit_genres"], ["Gore"]);
+  assert.deepEqual(s["title_synonyms"], ["Berserk Alt"]);
+  assert.deepEqual(s["external"], [{ name: "Official Site", url: "https://berserk.example" }]);
+});
+
 test("summarizeAnime omits the detailed /full fields in list mode", () => {
   const s = summarizeAnime({ ...anime, duration: "24 min per ep" });
   for (const k of ["duration", "trailer", "opening_themes", "licensors"])

@@ -89,7 +89,9 @@ export const animeSummarySchema = z
   })
   .strict();
 
-const streamingEntrySchema = z
+// {name, url} — used for both streaming-service links and external (official site, social
+// media) links; Tenrai returns the exact same shape for each.
+const namedLinkSchema = z
   .object({ name: z.string().optional(), url: z.string().optional() })
   .strict();
 
@@ -108,11 +110,15 @@ export const animeDetailSchema = animeSummarySchema
     background: z.string().optional(),
     producers: z.array(z.string()).optional(),
     licensors: z.array(z.string()).optional(),
-    streaming: z.array(streamingEntrySchema).optional(),
+    streaming: z.array(namedLinkSchema).optional(),
     opening_themes: z.array(z.string()).optional(),
     ending_themes: z.array(z.string()).optional(),
     trailer: z.string().optional(),
     relations: z.array(relationSchema).optional(),
+    moreinfo: z.string().optional(),
+    explicit_genres: z.array(z.string()).optional(),
+    title_synonyms: z.array(z.string()).optional(),
+    external: z.array(namedLinkSchema).optional(),
   })
   .strict();
 
@@ -153,6 +159,9 @@ export const mangaDetailSchema = mangaSummarySchema
     background: z.string().optional(),
     serializations: z.array(z.string()).optional(),
     relations: z.array(relationSchema).optional(),
+    explicit_genres: z.array(z.string()).optional(),
+    title_synonyms: z.array(z.string()).optional(),
+    external: z.array(namedLinkSchema).optional(),
   })
   .strict();
 

@@ -78,10 +78,14 @@ interface AnimeMangaRawBase {
   genres?: NamedRef[];
   themes?: NamedRef[];
   demographics?: NamedRef[];
+  explicit_genres?: NamedRef[];
+  title_synonyms?: string[];
+  external?: { name?: string; url?: string }[];
   relations?: { relation?: string; entry?: NamedRef[] }[];
 }
 
 export interface RawAnime extends AnimeMangaRawBase {
+  moreinfo?: string | null;
   source?: string | null;
   rating?: string | null;
   episodes?: number | null;
@@ -318,6 +322,10 @@ export function summarizeAnime(
       relations: (a.relations ?? []).map((r) =>
         clean({ relation: r.relation, entries: names(r.entry) }),
       ),
+      moreinfo: a.moreinfo ?? undefined,
+      explicit_genres: names(a.explicit_genres),
+      title_synonyms: a.title_synonyms ?? undefined,
+      external: (a.external ?? []).map((e) => clean({ name: e.name, url: e.url })),
     }),
   );
 }
@@ -364,6 +372,9 @@ export function summarizeManga(
       relations: (m.relations ?? []).map((r) =>
         clean({ relation: r.relation, entries: names(r.entry) }),
       ),
+      explicit_genres: names(m.explicit_genres),
+      title_synonyms: m.title_synonyms ?? undefined,
+      external: (m.external ?? []).map((e) => clean({ name: e.name, url: e.url })),
     }),
   );
 }

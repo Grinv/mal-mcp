@@ -68,7 +68,7 @@ test("summarizeOfficialManga drops author entries with neither a first nor last 
 const fullAnimeNode: OfficialAnimeNode = {
   id: 1,
   title: "T",
-  alternative_titles: { en: "TE", ja: "TJ" },
+  alternative_titles: { en: "TE", ja: "TJ", synonyms: ["Alt Title"] },
   main_picture: { large: "pic" },
   start_date: "2024-01-01",
   start_season: { year: 2024, season: "winter" },
@@ -122,7 +122,7 @@ test("summarizeOfficialAnimeDetailed populates every field except ANIME_DETAIL_F
 const fullMangaNode: OfficialMangaNode = {
   id: 1,
   title: "T",
-  alternative_titles: { en: "TE", ja: "TJ" },
+  alternative_titles: { en: "TE", ja: "TJ", synonyms: ["Alt Title"] },
   main_picture: { large: "pic" },
   start_date: "2024-01-01",
   synopsis: "s".repeat(10),

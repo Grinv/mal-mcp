@@ -9,6 +9,15 @@ JavaScript, so a plain HTTP fetch returns only the title — open them in a brow
 
 - **API reference** — <https://tenrai.org/documentation> (interactive Scalar
   docs); a machine-readable summary lives at <https://api.tenrai.org/llms.txt>.
+  A full OpenAPI 3.0.3 spec (86 paths, every query param/enum/response shape) is
+  cached locally at `notes/tenrai-openapi-spec.json` (gitignored, not
+  committed — see `notes/tenrai-reliability.md` for the same local-notes
+  convention) for fast programmatic lookup (e.g. `python3 -c "import json;
+json.load(open('notes/tenrai-openapi-spec.json'))..."`) instead of re-fetching
+  the JS-rendered docs page every time. It's a point-in-time snapshot (fetched
+  2026-07-30) — Tenrai describes `/v1` as an interim design with a `/v2` planned,
+  so re-fetch and refresh this file before trusting it against a claim it
+  doesn't already back up in this doc.
   - **Rate limiting:** 4 requests/second **and** 120 requests/minute for
     public (unauthenticated) access, 40,000/day. Enforced client-side by the
     sliding-window `RateLimiter`. An optional `X-Server-Key` (Patreon-gated)
@@ -92,9 +101,13 @@ ID / OAuth token) and exactly what each one unlocks.
 > API covers most of Tenrai's `detailed: true` extras (title_japanese, source,
 > duration, broadcast, background, relations, scored_by) but has **no**
 > equivalent at all for `producers`/`licensors`/`streaming`/
-> `opening_themes`/`ending_themes`/`trailer`/`favorites`, which are simply
-> absent during that fallback (see `summarizeOfficialAnimeDetailed`/
-> `summarizeOfficialMangaDetailed` in `lib/formatOfficial.ts`). `get_anime_statistics`
+> `opening_themes`/`ending_themes`/`trailer`/`favorites`/`moreinfo` (anime-only
+> to begin with)/`explicit_genres`/`external`, which are simply absent during
+> that fallback (see `summarizeOfficialAnimeDetailed`/
+> `summarizeOfficialMangaDetailed` in `lib/formatOfficial.ts`). `title_synonyms`
+> IS covered during a fallback — the bare `alternative_titles` field already
+> returns `synonyms` alongside `en`/`ja` with no extra `fields=` cost (verified
+> live). `get_anime_statistics`
 > falls back too — `AnimeForDetails.statistics` (`fields=statistics` on the same
 > endpoint) gives the watch-status counts (`watching`/`completed`/`on_hold`/
 > `dropped`/`plan_to_watch`/`num_list_users`), but has **no** score-distribution

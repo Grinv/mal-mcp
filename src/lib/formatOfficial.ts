@@ -133,7 +133,7 @@ export interface OfficialAnimeNode {
   title?: string;
   // Bare `alternative_titles` (no nested-field syntax) already returns en/ja/synonyms —
   // verified live, see docs/api-references.md.
-  alternative_titles?: { en?: string | null; ja?: string | null };
+  alternative_titles?: { en?: string | null; ja?: string | null; synonyms?: string[] };
   main_picture?: OfficialPicture;
   start_date?: string | null;
   start_season?: { year?: number; season?: string };
@@ -210,6 +210,9 @@ export const ANIME_DETAIL_FALLBACK_GAPS = [
   "ending_themes",
   "trailer",
   "favorites",
+  "moreinfo",
+  "explicit_genres",
+  "external",
 ] as const;
 
 export function summarizeOfficialAnimeDetailed(
@@ -227,6 +230,7 @@ export function summarizeOfficialAnimeDetailed(
       scored_by: n.num_scoring_users ?? undefined,
       background: n.background ?? undefined,
       relations: groupRelations(n.related_anime, n.related_manga),
+      title_synonyms: n.alternative_titles?.synonyms ?? undefined,
     }),
   );
 }
@@ -234,7 +238,7 @@ export function summarizeOfficialAnimeDetailed(
 export interface OfficialMangaNode {
   id: number;
   title?: string;
-  alternative_titles?: { en?: string | null; ja?: string | null };
+  alternative_titles?: { en?: string | null; ja?: string | null; synonyms?: string[] };
   main_picture?: OfficialPicture;
   start_date?: string | null;
   synopsis?: string | null;
@@ -355,7 +359,7 @@ export function summarizeOfficialManga(
 
 // Detail-mode fallback for get_manga — see summarizeOfficialAnimeDetailed's comment for the
 // scope of what the official API can and can't reproduce from Tenrai's `detailed: true` output.
-export const MANGA_DETAIL_FALLBACK_GAPS = ["favorites"] as const;
+export const MANGA_DETAIL_FALLBACK_GAPS = ["favorites", "explicit_genres", "external"] as const;
 
 export function summarizeOfficialMangaDetailed(
   n: OfficialMangaNode,
@@ -373,6 +377,7 @@ export function summarizeOfficialMangaDetailed(
         .map((s) => s.node?.name)
         .filter((name): name is string => Boolean(name)),
       relations: groupRelations(n.related_anime, n.related_manga),
+      title_synonyms: n.alternative_titles?.synonyms ?? undefined,
     }),
   );
 }
