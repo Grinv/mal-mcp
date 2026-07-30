@@ -6,6 +6,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Replace the Jikan read backend with Tenrai, a free, unofficial Jikan-v4-schema-compatible MyAnimeList mirror — Jikan's community reports its public API shutting down 2026-10-01, and Tenrai answered every endpoint this server uses cleanly where Jikan was intermittently failing ([8615b83](https://github.com/Grinv/mal-mcp/commit/8615b83)).
+- Rename the `JIKAN_BASE_URL`/`JIKAN_MIN_INTERVAL_MS` env vars to `TENRAI_BASE_URL`/`TENRAI_MIN_INTERVAL_MS` ([8615b83](https://github.com/Grinv/mal-mcp/commit/8615b83)).
+
+### Removed
+
+- Remove `get_user_profile`/`get_user_favorites` — Tenrai has no `/users` endpoint, and the official MyAnimeList API can only serve the OAuth-authenticated caller's own profile (`get_my_user_info`), not an arbitrary public username's ([8615b83](https://github.com/Grinv/mal-mcp/commit/8615b83)).
+
 ### Added
 
 - Add a privacy policy (`PRIVACY.md`) covering data collection, third-party sharing, storage/retention, and which tools read vs. mutate a connected MyAnimeList account, linked from the README ([d380b9a](https://github.com/Grinv/mal-mcp/commit/d380b9a)).
