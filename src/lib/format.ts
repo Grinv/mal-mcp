@@ -19,7 +19,9 @@ import {
   characterEntrySchema,
   creditEntrySchema,
   episodesSchema,
+  episodeEntrySchema,
   genresSchema,
+  genreEntrySchema,
   magazineSchema,
   mangaDetailSchema,
   mangaSummarySchema,
@@ -34,6 +36,7 @@ import {
   recentRecommendationEntrySchema,
   recentRecommendationsSchema,
   reviewsSchema,
+  reviewEntrySchema,
   seasonEntrySchema,
   seasonsListSchema,
   staffEntrySchema,
@@ -501,9 +504,11 @@ export interface RawReview {
   reactions?: Record<string, number>;
 }
 
+// A single malformed review (e.g. an unparseable `date`) is dropped rather than failing the
+// whole call — see `mapLenient`.
 export function summarizeReviews(data: RawReview[]): z.infer<typeof reviewsSchema> {
   return reviewsSchema.parse({
-    reviews: data.map((r) => ({
+    reviews: mapLenient(data, reviewEntrySchema, (r) => ({
       user: r.user?.username,
       score: r.score,
       tags: r.tags ?? [],
@@ -529,12 +534,14 @@ export interface RawEpisode {
   recap?: boolean;
 }
 
+// A single malformed episode (e.g. an unparseable `aired`) is dropped rather than failing the
+// whole call — see `mapLenient`.
 export function summarizeEpisodes(
   data: RawEpisode[],
   pagination: RawPagination | undefined,
 ): z.infer<typeof episodesSchema> {
   return episodesSchema.parse({
-    episodes: data.map((e) => ({
+    episodes: mapLenient(data, episodeEntrySchema, (e) => ({
       mal_id: e.mal_id,
       title: e.title,
       title_japanese: e.title_japanese ?? undefined,
@@ -554,9 +561,17 @@ export interface RawGenre {
   url?: string;
 }
 
+// A genre entry missing mal_id (get_anime_genres/get_manga_genres' own lookup key — see
+// characterEntrySchema's comment in format.schemas.ts) is dropped rather than failing the whole
+// call — see `mapLenient`.
 export function summarizeGenres(data: RawGenre[]): z.infer<typeof genresSchema> {
   return genresSchema.parse({
-    genres: data.map((g) => ({ mal_id: g.mal_id, name: g.name, count: g.count, url: g.url })),
+    genres: mapLenient(data, genreEntrySchema, (g) => ({
+      mal_id: g.mal_id,
+      name: g.name,
+      count: g.count,
+      url: g.url,
+    })),
   });
 }
 

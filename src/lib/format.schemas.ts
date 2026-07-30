@@ -205,7 +205,7 @@ export const recentRecommendationsSchema = listPageSchema(recentRecommendationEn
 
 // ---- summarizeReviews -----------------------------------------------------------
 
-const reviewEntrySchema = z.strictObject({
+export const reviewEntrySchema = z.strictObject({
   user: z.string().optional(),
   // MAL review scores are always a whole 1-10 star rating (unlike the anime/manga entity's
   // own decimal average `score`, e.g. 8.75).
@@ -225,7 +225,7 @@ export const reviewsSchema = z.strictObject({ reviews: z.array(reviewEntrySchema
 
 // ---- summarizeEpisodes -----------------------------------------------------------
 
-const episodeEntrySchema = z.strictObject({
+export const episodeEntrySchema = z.strictObject({
   mal_id: z.int().positive().optional(),
   title: z.string().optional(),
   title_japanese: z.string().optional(),
@@ -245,7 +245,7 @@ export const episodesSchema = z.strictObject({
 // mal_id required — this is exactly the numeric ID search_anime/search_manga's own `genres`
 // param expects (validated there against \d+(,\d+)* — see tools/read.ts's genreIds()); see
 // characterEntrySchema's comment above.
-const genreEntrySchema = z.strictObject({
+export const genreEntrySchema = z.strictObject({
   mal_id: z.int().positive(),
   name: z.string().optional(),
   count: z.int().nonnegative().optional(),

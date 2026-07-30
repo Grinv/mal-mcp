@@ -322,6 +322,21 @@ test("summarizeReviews truncates long review text", () => {
   assert.deepEqual(r.reviews[0]!.tags, []); // missing tags default to []
 });
 
+test("summarizeReviews drops a malformed entry instead of failing the whole list", () => {
+  const r = summarizeReviews([
+    {
+      user: { username: "bob" },
+      score: 8,
+      review: "Good show.",
+      date: "2024-01-01T00:00:00+00:00",
+    },
+    // Unparseable date (not a real ISO 8601 datetime) — a malformed/edge-case upstream entry.
+    { user: { username: "eve" }, score: 5, review: "Bad show.", date: "not-a-date" },
+  ]) as { reviews: { user: string }[] };
+  assert.equal(r.reviews.length, 1);
+  assert.equal(r.reviews[0]!.user, "bob");
+});
+
 test("summarizeEpisodes maps fields and attaches pagination", () => {
   const r = summarizeEpisodes(
     [
@@ -339,11 +354,33 @@ test("summarizeEpisodes maps fields and attaches pagination", () => {
   assert.equal(r.page["has_next_page"], true);
 });
 
+test("summarizeEpisodes drops a malformed entry instead of failing the whole list", () => {
+  const r = summarizeEpisodes(
+    [
+      { mal_id: 1, title: "Asteroid Blues", aired: "1998-10-24T00:00:00+00:00" },
+      // Unparseable aired date — a malformed/edge-case upstream entry.
+      { mal_id: 2, title: "Stray Dog Strut", aired: "not-a-date" },
+    ],
+    undefined,
+  ) as { episodes: { mal_id: number }[] };
+  assert.equal(r.episodes.length, 1);
+  assert.equal(r.episodes[0]!.mal_id, 1);
+});
+
 test("summarizeGenres maps id/name/count", () => {
   const r = summarizeGenres([{ mal_id: 1, name: "Action", count: 100, url: "u" }]) as {
     genres: Record<string, unknown>[];
   };
   assert.deepEqual(r.genres[0], { mal_id: 1, name: "Action", count: 100, url: "u" });
+});
+
+test("summarizeGenres drops an entry missing mal_id instead of failing the whole list", () => {
+  const r = summarizeGenres([
+    { mal_id: 1, name: "Action", count: 100, url: "u" },
+    { name: "Broken" }, // no mal_id — a malformed/edge-case upstream entry.
+  ]) as { genres: { mal_id: number }[] };
+  assert.equal(r.genres.length, 1);
+  assert.equal(r.genres[0]!.mal_id, 1);
 });
 
 test("summarizeCharacter is compact in list mode and expands when detailed", () => {
