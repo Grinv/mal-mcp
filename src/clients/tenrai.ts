@@ -50,53 +50,113 @@ interface ItemResponse<T> {
   data: T;
 }
 
-// Tenrai's real enums (its own OpenAPI spec), mirrored here so a typo can't compile — the
-// zod schemas in tools/read.ts are the actual runtime gate (agent input is validated there
-// before it ever reaches this client), but that's no reason for this client's own params to
-// be typed as bare `string`: TenraiClient is called directly by tests (contract.test.ts) and
-// is a public API in its own right. Each type unions every enum Tenrai documents for that
-// query param across every endpoint that uses it, since several params (`order_by`, `status`,
-// `filter`, `type`) are shared by anime and manga routes with slightly different allowed values.
-type AnimeMediaType =
-  "tv" | "movie" | "ova" | "special" | "ona" | "music" | "cm" | "pv" | "tv_special";
-type MangaMediaType = "manga" | "novel" | "lightnovel" | "oneshot" | "doujin" | "manhwa" | "manhua";
-type ContentRating = "g" | "pg" | "pg13" | "r17" | "r" | "rx";
-type AnimeMangaStatus =
-  "airing" | "complete" | "upcoming" | "publishing" | "hiatus" | "discontinued";
-type SortDir = "asc" | "desc";
-type AnimeMangaOrderBy =
-  | "mal_id"
-  | "title"
-  | "start_date"
-  | "end_date"
-  | "episodes"
-  | "chapters"
-  | "volumes"
-  | "score"
-  | "scored_by"
-  | "rank"
-  | "popularity"
-  | "members"
-  | "favorites";
-type TopFilter = "airing" | "upcoming" | "bypopularity" | "favorite" | "publishing";
-type SeasonName = "winter" | "spring" | "summer" | "fall";
-type SeasonOrderBy = "score" | "members" | "start_date";
-type ScheduleDay =
-  | "monday"
-  | "tuesday"
-  | "wednesday"
-  | "thursday"
-  | "friday"
-  | "saturday"
-  | "sunday"
-  | "unknown"
-  | "other";
-type ReviewSort = "newest" | "oldest" | "most_helpful";
-type ReviewTriState = "true" | "false" | "only";
-type ReviewSentiment = "recommended" | "mixed_feelings" | "not_recommended";
+// Tenrai's real enums (its own OpenAPI spec) — the single source of truth for every enum-shaped
+// query param this server exposes. Each is a runtime `as const` array (not just a TS type): the
+// zod schemas in tools/read.ts build their `z.enum(...)` directly from these same arrays instead
+// of re-typing the values, so the two layers cannot drift apart. TenraiClient's own interfaces
+// derive their TS types from the same arrays via `(typeof X)[number]`, for the same reason
+// covered before — this client is called directly by tests (contract.test.ts), not just through
+// the zod-validated tool layer, so its own params shouldn't be bare `string` either.
+export const ANIME_MEDIA_TYPES = [
+  "tv",
+  "movie",
+  "ova",
+  "special",
+  "ona",
+  "music",
+  "cm",
+  "pv",
+  "tv_special",
+] as const;
+export const MANGA_MEDIA_TYPES = [
+  "manga",
+  "novel",
+  "lightnovel",
+  "oneshot",
+  "doujin",
+  "manhwa",
+  "manhua",
+] as const;
+export const CONTENT_RATINGS = ["g", "pg", "pg13", "r17", "r", "rx"] as const;
+export const ANIME_STATUSES = ["airing", "complete", "upcoming"] as const;
+export const MANGA_STATUSES = [
+  "publishing",
+  "complete",
+  "hiatus",
+  "discontinued",
+  "upcoming",
+] as const;
+export const SORT_DIRS = ["asc", "desc"] as const;
+export const ANIME_ORDER_BY = [
+  "mal_id",
+  "title",
+  "start_date",
+  "end_date",
+  "episodes",
+  "score",
+  "scored_by",
+  "rank",
+  "popularity",
+  "members",
+  "favorites",
+] as const;
+export const MANGA_ORDER_BY = [
+  "mal_id",
+  "title",
+  "start_date",
+  "end_date",
+  "chapters",
+  "volumes",
+  "score",
+  "scored_by",
+  "rank",
+  "popularity",
+  "members",
+  "favorites",
+] as const;
+export const ANIME_TOP_FILTERS = ["airing", "upcoming", "bypopularity", "favorite"] as const;
+export const MANGA_TOP_FILTERS = ["publishing", "upcoming", "bypopularity", "favorite"] as const;
+export const SEASON_NAMES = ["winter", "spring", "summer", "fall"] as const;
+export const SEASON_ORDER_BY = ["score", "members", "start_date"] as const;
+export const SCHEDULE_DAYS = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+  "unknown",
+  "other",
+] as const;
+export const REVIEW_SORTS = ["newest", "oldest", "most_helpful"] as const;
+export const REVIEW_TRI_STATES = ["true", "false", "only"] as const;
+export const REVIEW_SENTIMENTS = ["recommended", "mixed_feelings", "not_recommended"] as const;
+export const CHARACTER_ORDER_BY = ["mal_id", "name", "favorites"] as const;
+export const PEOPLE_ORDER_BY = ["mal_id", "name", "birthday", "favorites"] as const;
+export const PRODUCER_ORDER_BY = ["mal_id", "count", "favorites", "established"] as const;
+export const GENRE_FILTERS = ["genres", "explicit_genres", "themes", "demographics"] as const;
+
+type AnimeMediaType = (typeof ANIME_MEDIA_TYPES)[number];
+type MangaMediaType = (typeof MANGA_MEDIA_TYPES)[number];
+type ContentRating = (typeof CONTENT_RATINGS)[number];
+type AnimeMangaStatus = (typeof ANIME_STATUSES)[number] | (typeof MANGA_STATUSES)[number];
+type SortDir = (typeof SORT_DIRS)[number];
+type AnimeMangaOrderBy = (typeof ANIME_ORDER_BY)[number] | (typeof MANGA_ORDER_BY)[number];
+type TopFilter = (typeof ANIME_TOP_FILTERS)[number] | (typeof MANGA_TOP_FILTERS)[number];
+type SeasonName = (typeof SEASON_NAMES)[number];
+type SeasonOrderBy = (typeof SEASON_ORDER_BY)[number];
+type ScheduleDay = (typeof SCHEDULE_DAYS)[number];
+type ReviewSort = (typeof REVIEW_SORTS)[number];
+type ReviewTriState = (typeof REVIEW_TRI_STATES)[number];
+type ReviewSentiment = (typeof REVIEW_SENTIMENTS)[number];
 // Shared by search_characters/search_people/get_producers — each has its own order_by enum;
 // this unions all three since one interface serves all three tools.
-type NameOrderBy = "mal_id" | "name" | "favorites" | "birthday" | "count" | "established";
+type NameOrderBy =
+  | (typeof CHARACTER_ORDER_BY)[number]
+  | (typeof PEOPLE_ORDER_BY)[number]
+  | (typeof PRODUCER_ORDER_BY)[number];
+export type GenreFilter = (typeof GENRE_FILTERS)[number];
 
 // Shared by the plain-name-search endpoints (characters/people/producers) — no content
 // filtering, just find-by-name plus ordering/pagination/alphabetical browse.
@@ -432,16 +492,16 @@ export class TenraiClient {
     return summarizeEpisodes(res.data, res.pagination);
   }
 
-  async getAnimeGenres(filter?: string): Promise<Record<string, unknown>> {
+  async getAnimeGenres(filter?: GenreFilter): Promise<Record<string, unknown>> {
     return this.#genres("anime", filter);
   }
 
-  async getMangaGenres(filter?: string): Promise<Record<string, unknown>> {
+  async getMangaGenres(filter?: GenreFilter): Promise<Record<string, unknown>> {
     return this.#genres("manga", filter);
   }
 
   // Genre IDs feed the `genres` param of search_*; they rarely change, so cache.
-  #genres(kind: "anime" | "manga", filter?: string): Promise<Record<string, unknown>> {
+  #genres(kind: "anime" | "manga", filter?: GenreFilter): Promise<Record<string, unknown>> {
     return this.#cached<RawGenre[]>(
       `genres:${kind}:${filter ?? "all"}`,
       `genres/${kind}`,

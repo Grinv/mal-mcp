@@ -6,6 +6,28 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
 import type { TenraiClient } from "../clients/tenrai.js";
+import {
+  ANIME_MEDIA_TYPES,
+  MANGA_MEDIA_TYPES,
+  CONTENT_RATINGS,
+  ANIME_STATUSES,
+  MANGA_STATUSES,
+  SORT_DIRS,
+  ANIME_ORDER_BY,
+  MANGA_ORDER_BY,
+  ANIME_TOP_FILTERS,
+  MANGA_TOP_FILTERS,
+  SEASON_NAMES,
+  SEASON_ORDER_BY,
+  SCHEDULE_DAYS,
+  REVIEW_SORTS,
+  REVIEW_TRI_STATES,
+  REVIEW_SENTIMENTS,
+  CHARACTER_ORDER_BY,
+  PEOPLE_ORDER_BY,
+  PRODUCER_ORDER_BY,
+  GENRE_FILTERS,
+} from "../clients/tenrai.js";
 import { jsonResult, type ToolResult } from "../lib/result.js";
 import { guard } from "./guard.js";
 import { defineTool, registerTools } from "./spec.js";
@@ -43,17 +65,14 @@ const READ_ONLY = { readOnlyHint: true, openWorldHint: true } as const;
  *  tests that check them against a fully-populated node (see formatOfficial.test.ts). */
 const gapList = (fields: readonly string[]) => fields.map((f) => `\`${f}\``).join("/");
 
-const animeType = z
-  .enum(["tv", "movie", "ova", "special", "ona", "music", "cm", "pv", "tv_special"])
-  .describe("A media type.");
-const animeStatus = z.enum(["airing", "complete", "upcoming"]).describe("Filter by airing status.");
-const mangaType = z
-  .enum(["manga", "novel", "lightnovel", "oneshot", "doujin", "manhwa", "manhua"])
-  .describe("A publication type.");
-const mangaStatus = z
-  .enum(["publishing", "complete", "hiatus", "discontinued", "upcoming"])
-  .describe("Filter by publication status.");
-const sortDir = z.enum(["desc", "asc"]).describe("Sort direction.");
+// Every z.enum(...) below builds directly off the `as const` arrays exported by tenrai.ts —
+// that module is the single source of truth for which values Tenrai actually accepts; nothing
+// here re-types a literal value list, so the two layers cannot drift apart.
+const animeType = z.enum(ANIME_MEDIA_TYPES).describe("A media type.");
+const animeStatus = z.enum(ANIME_STATUSES).describe("Filter by airing status.");
+const mangaType = z.enum(MANGA_MEDIA_TYPES).describe("A publication type.");
+const mangaStatus = z.enum(MANGA_STATUSES).describe("Filter by publication status.");
+const sortDir = z.enum(SORT_DIRS).describe("Sort direction.");
 const limit = z.number().int().min(1).max(50).describe("Max results per page (1-50).");
 const page = z.number().int().min(1).describe("1-based page number for pagination.");
 const sfw = z
@@ -71,7 +90,7 @@ const sfwStrict = z
   );
 const malId = z.number().int().positive().describe("MyAnimeList numeric ID.");
 const genreFilter = z
-  .enum(["genres", "explicit_genres", "themes", "demographics"])
+  .enum(GENRE_FILTERS)
   .describe("Restrict to one kind of tag. Omit to list all.");
 /** Tenrai caps every comma-separated ID list at 25 entries. */
 const commaIds = z
@@ -87,7 +106,7 @@ const genreIdsExclude = (lookupTool: string) =>
     `Comma-separated MAL genre IDs to exclude (max 25), e.g. '1,4'. Look up IDs with ${lookupTool}.`,
   );
 const contentRating = z
-  .enum(["g", "pg", "pg13", "r17", "r", "rx"])
+  .enum(CONTENT_RATINGS)
   .describe(
     "A MAL content rating: g (All Ages), pg (Children), pg13 (Teens 13+), r17 (17+ violence/" +
       "profanity), r (R+ Mild Nudity), rx (Rx Hentai).",
@@ -122,17 +141,17 @@ const kidsFlag = z
   .boolean()
   .describe("If true, exclude entries tagged as children's/kids content. Defaults to false.");
 const reviewSort = z
-  .enum(["newest", "oldest", "most_helpful"])
+  .enum(REVIEW_SORTS)
   .describe("Sort order. Defaults to most_helpful (Tenrai's own default) when omitted.");
 const reviewTriState = (subject: string) =>
   z
-    .enum(["true", "false", "only"])
+    .enum(REVIEW_TRI_STATES)
     .describe(
       `Filter by ${subject}. 'true' includes them alongside other reviews (default), ` +
         `'false' excludes them, 'only' returns exclusively ${subject} reviews.`,
     );
 const reviewSentiment = z
-  .enum(["recommended", "mixed_feelings", "not_recommended"])
+  .enum(REVIEW_SENTIMENTS)
   .describe("Restrict to reviews with this overall sentiment tag. Omit for all sentiments.");
 
 /** Run a client call and wrap its result (or any failure) as a tool result. */
@@ -189,22 +208,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
           end_date: endDate.optional(),
           unapproved: unapproved.optional(),
           letter: letterFilter.optional(),
-          order_by: z
-            .enum([
-              "mal_id",
-              "title",
-              "start_date",
-              "end_date",
-              "episodes",
-              "score",
-              "scored_by",
-              "rank",
-              "popularity",
-              "members",
-              "favorites",
-            ])
-            .describe("Field to order by.")
-            .optional(),
+          order_by: z.enum(ANIME_ORDER_BY).describe("Field to order by.").optional(),
           sort: sortDir.optional(),
           sfw: sfw.optional(),
           sfw_strict: sfwStrict.optional(),
@@ -263,23 +267,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
           end_date: endDate.optional(),
           unapproved: unapproved.optional(),
           letter: letterFilter.optional(),
-          order_by: z
-            .enum([
-              "mal_id",
-              "title",
-              "start_date",
-              "end_date",
-              "chapters",
-              "volumes",
-              "score",
-              "scored_by",
-              "rank",
-              "popularity",
-              "members",
-              "favorites",
-            ])
-            .describe("Field to order by.")
-            .optional(),
+          order_by: z.enum(MANGA_ORDER_BY).describe("Field to order by.").optional(),
           sort: sortDir.optional(),
           sfw: sfw.optional(),
           sfw_strict: sfwStrict.optional(),
@@ -457,10 +445,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
             .min(1)
             .describe("Restrict to one or more media types.")
             .optional(),
-          filter: z
-            .enum(["airing", "upcoming", "bypopularity", "favorite"])
-            .describe("Special ranking filter.")
-            .optional(),
+          filter: z.enum(ANIME_TOP_FILTERS).describe("Special ranking filter.").optional(),
           rating: ratingFilter.optional(),
           sfw: sfw.optional(),
           sfw_strict: sfwStrict.optional(),
@@ -489,10 +474,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
             .min(1)
             .describe("Restrict to one or more publication types.")
             .optional(),
-          filter: z
-            .enum(["publishing", "upcoming", "bypopularity", "favorite"])
-            .describe("Special ranking filter.")
-            .optional(),
+          filter: z.enum(MANGA_TOP_FILTERS).describe("Special ranking filter.").optional(),
           sfw: sfw.optional(),
           sfw_strict: sfwStrict.optional(),
           limit: limit.optional(),
@@ -525,10 +507,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
             .max(2100)
             .describe("Four-digit year, e.g. 2024.")
             .optional(),
-          season: z
-            .enum(["winter", "spring", "summer", "fall"])
-            .describe("Season name.")
-            .optional(),
+          season: z.enum(SEASON_NAMES).describe("Season name.").optional(),
           filter: z
             .array(animeType)
             .min(1)
@@ -544,7 +523,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
             .optional(),
           kids: kidsFlag.optional(),
           order_by: z
-            .enum(["score", "members", "start_date"])
+            .enum(SEASON_ORDER_BY)
             .describe("Field to order by. Defaults to members.")
             .optional(),
           sort: sortDir.optional(),
@@ -569,17 +548,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       inputSchema: z
         .object({
           day: z
-            .enum([
-              "monday",
-              "tuesday",
-              "wednesday",
-              "thursday",
-              "friday",
-              "saturday",
-              "sunday",
-              "unknown",
-              "other",
-            ])
+            .enum(SCHEDULE_DAYS)
             .describe(
               "Weekday to filter by, or `unknown`/`other` for shows with no fixed weekly " +
                 "slot. Omit for the whole week.",
@@ -643,10 +612,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       inputSchema: z
         .object({
           q: z.string().trim().min(1).describe("Character name."),
-          order_by: z
-            .enum(["mal_id", "name", "favorites"])
-            .describe("Field to order by.")
-            .optional(),
+          order_by: z.enum(CHARACTER_ORDER_BY).describe("Field to order by.").optional(),
           sort: sortDir.optional(),
           letter: letterFilter.optional(),
           limit: limit.optional(),
@@ -677,10 +643,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       inputSchema: z
         .object({
           q: z.string().trim().min(1).describe("Person name."),
-          order_by: z
-            .enum(["mal_id", "name", "birthday", "favorites"])
-            .describe("Field to order by.")
-            .optional(),
+          order_by: z.enum(PEOPLE_ORDER_BY).describe("Field to order by.").optional(),
           sort: sortDir.optional(),
           letter: letterFilter.optional(),
           limit: limit.optional(),
@@ -773,7 +736,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
             .optional(),
           kids: kidsFlag.optional(),
           order_by: z
-            .enum(["score", "members", "start_date"])
+            .enum(SEASON_ORDER_BY)
             .describe("Field to order by. Defaults to members.")
             .optional(),
           sort: sortDir.optional(),
@@ -823,10 +786,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       inputSchema: z
         .object({
           q: z.string().describe("Filter by name.").optional(),
-          order_by: z
-            .enum(["mal_id", "count", "favorites", "established"])
-            .describe("Field to order by.")
-            .optional(),
+          order_by: z.enum(PRODUCER_ORDER_BY).describe("Field to order by.").optional(),
           sort: sortDir.optional(),
           letter: letterFilter.optional(),
           limit: limit.optional(),
