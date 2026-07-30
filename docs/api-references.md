@@ -81,6 +81,18 @@ json.load(open('notes/tenrai-openapi-spec.json'))..."`) instead of re-fetching
     a mapping bug, but not independently confirmed non-empty on any title. `get_news`'s `q` param
     genuinely filters (a nonsense query returns 0 results) but matches more than the visible
     headline — a query like "Dragon Ball" returns articles whose titles don't contain the phrase.
+  - **Parameter-fidelity audit (2026-07-30)**, against the same local spec: every implemented
+    endpoint's query params — types, defaults, min/max, enum values — cross-checked field by
+    field. All enum sets, `limit`/`page`/`score`/`min_score`/`max_score` bounds, and defaults
+    matched exactly. Found `sfw`/`sfw-strict` are real params on `/anime|manga/{id}/full`,
+    `/anime|manga/{id}/recommendations`, `/anime/{id}/news`, and `/characters|people/{id}/full`
+    that this server never forwarded (fixed — see CHANGELOG); verified live that the effect isn't
+    uniform across them (nested-list filtering on `/full` and `/characters|people/{id}/full` vs.
+    emptying the whole response on `/anime/{id}/news`). `/manga/{id}/news` exists in the spec with
+    no equivalent `get_manga_news` tool — a real remaining gap, not yet closed. `/anime` and
+    `/manga`'s `page` param caps at 1000 server-side; this server's own `page` schema has no
+    matching upper bound (Tenrai's own validation catches an excessive value either way, so this
+    is a "fail faster" nicety, not a functional bug).
 
 ## MyAnimeList official API
 
