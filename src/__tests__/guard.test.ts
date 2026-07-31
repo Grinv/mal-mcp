@@ -38,3 +38,12 @@ test("guard converts a thrown non-Error value (e.g. a bare string) via String()"
   assert.equal(res.isError, true);
   assert.equal(toolText(res), "Unexpected error: plain string failure");
 });
+
+test("guard redacts a credential embedded in a non-ApiError throw", async () => {
+  const res = await guard((): Promise<ToolResult> => {
+    throw new Error("boom refresh_token=LEAKED_SECRET while saving");
+  });
+  assert.equal(res.isError, true);
+  assert.ok(!toolText(res).includes("LEAKED_SECRET"), "credential must be redacted");
+  assert.match(toolText(res), /refresh_token=\*\*\*/);
+});

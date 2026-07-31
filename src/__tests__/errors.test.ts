@@ -27,6 +27,15 @@ test("redact removes JSON-style credential fields", () => {
   assert.ok(!redact('{"access_token":"TOK","refresh_token":"REF"}').includes("REF"));
 });
 
+test("redact removes the PKCE code_verifier and the X-MAL-CLIENT-ID header", () => {
+  assert.ok(!redact("grant&code_verifier=VERIF123&x=1").includes("VERIF123"));
+  assert.ok(!redact('{"code_verifier":"VERIF123"}').includes("VERIF123"));
+  assert.equal(redact("X-MAL-CLIENT-ID: mycid123"), "X-MAL-CLIENT-ID: ***");
+  // A bare `code` field is intentionally kept readable — it collides with the
+  // ubiquitous diagnostic `code` (e.g. a Node error code) that logs need.
+  assert.match(redact('{"code":"E_FAIL"}'), /"code":"E_FAIL"/);
+});
+
 test("ApiError carries an optional hint that defaults to undefined", () => {
   const plain = new ApiError({ code: "server_error", message: "boom" });
   assert.equal(plain.hint, undefined);

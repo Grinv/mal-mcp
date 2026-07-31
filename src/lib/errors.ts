@@ -56,21 +56,28 @@ export function classifyStatus(status: number): { code: ApiErrorCode; retryable:
   return { code: "unknown", retryable: false };
 }
 
+// Credential-shaped tokens redact() masks, in both key=value and JSON shapes:
+// the OAuth tokens/ids plus the PKCE `code_verifier` (the login exchange's
+// secret). The bare authorization `code` is deliberately NOT listed: it's
+// single-use, short-lived, never logged by any current path, and a bare `code`
+// key collides with the ubiquitous diagnostic `code` field (Node error codes,
+// our own ApiErrorCode) that logs must keep readable.
+const CREDENTIAL_KEYS = "access_token|refresh_token|client_secret|client_id|code_verifier";
+
 /** Strip anything that looks like a credential before logging. */
 export function redact(input: string): string {
   return (
     input
       .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer ***")
-      .replace(/\b(access_token|refresh_token|client_secret|client_id)=([^&\s"]+)/gi, "$1=***")
+      // The Client ID travels as an X-MAL-CLIENT-ID header on official-API reads.
+      .replace(/(X-MAL-CLIENT-ID\s*:\s*)\S+/gi, "$1***")
+      .replace(new RegExp(`\\b(${CREDENTIAL_KEYS})=([^&\\s"]+)`, "gi"), "$1=***")
       // Same fields, but JSON-body shape ("key":"value") rather than
       // key=value — MAL's token endpoint responds with access_token/
       // refresh_token as JSON, and while this client's own request bodies are
       // form-encoded (no client_secret at all — mal-mcp is a secret-less PKCE
       // client), a raw upstream response body logged verbatim would slip past
       // the key=value pattern above without this.
-      .replace(
-        /"(access_token|refresh_token|client_secret|client_id)"\s*:\s*"[^"]*"/gi,
-        '"$1":"***"',
-      )
+      .replace(new RegExp(`"(${CREDENTIAL_KEYS})"\\s*:\\s*"[^"]*"`, "gi"), '"$1":"***"')
   );
 }
