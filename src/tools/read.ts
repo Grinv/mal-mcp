@@ -70,7 +70,7 @@ const READ_ONLY = { readOnlyHint: true, openWorldHint: true } as const;
  *  tests that check them against a fully-populated node (see formatOfficial.test.ts). */
 const gapList = (fields: readonly string[]) => fields.map((f) => `\`${f}\``).join("/");
 
-// Every z.enum(...) below builds directly off the `as const` arrays exported by tenrai.ts —
+// Every z.enum(...) below builds directly off the `as const` arrays exported by tenraiEnums.ts —
 // that module is the single source of truth for which values Tenrai actually accepts; nothing
 // here re-types a literal value list, so the two layers cannot drift apart.
 const animeType = z.enum(ANIME_MEDIA_TYPES).describe("A media type.");

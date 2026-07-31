@@ -25,6 +25,7 @@ src/
   index.ts        # bin entry — calls start()
   server.ts       # buildServer() + start(); registers everything
   config.ts       # env → validated Config (zod)
+  version.ts      # VERSION/USER_AGENT string, kept in sync with package.json (version.test.ts)
   lib/            # http, rateLimit, cache, tokenStore, oauthLogin, errors, logger,
                   # result, format(+formatOfficial for the fallback's response shaping)
                   # format.schemas.ts: Zod schemas mirroring every format.ts/formatOfficial.ts
@@ -50,8 +51,11 @@ src/
                   # correctly DRY, resource-parameterized helpers, not a merged-domain mistake),
                   # officialReads.ts (Client-ID-only public reads, the fallback's data source),
                   # httpClients.ts (shared HttpClient factory for the official API, +
-                  # withThrottle(), the rate-limit wiring shared with tenrai.ts too)
-  tools/          # read.ts, mylist.ts, login.ts (login_mal), guard.ts
+                  # withThrottle(), the rate-limit wiring shared with tenrai.ts too, +
+                  # formBody() form-encoder shared by mal.ts and malAuth.ts)
+  tools/          # read.ts, mylist.ts, login.ts (login_mal), guard.ts, spec.ts (defineTool/
+                  # registerTools + ToolSpec — the per-tool registration abstraction all three
+                  # register*Tools() callers flow through)
   prompts.ts      # registerPrompts(server, tenrai) — clients get threaded in as needed,
                   # e.g. for completable() autocomplete on recommend_similar's title
   __tests__/      # node:test (*.test.ts) + helpers.ts
