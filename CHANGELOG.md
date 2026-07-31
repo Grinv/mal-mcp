@@ -14,6 +14,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - Fix `check-chainable-optional-fields` matching no schemas since the `z.strictObject` migration, so the guard silently ran no check ([6dc486e](https://github.com/Grinv/mal-mcp/commit/6dc486e)).
+- Correct `get_anime_news`'s `sfw` description: it filters articles down (not necessarily to zero, like `get_manga_news`) rather than emptying the list for an NSFW anime ([26b612c](https://github.com/Grinv/mal-mcp/commit/26b612c)).
 
 ### Security
 
