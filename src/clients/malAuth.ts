@@ -4,6 +4,7 @@
 // this alongside its own personal-list CRUD operations — this class owns nothing about anime
 // or manga, just "how do we get/keep a valid access token."
 import { HttpClient } from "../lib/http.js";
+import { formBody } from "./httpClients.js";
 import { ApiError } from "../lib/errors.js";
 import { TokenStore, type TokenState } from "../lib/tokenStore.js";
 import {
@@ -29,15 +30,6 @@ interface TokenResponse {
 
 function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
-}
-
-/** Serialize a plain object to application/x-www-form-urlencoded, skipping nullish. */
-function formBody(fields: object): string {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(fields)) {
-    if (value !== undefined && value !== null) params.set(key, String(value));
-  }
-  return params.toString();
 }
 
 export class MalAuthManager {

@@ -35,3 +35,14 @@ export function withThrottle(
   const limiter = new RateLimiter(minIntervalMs, rules);
   return { beforeRequest: () => limiter.acquire() };
 }
+
+/** Serialize a plain object to application/x-www-form-urlencoded, skipping nullish values.
+ *  Shared by MalClient (personal-list writes) and MalAuthManager (token exchange/refresh) —
+ *  both POST form bodies to the official MAL API. */
+export function formBody(fields: object): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(fields)) {
+    if (value !== undefined && value !== null) params.set(key, String(value));
+  }
+  return params.toString();
+}

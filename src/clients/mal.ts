@@ -6,7 +6,7 @@
 import { z } from "zod";
 import { ApiError } from "../lib/errors.js";
 import { TokenStore } from "../lib/tokenStore.js";
-import { malApiHttpClient } from "./httpClients.js";
+import { malApiHttpClient, formBody } from "./httpClients.js";
 import { MalAuthManager } from "./malAuth.js";
 import type { HttpClient } from "../lib/http.js";
 import type { Logger } from "../lib/logger.js";
@@ -273,13 +273,4 @@ function trimList(res: z.infer<typeof MalListResponseSchema>): z.infer<typeof my
 
 function bearer(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
-}
-
-/** Serialize a plain object to application/x-www-form-urlencoded, skipping nullish. */
-function formBody(fields: object): string {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(fields)) {
-    if (value !== undefined && value !== null) params.set(key, String(value));
-  }
-  return params.toString();
 }
