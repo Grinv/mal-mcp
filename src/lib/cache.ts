@@ -43,7 +43,10 @@ export class TtlCache<T> {
     this.#map.set(key, { value, expires: Date.now() + this.#ttlMs });
   }
 
-  /** Get-or-compute, caching the resolved value. */
+  /** Get-or-compute, caching the resolved value. The plain counterpart to
+   *  wrapStaleOnError; a given server may call only one of the two (this one has
+   *  no caller here — sibling carcasses use it), but both stay part of this
+   *  reusable cache by design. Not dead code. */
   async wrap(key: string, compute: () => Promise<T>): Promise<T> {
     const cached = this.get(key);
     if (cached !== undefined) return cached;
