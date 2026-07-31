@@ -2,7 +2,7 @@
 // silent-refresh flow survives restarts. MAL rotates the refresh token on each
 // refresh, so we must write the new one back. The file is created 0600 inside
 // the user's OS config directory.
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { dirname, join } from "node:path";
 import type { Logger } from "./logger.js";
@@ -56,7 +56,16 @@ export class TokenStore {
     // POSIX modes restrict access on macOS/Linux. Windows ignores them (the
     // file inherits directory ACLs) — best effort, no error there.
     mkdirSync(dirname(this.#path), { recursive: true, mode: 0o700 });
-    writeFileSync(this.#path, JSON.stringify(state, null, 2), { mode: 0o600 });
+    // Write to a temp file then rename over the target. rename() is atomic on the
+    // same filesystem, so a crash mid-write can't leave a truncated token file
+    // (load() would silently drop it and force a re-login). It also guarantees the
+    // result is 0600 even when the destination already exists: writeFileSync's
+    // `mode` only applies when it creates the file, so an in-place rewrite of a
+    // pre-existing looser-permissioned file would otherwise keep the old mode.
+    // The pid suffix keeps two processes' temp files from colliding.
+    const tmp = `${this.#path}.${process.pid}.tmp`;
+    writeFileSync(tmp, JSON.stringify(state, null, 2), { mode: 0o600 });
+    renameSync(tmp, this.#path);
   }
 }
 
