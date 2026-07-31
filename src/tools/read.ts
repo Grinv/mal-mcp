@@ -957,10 +957,9 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       description:
         "List recent news articles about an anime (by mal_id): headline, date, author and excerpt. " +
         "Useful for 'what's new / any announcements' questions. Get the mal_id from search_anime. " +
-        "Use get_news instead for a site-wide feed not tied to one anime. `sfw` set to true " +
-        "returns an empty list entirely for an NSFW-rated anime (verified live) rather than " +
-        "filtering individual articles — `sfw_strict` behaves the same way, just for a wider " +
-        "content-rating cutoff.",
+        "Use get_news instead for a site-wide feed not tied to one anime. `sfw`/`sfw_strict` " +
+        "filter out articles for an NSFW/adult-adjacent anime — verified live this can cut the " +
+        "result down sharply (not necessarily to zero) rather than being a no-op.",
       inputSchema: z.strictObject({
         id: malId,
         page: page.optional(),

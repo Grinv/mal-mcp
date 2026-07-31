@@ -44,6 +44,18 @@ json.load(open('notes/tenrai-openapi-spec.json'))..."`) instead of re-fetching
     Souma_); the same query with `sfw-strict=true` returned zero results.
     `sfw`/`sfw-strict` are documented as plain `type: string` in Tenrai's
     OpenAPI spec (no enum) — sent as the literal strings `"true"`/`"false"`.
+  - **`sfw`/`sfw-strict` also filter nested lists on by-id lookups**, not just
+    top-level search results (verified live 2026-07-31). The requested entity
+    itself is always returned; NSFW/Ecchi entries are dropped from its nested
+    lists. `get_anime`/`get_manga` drop the whole `relations` key (High School
+    DxD's `relations` vanished under `sfw_strict`); `get_character`/`get_person`
+    drop the `anime`/`manga` appearance/credit lists (Rias Gremory's appearances
+    vanished; Youko Hikasa's anime credits fell 55→36 under `sfw_strict`);
+    `get_anime_news`/`get_manga_news` cut the article list down but not to zero
+    (DxD 8→3 news, its manga 24→3 under `sfw`). Note the earlier "sfw empties an
+    NSFW anime's news entirely" reading was wrong: a hentai-rated title (e.g.
+    Bible Black) simply has no news to begin with, so the empty result was
+    baseline-empty, not filter-emptied. The filter works per article.
   - **No user-data endpoints** (confirmed via `api.tenrai.org/llms.txt`): no
     `/users`, `/watch`, or `/clubs` routes exist — the operators state all
     data is pre-cached from MAL's public catalogue, which rules out
