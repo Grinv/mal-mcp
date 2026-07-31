@@ -286,7 +286,10 @@ describe("login", () => {
     assert.match(authorizeUrl, /code_challenge_method=plain/);
     assert.equal(redirectUri, "http://localhost:8199/callback");
 
-    await client.submitRedirect("http://localhost:8199/callback?code=THECODE&state=login_mal");
+    // Round-trip the exact `state` startLogin issued (MAL echoes it on the redirect).
+    const state = new URL(authorizeUrl).searchParams.get("state");
+    assert.ok(state, "authorize URL carries a random state");
+    await client.submitRedirect(`http://localhost:8199/callback?code=THECODE&state=${state}`);
     assert.equal(client.isConfigured(), true); // token obtained → tools unlock live
 
     const body = tokenBodies[0] ?? "";
@@ -311,6 +314,23 @@ describe("login", () => {
     const { authorizeUrl, listening } = await client.startLogin({ open: () => {} });
     assert.equal(listening, false);
     assert.match(authorizeUrl, /\/authorize\?/);
+  });
+
+  test("submitRedirect rejects a redirect whose state doesn't match the issued one", async (t) => {
+    // Occupy the callback port so startLogin can't bind a localhost listener
+    // (listening: false) — keeps this test from leaking an open server handle.
+    const port = 8198;
+    const occupied = createServer();
+    await new Promise<void>((resolve) => occupied.listen(port, "127.0.0.1", resolve));
+    t.after(() => new Promise<void>((resolve) => occupied.close(() => resolve())));
+
+    const config = loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: String(port) });
+    const client = new MalClient(config, silentLogger());
+    await client.startLogin({ open: () => {} });
+    await assert.rejects(
+      () => client.submitRedirect(`http://localhost:${port}/callback?code=X&state=forged`),
+      /state mismatch/i,
+    );
   });
 
   test("submitRedirect without a started login errors", async () => {

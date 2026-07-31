@@ -19,6 +19,13 @@ export function generateVerifier(): string {
   return randomBytes(64).toString("base64url");
 }
 
+/** A random opaque OAuth `state` value. It round-trips through the authorize
+ *  redirect and is compared on return, so a redirect we didn't initiate (CSRF /
+ *  authorization-code injection) is rejected. */
+export function generateState(): string {
+  return randomBytes(16).toString("base64url");
+}
+
 /** Build the MAL authorize URL for the PKCE `plain` method (challenge == verifier). */
 export function buildAuthorizeUrl(opts: {
   oauthBaseUrl: string;
@@ -38,17 +45,23 @@ export function buildAuthorizeUrl(opts: {
   return `${opts.oauthBaseUrl.replace(/\/$/, "")}/authorize?${q.toString()}`;
 }
 
+/** Parse a redirected URL or a bare `?code=…&state=…` query into its params, or
+ *  undefined when the input is a bare code (no `=` at all). */
+function redirectParams(redirect: string): URLSearchParams | undefined {
+  const text = redirect.trim();
+  try {
+    return new URL(text).searchParams;
+  } catch {
+    // Not a full URL — maybe "?code=…&state=…" or just the code.
+    if (text.includes("=")) return new URLSearchParams(text.replace(/^\?/, ""));
+    return undefined;
+  }
+}
+
 /** Extract the `code` from a redirected URL, a bare `?code=…` query, or a raw
  *  code string. Throws with the OAuth `error` when the redirect denied access. */
 export function extractCode(redirect: string): string {
-  const text = redirect.trim();
-  let params: URLSearchParams | undefined;
-  try {
-    params = new URL(text).searchParams;
-  } catch {
-    // Not a full URL — maybe "?code=…&state=…" or just the code.
-    if (text.includes("=")) params = new URLSearchParams(text.replace(/^\?/, ""));
-  }
+  const params = redirectParams(redirect);
   if (params) {
     const err = params.get("error");
     if (err) throw new Error(`authorization denied: ${err}`);
@@ -56,8 +69,15 @@ export function extractCode(redirect: string): string {
     if (code) return code;
     throw new Error("no `code` found in the pasted redirect URL");
   }
+  const text = redirect.trim();
   if (!text) throw new Error("empty redirect/code");
   return text; // treat the whole string as the bare code
+}
+
+/** Extract the `state` from a redirected URL or bare query, or null when there is
+ *  none (a bare-code paste carries no state to validate). */
+export function extractState(redirect: string): string | null {
+  return redirectParams(redirect)?.get("state") ?? null;
 }
 
 /** Open a URL in the OS default browser. Best-effort — never throws (headless/
@@ -81,11 +101,12 @@ export function openBrowser(url: string): void {
 export function listenForCode(opts: {
   port: number;
   path: string;
-  onCode: (code: string) => void;
+  onCode: (code: string, state: string | null) => void;
 }): Promise<{ server: Server; close: () => void }> {
   return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
       let code: string | null = null;
+      let state: string | null = null;
       let denied: string | null = null;
       try {
         const url = new URL(req.url ?? "/", `http://localhost:${opts.port}`);
@@ -94,6 +115,7 @@ export function listenForCode(opts: {
           return;
         }
         code = url.searchParams.get("code");
+        state = url.searchParams.get("state");
         denied = url.searchParams.get("error");
       } catch {
         /* fall through to the generic reply */
@@ -106,7 +128,7 @@ export function listenForCode(opts: {
             ? "<h2>Logged in to MyAnimeList — you can close this tab and return to your client.</h2>"
             : "<h2>Waiting for the MyAnimeList redirect…</h2>",
       );
-      if (code) opts.onCode(code);
+      if (code) opts.onCode(code, state);
     });
     server.on("error", reject);
     server.listen(opts.port, "127.0.0.1", () => {

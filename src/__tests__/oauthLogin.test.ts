@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { generateVerifier, buildAuthorizeUrl, extractCode } from "../lib/oauthLogin.js";
+import {
+  generateVerifier,
+  generateState,
+  buildAuthorizeUrl,
+  extractCode,
+  extractState,
+} from "../lib/oauthLogin.js";
 
 test("generateVerifier returns a 43-128 char unreserved string (PKCE)", () => {
   const v = generateVerifier();
@@ -37,4 +43,17 @@ test("extractCode handles a full redirect URL, a bare query, and a bare code", (
 test("extractCode throws on an error redirect or a missing code", () => {
   assert.throws(() => extractCode("http://localhost:8080/callback?error=access_denied"), /denied/i);
   assert.throws(() => extractCode("http://localhost:8080/callback?state=s"), /no `code`/i);
+});
+
+test("generateState returns a random opaque token each call", () => {
+  const s = generateState();
+  assert.ok(s.length >= 16, `length ${s.length} too short`);
+  assert.match(s, /^[A-Za-z0-9\-._~]+$/); // base64url is a subset of unreserved
+  assert.notEqual(s, generateState()); // random each call
+});
+
+test("extractState reads state from a redirect/query, null from a bare code", () => {
+  assert.equal(extractState("http://localhost:8080/callback?code=XYZ&state=abc"), "abc");
+  assert.equal(extractState("?code=XYZ&state=abc"), "abc");
+  assert.equal(extractState("XYZ"), null); // bare code carries no state
 });

@@ -9,6 +9,8 @@ import { TokenStore, type TokenState } from "../lib/tokenStore.js";
 import {
   buildAuthorizeUrl,
   extractCode,
+  extractState,
+  generateState,
   generateVerifier,
   listenForCode,
   openBrowser,
@@ -51,7 +53,7 @@ export class MalAuthManager {
   #refreshing: Promise<string> | undefined;
   // In-progress interactive login (login_mal): the PKCE verifier + redirect URI
   // awaiting a code, and the localhost listener (if one could be bound).
-  #pendingLogin: { verifier: string; redirectUri: string } | undefined;
+  #pendingLogin: { verifier: string; redirectUri: string; state: string } | undefined;
   #loginServer: { close: () => void } | undefined;
 
   constructor(config: Config, logger: Logger, store?: TokenStore) {
@@ -180,14 +182,15 @@ export class MalAuthManager {
     this.#loginServer = undefined;
 
     const verifier = generateVerifier();
+    const state = generateState();
     const redirectUri = this.redirectUri;
-    this.#pendingLogin = { verifier, redirectUri };
+    this.#pendingLogin = { verifier, redirectUri, state };
     const authorizeUrl = buildAuthorizeUrl({
       oauthBaseUrl: this.#oauthBaseUrl,
       clientId: this.#auth.clientId,
       redirectUri,
       verifier,
-      state: "login_mal",
+      state,
     });
 
     let listening = false;
@@ -195,8 +198,8 @@ export class MalAuthManager {
       this.#loginServer = await listenForCode({
         port: this.#oauthPort,
         path: "/callback",
-        onCode: (code) => {
-          void this.#completeWithCode(code).catch((err) =>
+        onCode: (code, state) => {
+          void this.#completeWithCode(code, state).catch((err) =>
             this.#logger.warn(`login_mal callback exchange failed: ${errMsg(err)}`),
           );
         },
@@ -220,14 +223,24 @@ export class MalAuthManager {
         message: "No login in progress; run login_mal first.",
       });
     }
-    await this.#completeWithCode(extractCode(redirect));
+    await this.#completeWithCode(extractCode(redirect), extractState(redirect));
   }
 
   // Exchange an authorization code for tokens (public PKCE client → no secret),
   // persist them, and clear the pending-login state.
-  async #completeWithCode(code: string): Promise<void> {
+  async #completeWithCode(code: string, returnedState: string | null): Promise<void> {
     const pending = this.#pendingLogin;
     if (!pending) throw new ApiError({ code: "bad_request", message: "No login in progress." });
+    // CSRF / authorization-code-injection guard: MAL echoes back the `state` we
+    // sent, so a present-but-mismatched state means this isn't the redirect we
+    // initiated — reject it. A bare-code paste carries no state to check; there the
+    // per-login PKCE code_verifier (unknown to any third party) is the protection.
+    if (returnedState !== null && returnedState !== pending.state) {
+      throw new ApiError({
+        code: "bad_request",
+        message: "OAuth state mismatch; ignoring this redirect.",
+      });
+    }
     const body = formBody({
       grant_type: "authorization_code",
       client_id: this.#auth.clientId,
