@@ -934,7 +934,10 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
     defineTool({
       name: "get_random_character",
       title: "Get a random character",
-      description: "Return one random character (full details). Good for discovery / trivia.",
+      description:
+        "Return one random character (full details). Good for discovery / trivia. No " +
+        "official-API fallback exists for this tool — it always needs Tenrai itself to be " +
+        "reachable.",
       inputSchema: z.strictObject({}),
       outputSchema: characterEntitySchema,
       annotations: READ_ONLY,
@@ -945,7 +948,8 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       title: "Get a random person",
       description:
         "Return one random person — voice actor, director, author (full details). Good for " +
-        "discovery / trivia.",
+        "discovery / trivia. No official-API fallback exists for this tool — it always needs " +
+        "Tenrai itself to be reachable.",
       inputSchema: z.strictObject({}),
       outputSchema: personEntitySchema,
       annotations: READ_ONLY,

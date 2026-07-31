@@ -56,6 +56,11 @@ json.load(open('notes/tenrai-openapi-spec.json'))..."`) instead of re-fetching
     NSFW anime's news entirely" reading was wrong: a hentai-rated title (e.g.
     Bible Black) simply has no news to begin with, so the empty result was
     baseline-empty, not filter-emptied. The filter works per article.
+  - **`/anime/{id}/episodes` pages at 100 per page** (verified live 2026-08-01):
+    One Piece (id 21) returned exactly 100 episodes on page 1 with
+    `has_next_page: true` and `last_visible_page: 12`. This backs
+    `get_anime_episodes`'s "~100 per page" description; the client itself sets no
+    per-page limit (it only forwards `page`), so the size is Tenrai's own.
   - **No user-data endpoints** (confirmed via `api.tenrai.org/llms.txt`): no
     `/users`, `/watch`, or `/clubs` routes exist — the operators state all
     data is pre-cached from MAL's public catalogue, which rules out
