@@ -6,6 +6,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Clarify the personal-list tools' `anime_id`/`manga_id` naming and where to obtain the id, expand `get_my_manga_list`'s `sort` description, and trim the repeated auth sentence ([225fcb1](https://github.com/Grinv/mal-mcp/commit/225fcb1)).
+- Humanize the README, `SECURITY.md`, and `PRIVACY.md` prose: remove em-dashes and other AI-writing tells, and correct the "strict Zod schema" input-validation wording ([9f2593f](https://github.com/Grinv/mal-mcp/commit/9f2593f)).
+
+### Fixed
+
+- Fix `check-chainable-optional-fields` matching no schemas since the `z.strictObject` migration, so the guard silently ran no check ([6dc486e](https://github.com/Grinv/mal-mcp/commit/6dc486e)).
+
 ## [0.9.0] - 2026-07-30
 
 ### Added
