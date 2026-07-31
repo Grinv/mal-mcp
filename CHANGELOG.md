@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-07-31
+
 ### Changed
 
 - Clarify the personal-list tool descriptions: the `anime_id`/`manga_id` vs `id` naming, where to obtain the id, and the manga `sort` values ([225fcb1](https://github.com/Grinv/mal-mcp/commit/225fcb1)).
@@ -272,7 +274,8 @@ No user-facing changes — docs and release-process updates only.
 - Add in-memory TTL caching, polite Jikan rate limiting, and retries with backoff ([494d2c8](https://github.com/Grinv/mal-mcp/commit/494d2c8)).
 - Add `.mcpb` bundle packaging and `server.json` metadata for the MCP Registry ([494d2c8](https://github.com/Grinv/mal-mcp/commit/494d2c8)).
 
-[Unreleased]: https://github.com/Grinv/mal-mcp/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/Grinv/mal-mcp/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/Grinv/mal-mcp/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/Grinv/mal-mcp/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/Grinv/mal-mcp/compare/v0.7.3...v0.8.0
 [0.7.3]: https://github.com/Grinv/mal-mcp/compare/v0.7.2...v0.7.3
