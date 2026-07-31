@@ -15,6 +15,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Fix `check-chainable-optional-fields` matching no schemas since the `z.strictObject` migration, so the guard silently ran no check ([6dc486e](https://github.com/Grinv/mal-mcp/commit/6dc486e)).
 
+### Security
+
+- Use a random, validated OAuth `state` for `login_mal` instead of a fixed constant, and reject a redirect whose returned state doesn't match ([4ea7687](https://github.com/Grinv/mal-mcp/commit/4ea7687)).
+- Write the on-disk token store atomically (temp file + rename), guaranteeing `0600` even when the file already exists and preventing a truncated token file on a mid-write crash ([8161338](https://github.com/Grinv/mal-mcp/commit/8161338)).
+- Redact the PKCE `code_verifier` and the `X-MAL-CLIENT-ID` header, and route non-`ApiError` failures through the same redaction as everything else ([036e815](https://github.com/Grinv/mal-mcp/commit/036e815)).
+
 ## [0.9.0] - 2026-07-30
 
 ### Added
