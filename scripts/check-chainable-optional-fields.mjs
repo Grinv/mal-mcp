@@ -10,8 +10,7 @@
 // same way check-changelog-coverage.mjs's "uncovered" list needs triage, not blind trust.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-
-const root = join(import.meta.dirname, "..");
+import { pathToFileURL } from "node:url";
 
 const TRIGGER_PHRASES = [
   /obtain the/i,
@@ -92,11 +91,16 @@ function extractBareValue(block, key) {
 }
 
 /** Parse format.schemas.ts into a map of schema-name -> { optionalFields, nestedSchemaRefs }.
- *  Only handles the flat `const/export const X = z.object({ ... }).strict()` shape used
- *  throughout this file (not .extend() chains — those are resolved separately below). */
-function parseSchemaOptionalFields(text) {
+ *  Handles the flat `const/export const X = z.strictObject({ ... })` declaration shape used
+ *  throughout this file, plus the legacy `z.object(...)`/`z.looseObject(...)` variants — but not
+ *  `.extend()` chains, whose nested array-item schemas are resolved separately below.
+ *  (The declaration regex once matched only `z.object(`, so after the schemas migrated to
+ *  `z.strictObject(` it silently matched nothing and reported every schema as unresolved — see
+ *  the check-chainable regression test.) */
+export function parseSchemaOptionalFields(text) {
   const fields = new Map();
-  const declPattern = /(?:export )?const (\w+Schema) = z\s*\n?\s*\.object\(\{/g;
+  const declPattern =
+    /(?:export )?const (\w+Schema) = z\s*\n?\s*\.(?:object|strictObject|looseObject)\(\{/g;
   let m;
   while ((m = declPattern.exec(text))) {
     const name = m[1];
@@ -114,58 +118,69 @@ function parseSchemaOptionalFields(text) {
   return fields;
 }
 
-const readTs = readFileSync(join(root, "src/tools/read.ts"), "utf8");
-const myListTs = readFileSync(join(root, "src/tools/mylist.ts"), "utf8");
-const schemasTs = readFileSync(join(root, "src/lib/format.schemas.ts"), "utf8");
+function main() {
+  const root = join(import.meta.dirname, "..");
+  const readTs = readFileSync(join(root, "src/tools/read.ts"), "utf8");
+  const myListTs = readFileSync(join(root, "src/tools/mylist.ts"), "utf8");
+  const schemasTs = readFileSync(join(root, "src/lib/format.schemas.ts"), "utf8");
 
-const schemaOptionalFields = parseSchemaOptionalFields(schemasTs);
+  const schemaOptionalFields = parseSchemaOptionalFields(schemasTs);
 
-/** Collect a schema's own optional fields plus, recursively, any nested array-item schema's
- *  optional fields (labeled with a dotted path so it's clear where each one actually lives). */
-function collectOptionalFields(schemaName, path = schemaName, seen = new Set()) {
-  if (!schemaName || seen.has(schemaName)) return [];
-  seen.add(schemaName);
-  const entry = schemaOptionalFields.get(schemaName);
-  if (!entry) return [];
-  const own = entry.optionalFields.map((f) => `${path}.${f}`);
-  const nested = entry.nestedSchemaRefs.flatMap((ref) =>
-    collectOptionalFields(ref, `${path}[].${ref}`, seen),
-  );
-  return [...own, ...nested];
-}
-
-let flagged = 0;
-for (const [file, text] of [
-  ["read.ts", readTs],
-  ["mylist.ts", myListTs],
-]) {
-  for (const block of findToolBlocks(text)) {
-    const name = extractConcatenatedString(block, "name") || extractBareValue(block, "name");
-    const description = extractConcatenatedString(block, "description");
-    if (!description) continue;
-    const matchedPhrase = TRIGGER_PHRASES.find((re) => re.test(description));
-    if (!matchedPhrase) continue;
-
-    const outputSchemaExpr = extractBareValue(block, "outputSchema");
-    // listPageSchema(X) wraps { results: X[], page } — X's own fields are the interesting ones.
-    const wrapped = outputSchemaExpr?.match(/^listPageSchema\((\w+)\)$/);
-    const schemaName = wrapped ? wrapped[1] : outputSchemaExpr;
-    const optionalFields = collectOptionalFields(schemaName);
-
-    flagged++;
-    console.log(`${file}: ${name}`);
-    console.log(`  trigger: ${matchedPhrase} matched in description`);
-    console.log(`  outputSchema: ${outputSchemaExpr} (item schema: ${schemaName ?? "?"})`);
-    console.log(
-      `  optional fields to eyeball: ${optionalFields.length ? optionalFields.join(", ") : "(none — or schema not resolved by this script)"}`,
+  /** Collect a schema's own optional fields plus, recursively, any nested array-item schema's
+   *  optional fields (labeled with a dotted path so it's clear where each one actually lives). */
+  const collectOptionalFields = (schemaName, path = schemaName, seen = new Set()) => {
+    if (!schemaName || seen.has(schemaName)) return [];
+    seen.add(schemaName);
+    const entry = schemaOptionalFields.get(schemaName);
+    if (!entry) return [];
+    const own = entry.optionalFields.map((f) => `${path}.${f}`);
+    const nested = entry.nestedSchemaRefs.flatMap((ref) =>
+      collectOptionalFields(ref, `${path}[].${ref}`, seen),
     );
-    console.log();
+    return [...own, ...nested];
+  };
+
+  let flagged = 0;
+  for (const [file, text] of [
+    ["read.ts", readTs],
+    ["mylist.ts", myListTs],
+  ]) {
+    for (const block of findToolBlocks(text)) {
+      const name = extractConcatenatedString(block, "name") || extractBareValue(block, "name");
+      const description = extractConcatenatedString(block, "description");
+      if (!description) continue;
+      const matchedPhrase = TRIGGER_PHRASES.find((re) => re.test(description));
+      if (!matchedPhrase) continue;
+
+      const outputSchemaExpr = extractBareValue(block, "outputSchema");
+      // listPageSchema(X) wraps { results: X[], page } — X's own fields are the interesting ones.
+      const wrapped = outputSchemaExpr?.match(/^listPageSchema\((\w+)\)$/);
+      const schemaName = wrapped ? wrapped[1] : outputSchemaExpr;
+      const optionalFields = collectOptionalFields(schemaName);
+
+      flagged++;
+      console.log(`${file}: ${name}`);
+      console.log(`  trigger: ${matchedPhrase} matched in description`);
+      console.log(`  outputSchema: ${outputSchemaExpr} (item schema: ${schemaName ?? "?"})`);
+      console.log(
+        `  optional fields to eyeball: ${optionalFields.length ? optionalFields.join(", ") : "(none — or schema not resolved by this script)"}`,
+      );
+      console.log();
+    }
   }
+
+  console.log(
+    `check-chainable-optional-fields: ${flagged} tool(s) flagged for review — for each, confirm ` +
+      "the specific field the description promises is NOT in the optional-fields list above " +
+      "(if it is, that's the bug: make it required in format.schemas.ts + add a fully-populated-" +
+      "fixture test, per AGENTS.md's schema-conventions note and the tool-description-check skill).",
+  );
 }
 
-console.log(
-  `check-chainable-optional-fields: ${flagged} tool(s) flagged for review — for each, confirm ` +
-    "the specific field the description promises is NOT in the optional-fields list above " +
-    "(if it is, that's the bug: make it required in format.schemas.ts + add a fully-populated-" +
-    "fixture test, per AGENTS.md's schema-conventions note and the tool-description-check skill).",
-);
+// Only run as a script (not when the regression test imports parseSchemaOptionalFields).
+// pathToFileURL normalizes process.argv[1] (a raw OS path) to the same file:// URL form as
+// import.meta.url; the `process.argv[1] &&` guard avoids pathToFileURL(undefined) throwing on a
+// no-script invocation. Same idiom as scripts/sync-version.mjs.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}
