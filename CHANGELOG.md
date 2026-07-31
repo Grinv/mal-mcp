@@ -8,20 +8,18 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- Clarify the personal-list tools' `anime_id`/`manga_id` naming and where to obtain the id, expand `get_my_manga_list`'s `sort` description, and trim the repeated auth sentence ([225fcb1](https://github.com/Grinv/mal-mcp/commit/225fcb1)).
+- Clarify the personal-list tool descriptions: the `anime_id`/`manga_id` vs `id` naming, where to obtain the id, and the manga `sort` values ([225fcb1](https://github.com/Grinv/mal-mcp/commit/225fcb1)).
 - Disclose that `get_random_character`/`get_random_person` are Tenrai-only (no official-API fallback), matching their anime/manga random siblings ([8fb3e8a](https://github.com/Grinv/mal-mcp/commit/8fb3e8a)).
-- Humanize the README, `SECURITY.md`, and `PRIVACY.md` prose: remove em-dashes and other AI-writing tells, and correct the "strict Zod schema" input-validation wording ([9f2593f](https://github.com/Grinv/mal-mcp/commit/9f2593f)).
 
 ### Fixed
 
-- Fix `check-chainable-optional-fields` matching no schemas since the `z.strictObject` migration, so the guard silently ran no check ([6dc486e](https://github.com/Grinv/mal-mcp/commit/6dc486e)).
-- Correct `get_anime_news`'s `sfw` description: it filters articles down (not necessarily to zero, like `get_manga_news`) rather than emptying the list for an NSFW anime ([26b612c](https://github.com/Grinv/mal-mcp/commit/26b612c)).
+- Correct `get_anime_news`'s `sfw` description: it filters the news list down, not to zero, rather than emptying it for an NSFW anime ([26b612c](https://github.com/Grinv/mal-mcp/commit/26b612c)).
 
 ### Security
 
-- Use a random, validated OAuth `state` for `login_mal` instead of a fixed constant, and reject a redirect whose returned state doesn't match ([4ea7687](https://github.com/Grinv/mal-mcp/commit/4ea7687)).
-- Write the on-disk token store atomically (temp file + rename), guaranteeing `0600` even when the file already exists and preventing a truncated token file on a mid-write crash ([8161338](https://github.com/Grinv/mal-mcp/commit/8161338)).
-- Redact the PKCE `code_verifier` and the `X-MAL-CLIENT-ID` header, and route non-`ApiError` failures through the same redaction as everything else ([036e815](https://github.com/Grinv/mal-mcp/commit/036e815)).
+- Use a random, validated OAuth `state` for `login_mal` instead of a fixed constant, and reject a redirect whose state doesn't match ([4ea7687](https://github.com/Grinv/mal-mcp/commit/4ea7687)).
+- Write the on-disk token store atomically, guaranteeing `0600` on rewrite and preventing a truncated file on a mid-write crash ([8161338](https://github.com/Grinv/mal-mcp/commit/8161338)).
+- Redact the PKCE `code_verifier` and the `X-MAL-CLIENT-ID` header, and route non-`ApiError` failures through the same redaction ([036e815](https://github.com/Grinv/mal-mcp/commit/036e815)).
 
 ## [0.9.0] - 2026-07-30
 
