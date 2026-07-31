@@ -22,6 +22,11 @@ jobs:
       - run: npm ci
       - name: Health-check upstream APIs (gate)
         run: npm run check:api
+      # Build + test are the pre-publish gate: build runs before the .mcpb pack
+      # (which needs dist/) and test runs before the irreversible GitHub Release,
+      # so a failure aborts the release cleanly. This is the single build+test for
+      # a release — package.json intentionally has no `prepublishOnly` hook, which
+      # would otherwise re-run both again at `npm publish` time in this same job.
       - run: npm run build
       - run: npm test
       - name: Pack .mcpb bundle
