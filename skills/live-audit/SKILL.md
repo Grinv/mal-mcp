@@ -158,6 +158,15 @@ supports concurrent subagents/background tasks.
   scripts, `sfw` toggling (including during an official-API fallback, which
   enforces it client-side via each node's `nsfw` field — confirm it isn't
   silently ignored there), whitespace-only search terms.
+- **Empty-because-filtered vs. empty-because-baseline**: when checking that a
+  filter (`sfw`/`sfw_strict`) removes something, first confirm the UNFILTERED
+  call is non-empty — otherwise an empty filtered result proves nothing. This
+  bit a `get_anime_news` description once: it claimed `sfw` "returns an empty
+  list entirely for an NSFW anime," but that was verified against a hentai
+  title that simply had no news to begin with. The real behavior (a mainstream
+  R+ title with actual news) is that it cuts the list down, not to zero. Pick a
+  subject with a real non-empty baseline (e.g. High School DxD, not Bible Black)
+  before concluding what a filter does.
 - **Live prompt testing**: run the `prompt-check` skill against every prompt
   in `src/prompts.ts` — a static read comparing prompt text against tool
   names/params misses argument-handling bugs that only show up when actually
