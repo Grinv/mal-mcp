@@ -8,7 +8,7 @@
 
 An [MCP](https://modelcontextprotocol.io) server for **MyAnimeList**. It works with
 any MCP-compatible client or agent (Claude Desktop/Code, Cursor, VS Code, Cline,
-Continue, and others) — the server speaks the standard MCP stdio protocol.
+Continue, and others), since the server speaks the standard MCP stdio protocol.
 
 ## What it does
 
@@ -23,18 +23,18 @@ It uses a hybrid backend:
 
 ## What you need (and what it gets you)
 
-Nothing is required to get started — you can skip straight to
+Nothing is required to get started. You can skip straight to
 [Install](#install). Everything below is optional, and each step just adds
 more:
 
 | You set...                                                                                                                                            | You get...                                                                                                                                                                        |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| _(nothing)_                                                                                                                                           | Search, details, rankings, seasons, characters, reviews, and more — works immediately, no signup.                                                                                 |
+| _(nothing)_                                                                                                                                           | Search, details, rankings, seasons, characters, reviews, and more. Works immediately, no signup.                                                                                  |
 | A MyAnimeList **Client ID** ([2 minutes, free →](#connect-your-myanimelist-account-for-the-personal-list-tools))                                      | Same as above, plus: 11 read tools (search, rankings, seasons, recommendations, details, statistics) keep working smoothly even during a MyAnimeList hiccup. Still no login step. |
 | The Client ID above, **plus** running the `login_mal` tool once ([same walkthrough →](#connect-your-myanimelist-account-for-the-personal-list-tools)) | Everything above, plus your **own MyAnimeList list**: view it, add/update entries, mark things watched, remove entries.                                                           |
 
 Without a login, the personal-list tools reply with a clear message telling
-you how to get one — everything else keeps working regardless.
+you how to get one. Everything else keeps working regardless.
 
 ## Example queries
 
@@ -94,7 +94,7 @@ Once it's connected, just ask your agent in natural language.
 
 `token` = needs a MyAnimeList login (run `login_mal` once). Prompts:
 `recommend_similar`, `seasonal_overview`, `hidden_gems`. `recommend_similar`'s
-title is optional — omit it and it'll ask which anime you mean; clients that
+title is optional: omit it and it'll ask which anime you mean. Clients that
 support prompt-argument completion get live title suggestions as you type.
 
 ## Install
@@ -103,7 +103,7 @@ support prompt-argument completion get live title suggestions as you type.
 
 Download [**`mal-mcp.mcpb`**](https://github.com/Grinv/mal-mcp/releases/latest/download/mal-mcp.mcpb)
 (always the latest release) and open it with your MCP client. It prompts for an optional
-MyAnimeList **Client ID** — set it and run the `login_mal` tool to enable the personal-list
+MyAnimeList **Client ID**. Set it and run the `login_mal` tool to enable the personal-list
 tools (see [Connect your MyAnimeList account](#connect-your-myanimelist-account-for-the-personal-list-tools)).
 Leave it blank to use just the credential-free read tools.
 
@@ -121,7 +121,7 @@ This produces a self-contained `dist/index.js`. Point your client at it (see bel
 ## Connect it to an MCP client
 
 Add the server to your client's MCP config (Claude Desktop/Code, Cursor, VS Code,
-Cline, …). The simplest option is `npx` — no clone, no build:
+Cline, …). The simplest option is `npx`, which needs no clone and no build:
 
 ```json
 {
@@ -146,7 +146,7 @@ claude mcp add mal -e MAL_CLIENT_ID=... -- npx -y mal-mcp
 If you built from source instead, replace `"command": "npx", "args": ["-y", "mal-mcp"]`
 with `"command": "node", "args": ["/absolute/path/to/mal-mcp/dist/index.js"]`.
 
-The `env` block is **optional** — omit it to use only the credential-free read
+The `env` block is **optional**. Omit it to use only the credential-free read
 tools (search, details, rankings, …); the personal-list tools will return a clear
 error until you log in. To enable them, set `MAL_CLIENT_ID` and run the
 **`login_mal`** tool once (a one-time browser authorization; the token is then
@@ -159,25 +159,25 @@ pass config via this `env` block (or your shell environment). See
 
 The search/browse tools work with **no setup**. To use the personal-list tools
 (`get_my_*`, `update_my_*`, `delete_my_*`), authorize your account once. It takes
-about two minutes. There is **no client secret** — mal-mcp uses the modern
+about two minutes. There is **no client secret**: mal-mcp uses the modern
 public-client flow (PKCE), so you only need a Client ID.
 
-**Step 1 — Register a MyAnimeList app (one minute).**
+**Step 1: Register a MyAnimeList app (one minute).**
 
 1. Go to <https://myanimelist.net/apiconfig> and click **Create ID**.
-2. **App Type:** choose **`other`**. _(Not `web` — that type forces a client
+2. **App Type:** choose **`other`**. _(Not `web`: that type forces a client
    secret this server doesn't use.)_
 3. **App Redirect URL:** enter exactly
    ```
    http://localhost:8080/callback
    ```
    _(If port 8080 is already used on your machine, pick another port here and set
-   `MAL_OAUTH_PORT` to the same number — see [Configuration](#configuration).)_
+   `MAL_OAUTH_PORT` to the same number. See [Configuration](#configuration).)_
 4. Fill the remaining required fields with anything reasonable, accept the terms,
    and **Submit**.
 5. Open your new app and copy its **Client ID**.
 
-**Step 2 — Give the Client ID to the server.**
+**Step 2: Give the Client ID to the server.**
 
 Add it to your MCP client config (or paste it into the Claude Desktop install
 form). Nothing else is needed here:
@@ -188,7 +188,7 @@ form). Nothing else is needed here:
 
 Restart the server/client so it picks up the value.
 
-**Step 3 — Log in (one click).**
+**Step 3: Log in (one click).**
 
 In your assistant, run the **`login_mal`** tool (or just say _"log in to
 MyAnimeList"_). It replies with a link. Open the link, sign in to MAL, and click
@@ -197,13 +197,13 @@ MyAnimeList"_). It replies with a link. Open the link, sign in to MAL, and click
 - **Running locally** (Claude Desktop, or Claude Code on your own machine):
   login finishes **automatically** the moment you click Allow. Confirm with
   _"show my MAL profile"_ (`get_my_user_info`).
-- **Running on a remote/SSH/headless host:** after clicking Allow your browser
-  lands on a page that won't load — that's expected. **Copy the full address
+- **Running on a remote/SSH/headless host:** after clicking Allow, your browser
+  lands on a page that won't load. That's expected. **Copy the full address
   from the browser's address bar** (it contains `?code=…`) and give it to the
   **`submit_mal_redirect`** tool to finish.
 
 That's it. The token is saved locally (`~/.config/mal-mcp/tokens.json`, `0600`)
-and refreshed automatically from now on — you won't need to log in again.
+and refreshed automatically from now on, so you won't need to log in again.
 
 > **Prefer no interactive step?** You can instead pre-set `MAL_REFRESH_TOKEN`
 > (with `MAL_CLIENT_ID`) or a standalone `MAL_ACCESS_TOKEN`. See
@@ -211,16 +211,16 @@ and refreshed automatically from now on — you won't need to log in again.
 
 ## Configuration
 
-All configuration is via environment variables, all optional — without credentials
+All configuration is via environment variables, all optional. Without credentials
 the read tools still work. For the personal-list tools, set `MAL_CLIENT_ID` and run
 the `login_mal` tool once; the access token is then fetched and refreshed
-automatically. (mal-mcp is a public PKCE client — there is **no client secret**.)
+automatically. (mal-mcp is a public PKCE client, so there is **no client secret**.)
 
-| Variable            | Purpose                                                                                                                                                                                                              |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MAL_CLIENT_ID`     | Your MyAnimeList Client ID — see [Connect your MyAnimeList account](#connect-your-myanimelist-account-for-the-personal-list-tools) for how to get one (it's free, ~2 minutes, no coding involved).                   |
-| `MAL_REFRESH_TOKEN` | _Advanced, optional._ Skips the interactive `login_mal` step by pre-supplying a token directly. Most people won't need this — see [docs/auth.md](https://github.com/Grinv/mal-mcp/blob/main/docs/auth.md) if you do. |
-| `MAL_ACCESS_TOKEN`  | _Advanced, optional._ A standalone token that works ~30 days without refreshing. See [docs/auth.md](https://github.com/Grinv/mal-mcp/blob/main/docs/auth.md).                                                        |
+| Variable            | Purpose                                                                                                                                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MAL_CLIENT_ID`     | Your MyAnimeList Client ID. See [Connect your MyAnimeList account](#connect-your-myanimelist-account-for-the-personal-list-tools) for how to get one (it's free, ~2 minutes, no coding involved).                   |
+| `MAL_REFRESH_TOKEN` | _Advanced, optional._ Skips the interactive `login_mal` step by pre-supplying a token directly. Most people won't need this. See [docs/auth.md](https://github.com/Grinv/mal-mcp/blob/main/docs/auth.md) if you do. |
+| `MAL_ACCESS_TOKEN`  | _Advanced, optional._ A standalone token that works ~30 days without refreshing. See [docs/auth.md](https://github.com/Grinv/mal-mcp/blob/main/docs/auth.md).                                                       |
 
 ### Tuning (rarely needed)
 
@@ -228,15 +228,15 @@ These have sensible defaults; change them only if you need different timing,
 a different upstream base URL, or want to override where/how the server logs
 or stores its token.
 
-| Variable                                                | Purpose                                                                                                                                                                                                                                                                 |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MAL_TOKEN_STORE`                                       | Override where the login token is saved on disk (default: your OS's config folder).                                                                                                                                                                                     |
-| `MAL_OAUTH_PORT`                                        | Only needed if port `8080` is already in use on your machine — see step 1 of the [account walkthrough](#connect-your-myanimelist-account-for-the-personal-list-tools).                                                                                                  |
-| `LOG_LEVEL`                                             | How much the server logs: `debug` \| `info` \| `warn` \| `error` \| `silent` (default `info`). Logs go to stderr only — there's no MCP-level log capability, so a client can't fetch or filter them via `logging/setLevel`; check the server process's stderr directly. |
-| `TENRAI_MIN_INTERVAL_MS`                                | Min spacing between Tenrai calls (default `300`). On top of this the client enforces Tenrai's published 4/s **and** 120/min public limits; set to `0` to disable all client-side throttling.                                                                            |
-| `CACHE_TTL_MS`                                          | TTL for the in-memory read cache (default `300000` = 5 min).                                                                                                                                                                                                            |
-| `HTTP_TIMEOUT_MS`, `HTTP_RETRIES`                       | Per-request timeout (default `15000`) and retry attempts for transient failures (default `2`).                                                                                                                                                                          |
-| `TENRAI_BASE_URL`, `MAL_BASE_URL`, `MAL_OAUTH_BASE_URL` | Override upstream base URLs.                                                                                                                                                                                                                                            |
+| Variable                                                | Purpose                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MAL_TOKEN_STORE`                                       | Override where the login token is saved on disk (default: your OS's config folder).                                                                                                                                                                                    |
+| `MAL_OAUTH_PORT`                                        | Only needed if port `8080` is already in use on your machine. See step 1 of the [account walkthrough](#connect-your-myanimelist-account-for-the-personal-list-tools).                                                                                                  |
+| `LOG_LEVEL`                                             | How much the server logs: `debug` \| `info` \| `warn` \| `error` \| `silent` (default `info`). Logs go to stderr only. There's no MCP-level log capability, so a client can't fetch or filter them via `logging/setLevel`; check the server process's stderr directly. |
+| `TENRAI_MIN_INTERVAL_MS`                                | Min spacing between Tenrai calls (default `300`). On top of this the client enforces Tenrai's published 4/s **and** 120/min public limits; set to `0` to disable all client-side throttling.                                                                           |
+| `CACHE_TTL_MS`                                          | TTL for the in-memory read cache (default `300000` = 5 min).                                                                                                                                                                                                           |
+| `HTTP_TIMEOUT_MS`, `HTTP_RETRIES`                       | Per-request timeout (default `15000`) and retry attempts for transient failures (default `2`).                                                                                                                                                                         |
+| `TENRAI_BASE_URL`, `MAL_BASE_URL`, `MAL_OAUTH_BASE_URL` | Override upstream base URLs.                                                                                                                                                                                                                                           |
 
 Provide these in your MCP client config's `env` block (the server does **not**
 read a `.env` file). See [docs/auth.md](https://github.com/Grinv/mal-mcp/blob/main/docs/auth.md) for how to obtain the
@@ -245,11 +245,11 @@ credentials, and
 
 ## NSFW content
 
-NSFW (adult) results are **not** filtered by default — the server returns whatever
+NSFW (adult) results are **not** filtered by default. The server returns whatever
 the upstream API provides. Most read tools accept two filter levels:
 
-- `sfw: true` — excludes adult/explicit-rated entries (R+ Mild Nudity and up).
-- `sfw_strict: true` — also excludes anything tagged with the Ecchi genre, even
+- `sfw: true`: excludes adult/explicit-rated entries (R+ Mild Nudity and up).
+- `sfw_strict: true`: also excludes anything tagged with the Ecchi genre, even
   otherwise mainstream, safely-rated shows that `sfw` alone still lets through
   (e.g. _No Game No Life_, _Kill la Kill_).
 
@@ -259,15 +259,15 @@ On a list/search tool (`search_anime`, `search_manga`, `get_seasonal_anime`,
 `get_recent_manga_recommendations`) this filters which entries come back. On a
 by-id lookup (`get_anime`, `get_manga`, `get_anime_recommendations`,
 `get_manga_recommendations`, `get_character`, `get_person`, `get_anime_news`,
-`get_manga_news`) the item you asked for is always returned regardless — it
+`get_manga_news`) the item you asked for is always returned regardless. It
 instead filters NSFW entries out of that item's own nested lists (e.g. an
 anime's `relations`, a person's own anime/manga credits), except on the two
 news tools, where it can empty the result entirely for an NSFW-rated
-anime/manga. `get_top_people`/`get_top_characters` have no such filter —
+anime/manga. `get_top_people`/`get_top_characters` have no such filter, since
 people/characters aren't independently content-rated the way anime/manga are.
 
 `search_anime` and `get_top_anime`/`get_seasonal_anime`/`get_upcoming_season` also
-accept a `rating` filter for finer-grained control — target one or more specific
+accept a `rating` filter for finer-grained control: target one or more specific
 MAL content ratings (e.g. `pg13`, `r17`) directly instead of a blanket adult-content
 cutoff.
 
@@ -310,7 +310,7 @@ own account and token. Use is subject to the
 
 ## Privacy Policy
 
-`mal-mcp` runs locally on your machine and has no telemetry of its own — see
+`mal-mcp` runs locally on your machine and has no telemetry of its own. See
 [PRIVACY.md](PRIVACY.md) for exactly what data it handles (including what the
 personal-list tools can read and change on your real MyAnimeList account),
 what it sends to Tenrai/MyAnimeList, and what (if anything) it stores on disk.
