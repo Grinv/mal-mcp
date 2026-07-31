@@ -46,8 +46,9 @@ connected user's real MyAnimeList list.
   the file is protected by the user's own account ACLs on the directory
   instead of by the `0600` call.
 - Credential redaction: `src/lib/errors.ts`'s `redact()` strips
-  `Bearer <token>` headers and `access_token`/`refresh_token`/`client_secret`/
-  `client_id` values in both `key=value` and JSON (`"key":"value"`) shapes
+  `Bearer <token>` headers, the `X-MAL-CLIENT-ID` header, and
+  `access_token`/`refresh_token`/`client_secret`/`client_id`/`code_verifier`
+  values in both `key=value` and JSON (`"key":"value"`) shapes
   before a line is logged. Logging goes to stderr only, never to stdout
   (which is reserved for the MCP protocol channel), and never to a file or
   remote endpoint. `mal-mcp` is a public (secret-less) PKCE OAuth client, so
