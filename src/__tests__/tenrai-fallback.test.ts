@@ -7,6 +7,7 @@ import { TenraiClient } from "../clients/tenrai.js";
 import { currentSeason, nextSeason, type ReadFallback } from "../clients/readFallback.js";
 import { loadConfig } from "../config.js";
 import { silentLogger, jsonResponse, mockFetch, installFetch } from "./helpers.js";
+import { ApiError } from "../lib/errors.js";
 
 function tenrai(fallback?: ReadFallback) {
   // No rate-limit delay, no HTTP retries, small cache TTL — keeps fallback tests fast/deterministic.
@@ -230,7 +231,10 @@ test("getMangaStatistics has no fallback and still propagates the upstream ApiEr
   const mock = mockFetch(() => jsonResponse({ message: "boom" }, { status: 500 }));
   installFetch(t, mock);
   const fallback = fakeFallback();
-  await assert.rejects(() => tenrai(fallback).getMangaStatistics(1));
+  await assert.rejects(
+    () => tenrai(fallback).getMangaStatistics(1),
+    (err: unknown) => err instanceof ApiError && err.code === "server_error",
+  );
   assert.equal(fallback.calls.length, 0);
 });
 
@@ -247,7 +251,11 @@ test("does not fall back when the configured fallback has no client id", async (
   const mock = mockFetch(() => jsonResponse({ message: "boom" }, { status: 500 }));
   installFetch(t, mock);
   const fallback = fakeFallback(false);
-  await assert.rejects(() => tenrai(fallback).searchAnime({ q: "frieren" }));
+  await assert.rejects(
+    () => tenrai(fallback).searchAnime({ q: "frieren" }),
+    (err: unknown) =>
+      err instanceof ApiError && err.code === "server_error" && err.hint === "client_id_would_help",
+  );
   assert.equal(fallback.calls.length, 0);
 });
 

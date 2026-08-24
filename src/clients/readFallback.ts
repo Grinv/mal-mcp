@@ -107,7 +107,31 @@ export async function withFallback(
       });
     }
     logger.warn(`Tenrai ${label} failed (${err.code}); falling back to the official MAL API`);
-    return fallbackCall();
+    onFallback?.();
+    try {
+      return await fallbackCall();
+    } catch (fallbackErr) {
+      // The fallback's own error must never be the one the agent sees: it describes a backend the
+      // caller never asked for, and its code misdirects. A 401 from a revoked Client ID reads as
+      // "run login_mal" on a read tool that needs no token; a 404 reads as "no such entry" for an
+      // entry that exists. Log it for whoever runs the server, then rethrow the ORIGINAL Tenrai
+      // failure, since result.ts turns its code/status/retryable into the tool's message.
+      const detail = fallbackErr instanceof ApiError ? fallbackErr.code : "non-ApiError";
+      logger.warn(
+        `Official MAL API fallback for ${label} also failed (${detail}); ` +
+          `rethrowing the original Tenrai ${err.code}`,
+        fallbackErr,
+      );
+      throw new ApiError({
+        code: err.code,
+        status: err.status,
+        retryable: err.retryable,
+        // Only the parenthetical is new: the code stays the caller's contract, and the agent is
+        // told not to read the silence as "the official API was fine".
+        message: `${err.message} (the official MAL API fallback also failed)`,
+        cause: err,
+      });
+    }
   }
 }
 
