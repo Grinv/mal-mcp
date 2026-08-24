@@ -18,6 +18,8 @@ import {
   summarizeNewsItem,
   summarizeAnimeVideos,
   summarizeRecentRecommendations,
+  summarizeStack,
+  summarizeStacks,
   pageInfo,
   type RawAnime,
   type RawManga,
@@ -583,4 +585,84 @@ test("pageInfo extracts pagination fields", () => {
     items: { total: 200 },
   });
   assert.deepEqual(p, { current_page: 2, has_next_page: true, last_visible_page: 9, total: 200 });
+});
+
+test("summarizePerson caps voice_roles at 50 but leaves staff credits whole", () => {
+  // The two arrays are capped differently on purpose, and get_person's description now says so.
+  // Live: Jin Aketagawa (mal_id 8074) has 534 anime staff credits, all of which come back.
+  const raw = {
+    mal_id: 8074,
+    name: "Prolific, Person",
+    url: "u",
+    anime: Array.from({ length: 120 }, (_v, i) => ({
+      position: "Sound Director",
+      anime: { mal_id: i + 1, title: `A${i}` },
+    })),
+    manga: Array.from({ length: 60 }, (_v, i) => ({
+      position: "Story",
+      manga: { mal_id: i + 1, title: `M${i}` },
+    })),
+    voices: Array.from({ length: 80 }, (_v, i) => ({
+      role: "Main",
+      character: { name: `C${i}` },
+      anime: { title: `A${i}` },
+    })),
+  };
+  const p = summarizePerson(raw, true) as {
+    anime: unknown[];
+    manga: unknown[];
+    voice_roles: unknown[];
+  };
+  assert.equal(p.anime.length, 120);
+  assert.equal(p.manga.length, 60);
+  assert.equal(p.voice_roles.length, 50);
+});
+
+test("summarizeStack keeps entry order, curator score and note, and clips a long note", () => {
+  const s = summarizeStack({
+    mal_id: 89804,
+    url: "https://myanimelist.net/stacks/89804",
+    stack_type: "anime",
+    title: "Love in the Little Things",
+    author_username: "Velvetaco",
+    entry_count: 2,
+    entries: [
+      {
+        position: 1,
+        mal_id: 34822,
+        title: "Tsuki ga Kirei",
+        title_english: "Tsukigakirei",
+        type: "TV",
+        episodes: 12,
+        aired_from_year: 2017,
+        author_score: 10,
+        note: "z".repeat(400),
+        url: "u1",
+        images: { jpg: { large_image_url: "big.jpg" } },
+      },
+      // A manga-stack entry uses volumes/published_from_year instead of episodes/aired_from_year.
+      { position: 2, mal_id: 2, title: "Berserk", volumes: 41, published_from_year: 1989 },
+    ],
+  }) as { entries: Record<string, unknown>[] };
+  assert.equal(s.entries.length, 2);
+  assert.equal(s.entries[0]!["position"], 1);
+  assert.equal(s.entries[0]!["author_score"], 10);
+  assert.equal(s.entries[0]!["image_url"], "big.jpg");
+  assert.equal((s.entries[0]!["note"] as string).length, 301); // 300 + the ellipsis
+  assert.ok((s.entries[0]!["note"] as string).endsWith("…"));
+  assert.equal(s.entries[1]!["volumes"], 41);
+  assert.equal(s.entries[1]!["published_from_year"], 1989);
+  assert.ok(!("episodes" in s.entries[1]!));
+});
+
+test("summarizeStacks drops a stack with no mal_id instead of failing the page", () => {
+  const r = summarizeStacks(
+    [
+      { mal_id: 1, title: "Keeps" },
+      { title: "Dropped" } as unknown as Parameters<typeof summarizeStacks>[0][number],
+    ],
+    { current_page: 1, has_next_page: false },
+  ) as { results: { mal_id: number }[] };
+  assert.equal(r.results.length, 1);
+  assert.equal(r.results[0]!.mal_id, 1);
 });

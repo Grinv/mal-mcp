@@ -17,12 +17,14 @@ import type {
   SeasonOrderBy,
   ScheduleDay,
   ReviewSort,
-  ReviewTriState,
+  TriState,
   ReviewSentiment,
   CharacterOrderBy,
   PersonOrderBy,
   ProducerOrderBy,
   MagazineOrderBy,
+  StackOrderBy,
+  StackType,
 } from "./tenraiEnums.js";
 
 // Shared by every "search by name" style endpoint — pagination, sort direction, and the
@@ -135,7 +137,26 @@ export interface ScheduleParams {
 export interface ReviewParams {
   page?: number;
   sort?: ReviewSort;
-  preliminary?: ReviewTriState;
-  spoilers?: ReviewTriState;
+  preliminary?: TriState;
+  spoilers?: TriState;
   sentiment?: ReviewSentiment;
+}
+
+export interface StackParams {
+  q?: string;
+  page?: number;
+  limit?: number;
+  order_by?: StackOrderBy;
+  sort?: SortDir;
+  spoilers?: TriState;
+  challenges?: TriState;
+  official?: TriState;
+  sfw?: boolean;
+  sfw_strict?: boolean;
+}
+
+/** The site-wide stack browse adds a media-type filter the per-entity ones don't have (there,
+ *  the entity itself already determines the type). */
+export interface StackSearchParams extends StackParams {
+  stack_type?: StackType;
 }

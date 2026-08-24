@@ -201,6 +201,22 @@
       "description": "Recent news articles about a manga."
     },
     {
+      "name": "get_interest_stacks",
+      "description": "Browse or search user-curated MyAnimeList Interest Stacks."
+    },
+    {
+      "name": "get_interest_stack",
+      "description": "One interest stack with its entries, scores and curator notes."
+    },
+    {
+      "name": "get_anime_interest_stacks",
+      "description": "Interest stacks that include a given anime."
+    },
+    {
+      "name": "get_manga_interest_stacks",
+      "description": "Interest stacks that include a given manga."
+    },
+    {
       "name": "get_news",
       "description": "Site-wide recent MyAnimeList news, not tied to one anime."
     },

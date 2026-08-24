@@ -26,6 +26,8 @@ import {
   summarizeAnimeVideos,
   summarizeSeasonsList,
   summarizeNewsItem,
+  summarizeStacks,
+  summarizeStack,
   type RawAnime,
   type RawManga,
   type RawPagination,
@@ -61,6 +63,8 @@ import type {
   SeasonParams,
   ScheduleParams,
   ReviewParams,
+  StackParams,
+  StackSearchParams,
 } from "./tenraiParams.js";
 
 type Query = Record<string, string | number | boolean | undefined>;
@@ -704,6 +708,48 @@ export class TenraiClient {
   }
 
   // Site-wide news feed, not tied to one anime — not cached (paginated/frequently-changing).
+  // Interest Stacks: user-curated anime/manga lists on MAL. Paginated and community-authored, so
+  // not cached (same category as searches and news feeds). No official-API equivalent exists.
+  async getStacks(p: StackSearchParams): Promise<Record<string, unknown>> {
+    const res = await this.#http.getJson<ListResponse<RawStack>>("stacks", {
+      query: { ...p, ...sfwStrictQuery(p.sfw_strict) },
+    });
+    if (!Array.isArray(res.data)) throw missingDataError("stacks");
+    return summarizeStacks(res.data, res.pagination);
+  }
+
+  async getStack(id: number, sfw?: boolean, sfwStrict?: boolean): Promise<Record<string, unknown>> {
+    return this.#cached<RawStack>(
+      `stack:${this.#sfwCacheKey(String(id), sfw, sfwStrict)}`,
+      `stacks/${id}`,
+      summarizeStack,
+      {
+        sfw,
+        ...sfwStrictQuery(sfwStrict),
+      },
+    );
+  }
+
+  async getAnimeStacks(id: number, p: StackParams): Promise<Record<string, unknown>> {
+    return this.#entityStacks("anime", id, p);
+  }
+
+  async getMangaStacks(id: number, p: StackParams): Promise<Record<string, unknown>> {
+    return this.#entityStacks("manga", id, p);
+  }
+
+  async #entityStacks(
+    kind: "anime" | "manga",
+    id: number,
+    p: StackParams,
+  ): Promise<Record<string, unknown>> {
+    const res = await this.#http.getJson<ListResponse<RawStack>>(`${kind}/${id}/stacks`, {
+      query: { ...p, ...sfwStrictQuery(p.sfw_strict) },
+    });
+    if (!Array.isArray(res.data)) throw missingDataError(`${kind}/${id}/stacks`);
+    return summarizeStacks(res.data, res.pagination);
+  }
+
   async getNews(p: {
     q?: string;
     tag?: string;

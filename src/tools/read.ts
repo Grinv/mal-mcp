@@ -21,13 +21,15 @@ import {
   SEASON_ORDER_BY,
   SCHEDULE_DAYS,
   REVIEW_SORTS,
-  REVIEW_TRI_STATES,
+  TRI_STATES,
   REVIEW_SENTIMENTS,
   CHARACTER_ORDER_BY,
   PERSON_ORDER_BY,
   PRODUCER_ORDER_BY,
   MAGAZINE_ORDER_BY,
   GENRE_FILTERS,
+  STACK_ORDER_BY,
+  STACK_TYPES,
 } from "../clients/tenraiEnums.js";
 import { jsonResult, type ToolResult } from "../lib/result.js";
 import { guard } from "./guard.js";
@@ -168,11 +170,23 @@ const reviewSort = z
   .describe("Sort order. Defaults to most_helpful (Tenrai's own default) when omitted.");
 const reviewTriState = (subject: string) =>
   z
-    .enum(REVIEW_TRI_STATES)
+    .enum(TRI_STATES)
     .describe(
       `Filter by ${subject}. 'true' includes them alongside other reviews (default), ` +
         `'false' excludes them, 'only' returns exclusively ${subject} reviews.`,
     );
+const stackOrderBy = z
+  .enum(STACK_ORDER_BY)
+  .describe("Field to order by. Defaults to created_at (newest stacks first).");
+/** Tenrai's include/exclude/only flag, as used by the interest-stack endpoints. */
+const stackTriState = (subject: string) =>
+  z
+    .enum(TRI_STATES)
+    .describe(
+      `Filter by ${subject}. 'true' includes them alongside the rest (default), 'false' ` +
+        `excludes them, 'only' returns exclusively those.`,
+    )
+    .optional();
 const reviewSentiment = z
   .enum(REVIEW_SENTIMENTS)
   .describe("Restrict to reviews with this overall sentiment tag. Omit for all sentiments.");
@@ -997,6 +1011,112 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       annotations: READ_ONLY,
       handler: ({ id, page: pg, sfw, sfw_strict }) =>
         reply(() => tenrai.getMangaNews(id, pg, sfw, sfw_strict)),
+    }),
+    // ---- Interest Stacks (user-curated MAL lists) ----------------------------
+
+    defineTool({
+      name: "get_interest_stacks",
+      title: "Browse interest stacks",
+      description:
+        "Browse or search MyAnimeList Interest Stacks: themed anime/manga lists curated by real " +
+        "users, each entry carrying the curator's own score and note. Use this for taste- or " +
+        "mood-shaped requests ('something melancholy', 'cozy slice-of-life') where a ranking or " +
+        "a genre filter is the wrong instrument — get_top_anime answers 'what is best', this " +
+        "answers 'what goes together'. Returns stack metadata only; pass a stack's mal_id to " +
+        "get_interest_stack for its actual entries. For stacks containing one specific title, " +
+        "use get_anime_interest_stacks/get_manga_interest_stacks instead. No official-API " +
+        "fallback exists for this tool — it always needs Tenrai itself to be reachable.",
+      inputSchema: z.strictObject({
+        q: z
+          .string()
+          .trim()
+          .min(1)
+          .describe("Free-text search over stack titles and descriptions. Omit to browse all.")
+          .optional(),
+        stack_type: z
+          .enum(STACK_TYPES)
+          .describe("Restrict to anime stacks or manga stacks. Omit for both.")
+          .optional(),
+        order_by: stackOrderBy.optional(),
+        sort: sortDir.optional(),
+        spoilers: stackTriState("stacks flagged as containing spoilers"),
+        challenges: stackTriState("challenge stacks (watch-along style lists)"),
+        official: stackTriState("official MAL-editorial stacks"),
+        ...sfwParams,
+        limit: limit.optional(),
+        page: page.optional(),
+      }),
+      outputSchema: stacksSchema,
+      annotations: READ_ONLY,
+      handler: (args) => reply(() => tenrai.getStacks(args)),
+    }),
+    defineTool({
+      name: "get_interest_stack",
+      title: "Get one interest stack",
+      description:
+        "Get one MyAnimeList Interest Stack by mal_id, with its entries in the curator's own " +
+        "order — each carrying that curator's score (`author_score`) and note. Obtain the " +
+        "stack's mal_id from get_interest_stacks, get_anime_interest_stacks or " +
+        "get_manga_interest_stacks. Every entry's own `mal_id` chains into get_anime or " +
+        "get_manga (the stack's `stack_type` says which). `sfw`/`sfw_strict` filter NSFW " +
+        "entries out of the entry list rather than hiding the stack itself. No official-API " +
+        "fallback exists for this tool — it always needs Tenrai itself to be reachable.",
+      inputSchema: z.strictObject({
+        id: malId.describe("MyAnimeList numeric ID of the interest stack."),
+        ...sfwParams,
+      }),
+      outputSchema: stackDetailSchema,
+      annotations: READ_ONLY,
+      handler: ({ id, sfw, sfw_strict }) => reply(() => tenrai.getStack(id, sfw, sfw_strict)),
+    }),
+    defineTool({
+      name: "get_anime_interest_stacks",
+      title: "Get interest stacks containing an anime",
+      description:
+        "List the public MyAnimeList Interest Stacks that include a given anime (by mal_id) — " +
+        "useful for 'what do people group this with' and as a jumping-off point for " +
+        "recommendations rooted in human curation rather than vote counts. Get the mal_id from " +
+        "search_anime. Returns stack metadata only; pass a stack's own mal_id to " +
+        "get_interest_stack for its entries. No official-API fallback exists for this tool — it " +
+        "always needs Tenrai itself to be reachable.",
+      inputSchema: z.strictObject({
+        id: malId,
+        order_by: stackOrderBy.optional(),
+        sort: sortDir.optional(),
+        spoilers: stackTriState("stacks flagged as containing spoilers"),
+        challenges: stackTriState("challenge stacks (watch-along style lists)"),
+        official: stackTriState("official MAL-editorial stacks"),
+        ...sfwParams,
+        limit: limit.optional(),
+        page: page.optional(),
+      }),
+      outputSchema: stacksSchema,
+      annotations: READ_ONLY,
+      handler: ({ id, ...p }) => reply(() => tenrai.getAnimeStacks(id, p)),
+    }),
+    defineTool({
+      name: "get_manga_interest_stacks",
+      title: "Get interest stacks containing a manga",
+      description:
+        "List the public MyAnimeList Interest Stacks that include a given manga (by mal_id). " +
+        "The manga counterpart of get_anime_interest_stacks. Get the mal_id from search_manga. " +
+        "Returns stack metadata only; pass a stack's own mal_id to get_interest_stack for its " +
+        "entries. No official-API fallback exists for this tool — it always needs Tenrai itself " +
+        "to be reachable.",
+      inputSchema: z.strictObject({
+        id: malId,
+        order_by: stackOrderBy.optional(),
+        sort: sortDir.optional(),
+        spoilers: stackTriState("stacks flagged as containing spoilers"),
+        challenges: stackTriState("challenge stacks (watch-along style lists)"),
+        official: stackTriState("official MAL-editorial stacks"),
+        ...sfwParams,
+        limit: limit.optional(),
+        page: page.optional(),
+      }),
+      outputSchema: stacksSchema,
+      annotations: READ_ONLY,
+      handler: ({ id, ...p }) => reply(() => tenrai.getMangaStacks(id, p)),
     }),
     defineTool({
       name: "get_news",

@@ -493,3 +493,54 @@ export const deleteMangaItemSchema = z.strictObject({
   deleted: z.literal(true),
   manga_id: z.int().positive(),
 });
+
+// ---- summarizeStacks / summarizeStack (MyAnimeList Interest Stacks) ----------
+
+// A user-curated list of anime or manga ("Interest Stack" on MAL). Field set follows Tenrai's
+// OpenAPI spec, not just what a sample response happened to contain. Everything except mal_id is
+// optional here even where the spec marks it required, because most of those are also nullable
+// and a field going missing must not fail the whole `.parse()`. mal_id stays required: these
+// exist to be opened with get_interest_stack.
+export const stackSummarySchema = z.strictObject({
+  mal_id: z.int().positive(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  stack_type: z.string().optional(),
+  author_username: z.string().optional(),
+  entry_count: z.int().nonnegative().optional(),
+  restack_count: z.int().nonnegative().optional(),
+  is_official: z.boolean().optional(),
+  is_challenge: z.boolean().optional(),
+  is_spoiler: z.boolean().optional(),
+  created_at: z.string().optional(),
+  author_url: z.string().optional(),
+  url: z.string().optional(),
+});
+
+// One entry inside a stack. mal_id required for the same reason as everywhere else here: the
+// point of a stack is to chain into get_anime/get_manga. `type` is the media type as MAL displays
+// it ("TV", "Movie", "Manga") — the stack's own `stack_type` says which of the two tools to use.
+export const stackEntrySchema = z.strictObject({
+  mal_id: z.int().positive(),
+  position: z.int().positive().optional(),
+  title: z.string().optional(),
+  title_english: z.string().optional(),
+  type: z.string().optional(),
+  // episodes/aired_from_year on an anime stack, volumes/published_from_year on a manga one.
+  episodes: z.int().nonnegative().optional(),
+  aired_from_year: z.int().min(1900).max(2100).optional(),
+  volumes: z.int().nonnegative().optional(),
+  published_from_year: z.int().min(1900).max(2100).optional(),
+  // The curator's own score and note for this pick — the part that makes a stack more than a
+  // list of ids.
+  author_score: z.number().optional(),
+  note: z.string().optional(),
+  url: z.string().optional(),
+  image_url: z.string().optional(),
+});
+
+export const stackDetailSchema = stackSummarySchema.extend({
+  entries: z.array(stackEntrySchema).optional(),
+});
+
+export const stacksSchema = listPageSchema(stackSummarySchema);

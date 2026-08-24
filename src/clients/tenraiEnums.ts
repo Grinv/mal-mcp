@@ -79,12 +79,18 @@ export const SCHEDULE_DAYS = [
   "other",
 ] as const;
 export const REVIEW_SORTS = ["newest", "oldest", "most_helpful"] as const;
-export const REVIEW_TRI_STATES = ["true", "false", "only"] as const;
+// Tenrai's generic include/exclude/only flag, spelled the same way on every endpoint that has
+// one (review spoilers/preliminary, stack spoilers/challenges/official). Unlike the per-endpoint
+// order_by lists below, this really is one shared vocabulary rather than several that happen to
+// overlap today, so a single constant is correct here.
+export const TRI_STATES = ["true", "false", "only"] as const;
 export const REVIEW_SENTIMENTS = ["recommended", "mixed_feelings", "not_recommended"] as const;
 export const CHARACTER_ORDER_BY = ["mal_id", "name", "favorites"] as const;
 export const PERSON_ORDER_BY = ["mal_id", "name", "birthday", "favorites"] as const;
 export const PRODUCER_ORDER_BY = ["mal_id", "count", "favorites", "established"] as const;
 export const MAGAZINE_ORDER_BY = ["mal_id", "name", "count"] as const;
+export const STACK_ORDER_BY = ["created_at", "restack_count"] as const;
+export const STACK_TYPES = ["anime", "manga"] as const;
 export const GENRE_FILTERS = ["genres", "explicit_genres", "themes", "demographics"] as const;
 
 export type AnimeMediaType = (typeof ANIME_MEDIA_TYPES)[number];
@@ -101,7 +107,7 @@ export type SeasonName = (typeof SEASON_NAMES)[number];
 export type SeasonOrderBy = (typeof SEASON_ORDER_BY)[number];
 export type ScheduleDay = (typeof SCHEDULE_DAYS)[number];
 export type ReviewSort = (typeof REVIEW_SORTS)[number];
-export type ReviewTriState = (typeof REVIEW_TRI_STATES)[number];
+export type TriState = (typeof TRI_STATES)[number];
 export type ReviewSentiment = (typeof REVIEW_SENTIMENTS)[number];
 // search_characters/search_people/get_producers/get_magazines each get their own order_by type —
 // deliberately NOT unioned into one shared type, since each endpoint's real enum differs (e.g.
@@ -112,3 +118,5 @@ export type PersonOrderBy = (typeof PERSON_ORDER_BY)[number];
 export type ProducerOrderBy = (typeof PRODUCER_ORDER_BY)[number];
 export type MagazineOrderBy = (typeof MAGAZINE_ORDER_BY)[number];
 export type GenreFilter = (typeof GENRE_FILTERS)[number];
+export type StackOrderBy = (typeof STACK_ORDER_BY)[number];
+export type StackType = (typeof STACK_TYPES)[number];

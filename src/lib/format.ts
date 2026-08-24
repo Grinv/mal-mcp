@@ -45,6 +45,10 @@ import {
   staffSchema,
   statisticsSchema,
   voiceActorEntrySchema,
+  stackSummarySchema,
+  stackEntrySchema,
+  stackDetailSchema,
+  stacksSchema,
 } from "./format.schemas.js";
 
 interface NamedRef {
@@ -433,6 +437,7 @@ export function pageInfo(p: RawPagination | undefined): z.infer<typeof pageSchem
 export interface RawCharacter {
   character?: { mal_id?: number; name?: string; url?: string };
   role?: string;
+  favorites?: number | null;
   voice_actors?: { language?: string; person?: { name?: string } }[];
 }
 
@@ -953,6 +958,95 @@ export function summarizeNewsItem(n: RawNewsItem): z.infer<typeof newsItemSchema
       comments: n.comments,
       excerpt: clip(n.excerpt, 300),
       url: n.url,
+    }),
+  );
+}
+
+export interface RawStack {
+  mal_id: number;
+  url?: string;
+  stack_type?: string | null;
+  title?: string | null;
+  description?: string | null;
+  author_username?: string | null;
+  author_url?: string | null;
+  is_official?: boolean;
+  is_challenge?: boolean;
+  is_spoiler?: boolean;
+  restack_count?: number | null;
+  entry_count?: number | null;
+  created_at?: string | null;
+  entries?: RawStackEntry[];
+}
+
+export interface RawStackEntry {
+  mal_id?: number;
+  position?: number;
+  title?: string | null;
+  title_english?: string | null;
+  type?: string | null;
+  episodes?: number | null;
+  aired_from_year?: number | null;
+  volumes?: number | null;
+  published_from_year?: number | null;
+  author_score?: number | null;
+  note?: string | null;
+  url?: string;
+  images?: RawImages;
+}
+
+function stackBase(s: RawStack): Record<string, unknown> {
+  return clean({
+    mal_id: s.mal_id,
+    title: s.title ?? undefined,
+    // Stack descriptions are curator blurbs, not essays, but cap them like other free text.
+    description: clip(s.description, 500),
+    stack_type: s.stack_type ?? undefined,
+    author_username: s.author_username ?? undefined,
+    entry_count: s.entry_count ?? undefined,
+    restack_count: s.restack_count ?? undefined,
+    is_official: s.is_official,
+    is_challenge: s.is_challenge,
+    is_spoiler: s.is_spoiler,
+    created_at: s.created_at ?? undefined,
+    author_url: s.author_url ?? undefined,
+    url: s.url,
+  });
+}
+
+/** A page of interest stacks. A stack with no mal_id is dropped — see `mapLenient`. */
+export function summarizeStacks(
+  data: RawStack[],
+  pagination: RawPagination | undefined,
+): z.infer<typeof stacksSchema> {
+  return stacksSchema.parse({
+    results: mapLenient(data, stackSummarySchema, stackBase),
+    page: pageInfo(pagination),
+  });
+}
+
+/** One interest stack with its entries in the curator's own order. */
+export function summarizeStack(s: RawStack): z.infer<typeof stackDetailSchema> {
+  return stackDetailSchema.parse(
+    clean({
+      ...stackBase(s),
+      entries: mapLenient(s.entries ?? [], stackEntrySchema, (e) =>
+        clean({
+          mal_id: e.mal_id,
+          position: e.position,
+          title: e.title ?? undefined,
+          title_english: e.title_english ?? undefined,
+          type: e.type ?? undefined,
+          episodes: e.episodes ?? undefined,
+          aired_from_year: e.aired_from_year ?? undefined,
+          volumes: e.volumes ?? undefined,
+          published_from_year: e.published_from_year ?? undefined,
+          author_score: e.author_score ?? undefined,
+          note: clip(e.note, 300),
+          url: e.url,
+          image_url: imageUrl(e.images),
+        }),
+      ),
     }),
   );
 }
