@@ -344,8 +344,20 @@ test("summarizeReviews truncates long review text", () => {
       date: "2024-01-01T00:00:00+00:00",
     },
   ]) as { reviews: { review: string; tags: string[] }[] };
-  assert.equal(r.reviews[0]!.review.length, 1200);
+  // 1200 characters of review plus the ellipsis clip() appends. The marker is the point: without
+  // it the agent cannot tell a cut-off review from one that simply ended there, and would quote
+  // a truncated opinion as the reviewer's complete verdict.
+  assert.equal(r.reviews[0]!.review, "x".repeat(1200) + "…");
   assert.deepEqual(r.reviews[0]!.tags, []); // missing tags default to []
+});
+
+test("summarizeReviews leaves a review at exactly the limit unmarked", () => {
+  const exact = "y".repeat(1200);
+  const r = summarizeReviews([
+    { user: { username: "bob" }, score: 8, review: exact, date: "2024-01-01T00:00:00+00:00" },
+  ]) as { reviews: { review: string }[] };
+  assert.equal(r.reviews[0]!.review, exact);
+  assert.ok(!r.reviews[0]!.review.endsWith("…"));
 });
 
 test("summarizeReviews drops a malformed entry instead of failing the whole list", () => {

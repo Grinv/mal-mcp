@@ -515,7 +515,10 @@ export function summarizeReviews(data: RawReview[]): z.infer<typeof reviewsSchem
       score: r.score,
       tags: r.tags ?? [],
       date: r.date,
-      review: typeof r.review === "string" ? r.review.slice(0, 1200) : undefined,
+      // clip(), not a bare slice: the trailing ellipsis is the only thing telling the agent the
+      // review was cut off rather than ending there, and quoting a truncated review as complete
+      // misrepresents the reviewer.
+      review: typeof r.review === "string" ? clip(r.review, 1200) : undefined,
       url: r.url,
       is_spoiler: r.is_spoiler,
       is_preliminary: r.is_preliminary,
