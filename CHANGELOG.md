@@ -6,6 +6,38 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Add `get_interest_stacks`, `get_interest_stack`, `get_anime_interest_stacks` and `get_manga_interest_stacks` for MyAnimeList Interest Stacks: themed lists curated by real users, each entry carrying the curator's own score and note. The one MAL source that is human-curated rather than vote-derived ([1b891d3](https://github.com/Grinv/mal-mcp/commit/1b891d3)).
+- Surface the fields Tenrai already returned but this server dropped: `mal_id`/`type`/`media_type` on `relations` entries, `moreinfo` on `get_manga`, `favorites` on manga character entries, `duration`/`synopsis`/`replies`/`image_url` on episodes, and `duration`/`published_at`/`comment_count` on video clips ([06cbc3c](https://github.com/Grinv/mal-mcp/commit/06cbc3c)).
+
+### Changed
+
+- Fall back to the official MAL API on a Tenrai `429` or an unparseable `200`, not only on 5xx/timeout/network errors. A real `404`/`400` still isn't retried there ([740dee1](https://github.com/Grinv/mal-mcp/commit/740dee1)).
+- Describe `get_person`'s caps accurately: only `voice_roles` is capped at 50, while staff-credit lists come back whole and can run to several hundred entries. `get_random_person` now mentions the same shaping ([baecb97](https://github.com/Grinv/mal-mcp/commit/baecb97)).
+- Render the `themes`/`demographics` fallback gap in `get_anime`/`get_manga`'s descriptions. Both fields are always empty during an official-API fallback, and only the tests knew ([baecb97](https://github.com/Grinv/mal-mcp/commit/baecb97)).
+- Render every supplied `seasonal_overview` argument. Passing `season` without `year` (or the reverse) used to drop it silently and describe the current season instead ([432021f](https://github.com/Grinv/mal-mcp/commit/432021f)).
+- Correct PRIVACY.md's caching description: searches, rankings, seasonal listings, news, reviews, episodes and random picks are never cached; only by-id lookups and reference data are ([91138af](https://github.com/Grinv/mal-mcp/commit/91138af)).
+- Correct README's fallback framing. The Client ID tier covers a **Tenrai** outage by retrying against MyAnimeList, not the other way round ([91138af](https://github.com/Grinv/mal-mcp/commit/91138af)).
+- Point `USER_AGENT` at the actual repository instead of a bare `https://github.com/` ([b36c04e](https://github.com/Grinv/mal-mcp/commit/b36c04e)).
+- Declare `moreinfo` as a manga detail-fallback gap. The official API has no equivalent, so `get_manga`'s description now says it goes missing during a fallback ([06cbc3c](https://github.com/Grinv/mal-mcp/commit/06cbc3c)).
+
+### Fixed
+
+- Stop caching a degraded fallback response. One transient Tenrai 5xx used to pin the official API's thinner payload under the cache key for the full TTL, long after Tenrai recovered ([9a97095](https://github.com/Grinv/mal-mcp/commit/9a97095)).
+- Surface the original Tenrai failure when the fallback also fails. A revoked Client ID turned an outage into "run login_mal" on read tools that need no token ([b181d0c](https://github.com/Grinv/mal-mcp/commit/b181d0c)).
+- Apply `HTTP_TIMEOUT_MS` to the whole exchange, body included. An upstream that sent headers and then stalled mid-stream hung the tool call with no error and no timeout left to fire ([1cba7ad](https://github.com/Grinv/mal-mcp/commit/1cba7ad)).
+- Report a rejected refresh token as `unauthorized` with login guidance instead of a bare `HTTP 400`, and drop the dead token rather than replaying it on every later call ([cb7cf4d](https://github.com/Grinv/mal-mcp/commit/cb7cf4d)).
+- Raise an upstream error, not a `TypeError`, when a `200` carries no `data`. The old failure was unrecognisable to the fallback and reached the agent as "res.data is not iterable" ([b6659f7](https://github.com/Grinv/mal-mcp/commit/b6659f7)).
+- Mark a truncated review with an ellipsis. Without it a cut-off review was indistinguishable from a complete one ([1b109b3](https://github.com/Grinv/mal-mcp/commit/1b109b3)).
+- Make `relations` followable. Entries were flattened to bare titles, so an agent could see a franchise entry existed but had no id to open it, and a title alone can't tell an adaptation from its source ([aea91a1](https://github.com/Grinv/mal-mcp/commit/aea91a1)).
+- Log how many results the official API's client-side `sfw` filter removed, so an all-filtered page is no longer indistinguishable from an empty one ([b6659f7](https://github.com/Grinv/mal-mcp/commit/b6659f7)).
+- Skip a redundant token exchange when a parallel request already refreshed, and release the `login_mal` callback listener on an abandoned login instead of holding the port for the process's lifetime ([31c64e2](https://github.com/Grinv/mal-mcp/commit/31c64e2)).
+
+### Security
+
+- Keep the token store at `0600` even when a leftover temp file from a killed process sits in the way. Renaming that file over the target could otherwise widen the real file's permissions ([7e41e66](https://github.com/Grinv/mal-mcp/commit/7e41e66)).
+
 ## [0.9.1] - 2026-07-31
 
 ### Changed
