@@ -1,6 +1,7 @@
 // Read-only client for the Tenrai API (a free, unofficial MyAnimeList mirror — no credentials
 // needed). Wraps HttpClient with a polite rate limiter and a TTL cache. It only fetches and
 // caches; all raw→agent-facing shaping lives in ../lib/format.js.
+import { ApiError } from "../lib/errors.js";
 import { HttpClient } from "../lib/http.js";
 import type { RateRule } from "../lib/rateLimit.js";
 import { TtlCache } from "../lib/cache.js";
@@ -43,6 +44,7 @@ import {
   type RawAnimeVideos,
   type RawSeasonEntry,
   type RawNewsItem,
+  type RawStack,
 } from "../lib/format.js";
 import type { Logger } from "../lib/logger.js";
 import type { Config } from "../config.js";
@@ -69,6 +71,17 @@ interface ListResponse<T> {
 }
 interface ItemResponse<T> {
   data: T;
+}
+
+/** A 200 that carries no `data` at all. Modelled as `server_error` rather than left to become a
+ *  TypeError deep inside a shaper: only an ApiError with an upstream-failure code reaches
+ *  `guard()` as a readable message and lets `withFallback` try the official API. */
+function missingDataError(path: string): ApiError {
+  return new ApiError({
+    code: "server_error",
+    message: `Upstream returned a response with no data for ${path}`,
+    retryable: true,
+  });
 }
 
 /** Tenrai's stricter NSFW filter is the hyphenated query param `sfw-strict` — not a valid JS
@@ -145,6 +158,11 @@ export class TenraiClient {
     summarize: (item: T) => Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
     const res = await this.#http.getJson<ListResponse<T>>(path, { query });
+    // A 200 whose body has no `data` array (an error envelope, a JSON maintenance page) would
+    // otherwise throw a raw TypeError: the agent sees "res.data is not iterable", and
+    // isUpstreamFailure() doesn't recognise it, so the official-API fallback never engages.
+    // Classify it as what it is — the upstream misbehaving — so the fallback gets its chance.
+    if (!Array.isArray(res.data)) throw missingDataError(path);
     const results: Record<string, unknown>[] = [];
     for (const item of res.data) {
       try {

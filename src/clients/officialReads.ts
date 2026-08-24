@@ -297,7 +297,24 @@ export class OfficialReadsClient {
     // Tenrai's `sfw` param, so this is the fallback's one way to honor an explicit `sfw: true`.
     // Filtering after the page is fetched means a filtered page can come back shorter than
     // `limit` even when more results exist upstream — an accepted degraded-mode trade-off.
+    if (!Array.isArray(res.data)) {
+      // Same reasoning as tenrai.ts's #list guard: a 200 with no `data` array must surface as an
+      // upstream failure, not as "res.data.filter is not a function" reaching the agent.
+      throw new ApiError({
+        code: "server_error",
+        message: `Upstream returned a response with no data for ${path}`,
+        retryable: true,
+      });
+    }
     const nodes = p.sfw ? res.data.filter((d) => isSfw(d.node)) : res.data;
+    if (nodes.length < res.data.length) {
+      // Say so in the log: an all-filtered page is indistinguishable from a genuinely empty
+      // result once it reaches the agent, and "no results" is a very different diagnosis from
+      // "every result on this page was NSFW".
+      this.#logger.warn(
+        `sfw filter dropped ${res.data.length - nodes.length} of ${res.data.length} ${path} results`,
+      );
+    }
     // One malformed node shouldn't fail the whole page — see tenrai.ts's #list for the
     // same reasoning (a single item missing a required output field would otherwise
     // take out every other result in the response).
