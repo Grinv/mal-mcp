@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "mal-mcp",
   "display_name": "MAL MCP Server",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "description": "Search and browse MyAnimeList anime/manga and manage your personal list.",
   "icon": "assets/icon.png",
   "long_description": "MCP server for MyAnimeList. Reads (search, details, rankings, seasons, characters, recommendations, reviews) are served via the free Tenrai API and require no credentials. Personal-list tools (read/update/delete your own anime & manga list) use the official MyAnimeList API and require a user token; without one they return an actionable error. Works with any MCP client.",
