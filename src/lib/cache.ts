@@ -58,11 +58,20 @@ export class TtlCache<T> {
    * value exists, serve that instead of failing. Lets reads degrade gracefully
    * when the upstream is temporarily down.
    */
-  async wrapStaleOnError(key: string, compute: () => Promise<T>): Promise<T> {
+  /** `shouldCache` lets a caller compute a value but decline to store it — used when the value
+   *  came from a degraded path (see TenraiClient's official-API fallback) and caching it would
+   *  pin the thinner payload under this key for the whole TTL, long after the primary recovered.
+   *  Declining to store still serves the value to this caller and to everyone deduped onto the
+   *  same in-flight promise. */
+  async wrapStaleOnError(
+    key: string,
+    compute: () => Promise<T>,
+    shouldCache?: (value: T) => boolean,
+  ): Promise<T> {
     const fresh = this.get(key);
     if (fresh !== undefined) return fresh;
     try {
-      return await this.#dedupe(key, compute);
+      return await this.#dedupe(key, compute, shouldCache);
     } catch (err) {
       const stale = this.getStale(key);
       if (stale !== undefined) return stale;
@@ -75,12 +84,12 @@ export class TtlCache<T> {
   // matter how many callers race on it. The resolved value is cached exactly
   // once (by the shared promise's own .then, not per-caller); a rejection
   // propagates to every waiter and clears the slot so the next call retries.
-  #dedupe(key: string, compute: () => Promise<T>): Promise<T> {
+  #dedupe(key: string, compute: () => Promise<T>, shouldCache?: (value: T) => boolean): Promise<T> {
     const inFlight = this.#pending.get(key);
     if (inFlight) return inFlight;
     const promise = compute()
       .then((value) => {
-        this.set(key, value);
+        if (!shouldCache || shouldCache(value)) this.set(key, value);
         return value;
       })
       .finally(() => this.#pending.delete(key));

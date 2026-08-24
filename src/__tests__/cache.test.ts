@@ -123,3 +123,30 @@ test("ttl <= 0 disables caching", async () => {
   await cache.wrap("k", compute);
   assert.equal(calls, 2);
 });
+
+test("wrapStaleOnError skips caching when shouldCache says no", async () => {
+  const cache = new TtlCache<string>(60_000);
+  let calls = 0;
+  const compute = async () => {
+    calls += 1;
+    return `v${calls}`;
+  };
+  // The degraded-response case: the value is still returned, but must not be pinned under the
+  // key, or one transient fallback would keep serving the thinner payload for the whole TTL.
+  assert.equal(await cache.wrapStaleOnError("k", compute, () => false), "v1");
+  assert.equal(cache.get("k"), undefined);
+  assert.equal(await cache.wrapStaleOnError("k", compute, () => false), "v2");
+  assert.equal(calls, 2);
+});
+
+test("wrapStaleOnError caches as usual when shouldCache says yes", async () => {
+  const cache = new TtlCache<string>(60_000);
+  let calls = 0;
+  const compute = async () => {
+    calls += 1;
+    return `v${calls}`;
+  };
+  assert.equal(await cache.wrapStaleOnError("k", compute, () => true), "v1");
+  assert.equal(await cache.wrapStaleOnError("k", compute, () => true), "v1");
+  assert.equal(calls, 1);
+});

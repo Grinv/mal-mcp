@@ -172,8 +172,35 @@ export class TenraiClient {
   ): Promise<Record<string, unknown>> {
     return this.#cache.wrapStaleOnError(key, async () => {
       const res = await this.#http.getJson<ItemResponse<T>>(path, query ? { query } : undefined);
+      // Same reasoning as #list's guard: a `data`-less 200 must surface as an upstream failure,
+      // not as whatever TypeError the shaper happens to throw on undefined.
+      if (res.data === undefined || res.data === null) throw missingDataError(path);
       return shape(res.data);
     });
+  }
+
+  /** Cache by `key`, but only when the value came from Tenrai itself. The official-API fallback
+   *  is deliberately thinner (see formatOfficial.ts's *_FALLBACK_GAPS), so caching its response
+   *  would pin the degraded payload under this key for the whole TTL — one transient 5xx would
+   *  keep serving a stripped-down entry for minutes after Tenrai recovered, with nothing in the
+   *  response saying so. The fallback value is still returned to this caller; it just isn't kept.
+   *  Only the cached read paths need this: the uncached ones (search/top/season) can't poison
+   *  anything. */
+  #cachedWithFallback(
+    key: string,
+    label: string,
+    primary: () => Promise<Record<string, unknown>>,
+    fallbackCall: () => Promise<Record<string, unknown>>,
+  ): Promise<Record<string, unknown>> {
+    let servedByFallback = false;
+    return this.#cache.wrapStaleOnError(
+      key,
+      () =>
+        withFallback(this.#logger, this.#fallback, label, primary, fallbackCall, () => {
+          servedByFallback = true;
+        }),
+      () => !servedByFallback,
+    );
   }
 
   async searchAnime(p: AnimeSearchParams): Promise<Record<string, unknown>> {
@@ -238,25 +265,22 @@ export class TenraiClient {
     sfw?: boolean,
     sfwStrict?: boolean,
   ): Promise<Record<string, unknown>> {
-    return this.#cache.wrapStaleOnError(this.#sfwCacheKey(`${kind}:${id}`, sfw, sfwStrict), () =>
-      withFallback(
-        this.#logger,
-        this.#fallback,
-        `${kind} details`,
-        async () => {
-          const res = await this.#http.getJson<ItemResponse<RawAnime | RawManga>>(
-            `${kind}/${id}/full`,
-            { query: { sfw, ...sfwStrictQuery(sfwStrict) } },
-          );
-          return kind === "anime"
-            ? summarizeAnime(res.data as RawAnime, true)
-            : summarizeManga(res.data as RawManga, true);
-        },
-        () =>
-          kind === "anime"
-            ? this.#fallback!.animeDetailsOfficial(id)
-            : this.#fallback!.mangaDetailsOfficial(id),
-      ),
+    return this.#cachedWithFallback(
+      this.#sfwCacheKey(`${kind}:${id}`, sfw, sfwStrict),
+      `${kind} details`,
+      async () => {
+        const res = await this.#http.getJson<ItemResponse<RawAnime | RawManga>>(
+          `${kind}/${id}/full`,
+          { query: { sfw, ...sfwStrictQuery(sfwStrict) } },
+        );
+        return kind === "anime"
+          ? summarizeAnime(res.data as RawAnime, true)
+          : summarizeManga(res.data as RawManga, true);
+      },
+      () =>
+        kind === "anime"
+          ? this.#fallback!.animeDetailsOfficial(id)
+          : this.#fallback!.mangaDetailsOfficial(id),
     );
   }
 
@@ -297,25 +321,20 @@ export class TenraiClient {
     sfw?: boolean,
     sfwStrict?: boolean,
   ): Promise<Record<string, unknown>> {
-    return this.#cache.wrapStaleOnError(
+    return this.#cachedWithFallback(
       this.#sfwCacheKey(`${kind}-recs:${id}`, sfw, sfwStrict),
+      `${kind} recommendations`,
+      async () => {
+        const res = await this.#http.getJson<ItemResponse<RawRecommendation[]>>(
+          `${kind}/${id}/recommendations`,
+          { query: { sfw, ...sfwStrictQuery(sfwStrict) } },
+        );
+        return summarizeRecommendations(res.data);
+      },
       () =>
-        withFallback(
-          this.#logger,
-          this.#fallback,
-          `${kind} recommendations`,
-          async () => {
-            const res = await this.#http.getJson<ItemResponse<RawRecommendation[]>>(
-              `${kind}/${id}/recommendations`,
-              { query: { sfw, ...sfwStrictQuery(sfwStrict) } },
-            );
-            return summarizeRecommendations(res.data);
-          },
-          () =>
-            kind === "anime"
-              ? this.#fallback!.animeRecommendationsOfficial(id)
-              : this.#fallback!.mangaRecommendationsOfficial(id),
-        ),
+        kind === "anime"
+          ? this.#fallback!.animeRecommendationsOfficial(id)
+          : this.#fallback!.mangaRecommendationsOfficial(id),
     );
   }
 
@@ -573,19 +592,14 @@ export class TenraiClient {
   }
 
   async getAnimeStatistics(id: number): Promise<Record<string, unknown>> {
-    return this.#cache.wrapStaleOnError(`anime-stats:${id}`, () =>
-      withFallback(
-        this.#logger,
-        this.#fallback,
-        "anime statistics",
-        async () => {
-          const res = await this.#http.getJson<ItemResponse<RawStatistics>>(
-            `anime/${id}/statistics`,
-          );
-          return summarizeStatistics(res.data);
-        },
-        () => this.#fallback!.animeStatisticsOfficial(id),
-      ),
+    return this.#cachedWithFallback(
+      `anime-stats:${id}`,
+      "anime statistics",
+      async () => {
+        const res = await this.#http.getJson<ItemResponse<RawStatistics>>(`anime/${id}/statistics`);
+        return summarizeStatistics(res.data);
+      },
+      () => this.#fallback!.animeStatisticsOfficial(id),
     );
   }
 

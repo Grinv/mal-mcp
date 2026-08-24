@@ -263,6 +263,68 @@ test("does not fall back for a non-retryable error (404) even with a fallback co
   const mock = mockFetch(() => jsonResponse({ message: "nope" }, { status: 404 }));
   installFetch(t, mock);
   const fallback = fakeFallback();
-  await assert.rejects(() => tenrai(fallback).searchAnime({ q: "frieren" }));
+  // A bare assert.rejects() here would also pass if the fallback's own error were surfaced
+  // instead — pin the code so that regression can't hide.
+  await assert.rejects(
+    () => tenrai(fallback).searchAnime({ q: "frieren" }),
+    (err: unknown) => err instanceof ApiError && err.code === "not_found",
+  );
   assert.equal(fallback.calls.length, 0);
+});
+
+test("a fallback response is served but never cached", async (t) => {
+  // One transient 5xx must not pin the official API's thinner payload under the cache key for
+  // the whole TTL: the next call has to reach Tenrai again now that it has recovered.
+  let attempt = 0;
+  const mock = mockFetch(() => {
+    attempt += 1;
+    return attempt === 1
+      ? jsonResponse({ message: "boom" }, { status: 500 })
+      : jsonResponse({ data: { mal_id: 1, title: "Real Tenrai Anime", url: "u" } });
+  });
+  installFetch(t, mock);
+  const fallback = fakeFallback();
+  const client = tenrai(fallback);
+
+  const degraded = (await client.getAnime(1)) as { title?: string };
+  assert.equal(degraded.title, "Fallback Anime Details");
+  assert.equal(fallback.calls.length, 1);
+
+  const fresh = (await client.getAnime(1)) as { title?: string };
+  assert.equal(fresh.title, "Real Tenrai Anime");
+  assert.equal(fallback.calls.length, 1, "the second call must not hit the fallback again");
+});
+
+test("a successful Tenrai detail response is still cached", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: { mal_id: 1, title: "Cached", url: "u" } }));
+  installFetch(t, mock);
+  const client = tenrai(fakeFallback());
+  await client.getAnime(1);
+  await client.getAnime(1);
+  assert.equal(mock.calls.length, 1);
+});
+
+test("a 200 with no data array surfaces as an upstream failure and triggers the fallback", async (t) => {
+  // Previously this threw a raw "res.data is not iterable" TypeError, which isUpstreamFailure()
+  // does not recognise, so the fallback never engaged and the agent saw the TypeError text.
+  const mock = mockFetch(() => jsonResponse({ message: "under maintenance" }));
+  installFetch(t, mock);
+  const fallback = fakeFallback();
+  const out = (await tenrai(fallback).searchAnime({ q: "frieren" })) as { results: unknown[] };
+  assert.equal(fallback.calls.length, 1);
+  assert.equal(out.results.length, 1);
+});
+
+test("a 200 with no data on a by-id lookup reports the upstream, not a shaper crash", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ message: "under maintenance" }));
+  installFetch(t, mock);
+  await assert.rejects(
+    () => tenrai().getAnimeCharacters(1),
+    (err: unknown) => {
+      assert.ok(err instanceof ApiError);
+      assert.equal(err.code, "server_error");
+      assert.match(err.message, /no data for anime\/1\/characters/);
+      return true;
+    },
+  );
 });
