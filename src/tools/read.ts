@@ -739,22 +739,32 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       name: "get_person",
       title: "Get person details",
       description:
-        "Get full details for one person by mal_id: bio, their complete anime/manga staff-credit " +
-        "lists, and their voiced roles. The staff-credit lists are NOT capped — a prolific " +
-        "sound director or producer can return several hundred entries. Only `voice_roles` is " +
-        "capped, to the first 50, in whatever order the upstream API returns them (not " +
-        "necessarily their most notable roles). Obtain the " +
+        "Get full details for one person by mal_id: bio, their anime/manga staff-credit lists, " +
+        "and their voiced roles. Staff credits are capped at the first 200 (only an extreme " +
+        "outlier hits that — a prolific sound director can have 500+; a well-known director sits " +
+        "under 100); when the cap bites, the response says so via `credits_truncated` plus " +
+        "`total_anime_credits`/`total_manga_credits`, and `full_credits: true` returns every " +
+        "entry. `voice_roles` is separately capped at the first 50, in whatever order the " +
+        "upstream API returns them (not necessarily their most notable roles). Obtain the " +
         "mal_id from search_people, or from get_character's voice_actors (which include each " +
         "actor's mal_id — get_anime_characters' voice_actors are names only, with no id). " +
         "`sfw`/`sfw_strict` filter NSFW/adult-adjacent titles out of the person's own " +
         "anime/manga credit lists (verified live) rather than affecting the person themselves.",
       inputSchema: z.strictObject({
         id: malId,
+        full_credits: z
+          .boolean()
+          .describe(
+            "If true, return every staff credit instead of the first 200. Only needed for the " +
+              "handful of people whose response reports `credits_truncated`. Defaults to false.",
+          )
+          .optional(),
         ...sfwParams,
       }),
       outputSchema: personEntitySchema,
       annotations: READ_ONLY,
-      handler: ({ id, sfw, sfw_strict }) => reply(() => tenrai.getPerson(id, sfw, sfw_strict)),
+      handler: ({ id, sfw, sfw_strict, full_credits }) =>
+        reply(() => tenrai.getPerson(id, sfw, sfw_strict, full_credits)),
     }),
     defineTool({
       name: "get_anime_staff",
@@ -966,7 +976,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       title: "Get a random person",
       description:
         "Return one random person — voice actor, director, author (full details, shaped exactly " +
-        "like get_person: staff credits uncapped, `voice_roles` capped to the first 50). Good " +
+        "like get_person: staff credits capped at 200, `voice_roles` at 50). Good " +
         "for discovery / trivia. No official-API fallback exists for this tool — it always needs " +
         "Tenrai itself to be reachable.",
       inputSchema: z.strictObject({}),

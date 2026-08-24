@@ -697,9 +697,19 @@ export interface RawPersonEntity {
   voices?: { role?: string; anime?: RawRef; character?: RawRef }[];
 }
 
+/** Default ceiling on a person's staff-credit lists. Measured against Tenrai before picking it:
+ *  over a random sample of 25 people the median is 1 credit and the 90th percentile 23, and even
+ *  well-known directors sit far below this (Anno 77, Kanno 62, Watanabe 50). Only the extreme
+ *  tail is affected — a sound director like Jin Aketagawa (mal_id 8074) has 534, which is 44 KB
+ *  of response on its own. A cap of 50 would instead have truncated exactly the people most
+ *  worth asking about. Tenrai has no pagination on any /people/{id}/* route, so this is the only
+ *  place such a limit can live. */
+const STAFF_CREDIT_CAP = 200;
+
 export function summarizePerson(
   p: RawPersonEntity,
   detailed = false,
+  fullCredits = false,
 ): z.infer<typeof personEntitySchema> {
   const base = clean({
     mal_id: p.mal_id,
@@ -717,15 +727,24 @@ export function summarizePerson(
   // A credit entry with no resolvable mal_id (a malformed/edge-case upstream record) is dropped
   // rather than failing the whole person lookup — see `mapLenient`. voice_roles has no mal_id
   // field at all (format.schemas.ts's voiceRoleEntrySchema), so it needs no such handling.
+  const rawAnime = p.anime ?? [];
+  const rawManga = p.manga ?? [];
+  const cap = fullCredits ? Infinity : STAFF_CREDIT_CAP;
+  const animeCredits = mapLenient(rawAnime.slice(0, cap), creditEntrySchema, (a) =>
+    clean({ position: a.position, mal_id: a.anime?.mal_id, title: a.anime?.title }),
+  );
+  const mangaCredits = mapLenient(rawManga.slice(0, cap), creditEntrySchema, (m) =>
+    clean({ position: m.position, mal_id: m.manga?.mal_id, title: m.manga?.title }),
+  );
   return personEntitySchema.parse(
     clean({
       ...base,
-      anime: mapLenient(p.anime ?? [], creditEntrySchema, (a) =>
-        clean({ position: a.position, mal_id: a.anime?.mal_id, title: a.anime?.title }),
-      ),
-      manga: mapLenient(p.manga ?? [], creditEntrySchema, (m) =>
-        clean({ position: m.position, mal_id: m.manga?.mal_id, title: m.manga?.title }),
-      ),
+      anime: animeCredits,
+      manga: mangaCredits,
+      // Say so when a list was cut, rather than leaving the agent to assume it saw everything.
+      credits_truncated: rawAnime.length > cap || rawManga.length > cap ? true : undefined,
+      total_anime_credits: rawAnime.length > cap ? rawAnime.length : undefined,
+      total_manga_credits: rawManga.length > cap ? rawManga.length : undefined,
       // Voiced roles can be huge for prolific actors; cap to keep the payload sane.
       voice_roles: (p.voices ?? [])
         .slice(0, 50)

@@ -583,11 +583,14 @@ export class TenraiClient {
     id: number,
     sfw?: boolean,
     sfwStrict?: boolean,
+    fullCredits?: boolean,
   ): Promise<Record<string, unknown>> {
+    // full_credits changes the shaped output, not the request, so it belongs in the cache key —
+    // otherwise a capped response would be served to a caller that asked for everything.
     return this.#cached<RawPersonEntity>(
-      this.#sfwCacheKey(`person:${id}`, sfw, sfwStrict),
+      `${this.#sfwCacheKey(`person:${id}`, sfw, sfwStrict)}:${Boolean(fullCredits)}`,
       `people/${id}/full`,
-      (person) => summarizePerson(person, true),
+      (person) => summarizePerson(person, true, fullCredits),
       { sfw, ...sfwStrictQuery(sfwStrict) },
     );
   }

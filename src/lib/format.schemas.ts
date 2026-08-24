@@ -332,6 +332,11 @@ export const personEntitySchema = z.strictObject({
   anime: z.array(creditEntrySchema).optional(),
   manga: z.array(creditEntrySchema).optional(),
   voice_roles: z.array(voiceRoleEntrySchema).optional(),
+  // Present only when a staff-credit list was cut by the default cap, with the real totals
+  // alongside — absent means what came back is everything.
+  credits_truncated: z.literal(true).optional(),
+  total_anime_credits: z.int().nonnegative().optional(),
+  total_manga_credits: z.int().nonnegative().optional(),
 });
 
 // ---- summarizeStaff -----------------------------------------------------------

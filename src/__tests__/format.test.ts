@@ -616,6 +616,30 @@ test("summarizePerson caps voice_roles at 50 but leaves staff credits whole", ()
   assert.equal(p.anime.length, 120);
   assert.equal(p.manga.length, 60);
   assert.equal(p.voice_roles.length, 50);
+  // Well under the 200 cap, so nothing is flagged.
+  assert.ok(!("credits_truncated" in p));
+});
+
+test("summarizePerson caps staff credits at 200 and reports the real totals", () => {
+  // Only the extreme tail reaches this: measured against Tenrai, the 90th percentile is 23
+  // credits and even Hideaki Anno has 77. Jin Aketagawa's 534 are what this exists for.
+  const raw = {
+    mal_id: 8074,
+    name: "Aketagawa, Jin",
+    anime: Array.from({ length: 534 }, (_v, i) => ({
+      position: "Sound Director",
+      anime: { mal_id: i + 1, title: `A${i}` },
+    })),
+  };
+  const capped = summarizePerson(raw, true) as Record<string, unknown>;
+  assert.equal((capped["anime"] as unknown[]).length, 200);
+  assert.equal(capped["credits_truncated"], true);
+  assert.equal(capped["total_anime_credits"], 534);
+  assert.ok(!("total_manga_credits" in capped)); // manga wasn't truncated, so no total for it
+
+  const full = summarizePerson(raw, true, true) as Record<string, unknown>;
+  assert.equal((full["anime"] as unknown[]).length, 534);
+  assert.ok(!("credits_truncated" in full));
 });
 
 test("summarizeStack keeps entry order, curator score and note, and clips a long note", () => {
