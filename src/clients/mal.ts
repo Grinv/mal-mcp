@@ -68,6 +68,8 @@ export interface MangaStatusUpdate {
   score?: number;
   num_chapters_read?: number;
   num_volumes_read?: number;
+  start_date?: string;
+  finish_date?: string;
   is_rereading?: boolean;
   num_times_reread?: number;
   reread_value?: number;

@@ -19,9 +19,8 @@ connected user's real MyAnimeList list.
   pre-supplied `MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`). Without one, they
   return an actionable error instead of running.
 - The write tools have a real blast radius. `update_my_anime_status`/
-  `update_my_manga_status` can set arbitrary status/score/progress/tags/
-  comments on an entry in the user's real list (plus start and finish dates
-  on the anime tool; the manga tool takes none), creating it if absent
+  `update_my_manga_status` can set arbitrary status/score/progress/dates/
+  tags/comments on an entry in the user's real list, creating it if absent
   and leaving omitted fields unchanged if it already exists. `delete_my_anime_list_item`/
   `delete_my_manga_list_item` **permanently remove** an entry; MAL's delete
   endpoint is idempotent and reports success even when the entry never

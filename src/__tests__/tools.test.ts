@@ -718,3 +718,35 @@ test("update_my_anime_status rejects a calendar-invalid start_date", async (t) =
   });
   assert.notEqual(ok.isError, true);
 });
+
+test("update_my_manga_status sends start_date/finish_date in the form body", async (t) => {
+  // MAL's manga endpoint does accept these — confirmed with a live PATCH against a real account
+  // (reverted afterwards). The tool simply never offered them, unlike its anime sibling.
+  const mock = mockFetch(() => jsonResponse({ status: "reading" }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({ MAL_ACCESS_TOKEN: "tok" });
+  t.after(close);
+
+  const res = await client.callTool({
+    name: "update_my_manga_status",
+    arguments: { manga_id: 2, start_date: "2026-08-01", finish_date: "2026-08-20" },
+  });
+  assert.notEqual(res.isError, true);
+  const body = String(mock.calls.at(-1)!.init?.body);
+  assert.match(body, /start_date=2026-08-01/);
+  assert.match(body, /finish_date=2026-08-20/);
+});
+
+test("update_my_manga_status rejects a calendar-invalid finish_date", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ status: "reading" }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({ MAL_ACCESS_TOKEN: "tok" });
+  t.after(close);
+
+  const bad = await client.callTool({
+    name: "update_my_manga_status",
+    arguments: { manga_id: 2, finish_date: "2024-02-30" },
+  });
+  assert.equal(bad.isError, true);
+  assert.equal(mock.calls.length, 0);
+});

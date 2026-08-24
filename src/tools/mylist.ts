@@ -171,7 +171,7 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
       title: "Update my manga status",
       description:
         "Add or update a manga on the authenticated user's list (status, score, chapters/volumes " +
-        "read). Creates the entry if absent; fields you omit are left unchanged on an existing " +
+        "read, dates). Creates the entry if absent; fields you omit are left unchanged on an existing " +
         "entry. Provide at least one field besides manga_id. Requires a MyAnimeList login.",
       inputSchema: z.strictObject({
         manga_id: malId,
@@ -179,6 +179,8 @@ export function registerMyListTools(server: McpServer, mal: MalClient): void {
         score: score.optional(),
         num_chapters_read: z.int().min(0).describe("Chapters read.").optional(),
         num_volumes_read: z.int().min(0).describe("Volumes read.").optional(),
+        start_date: date.optional(),
+        finish_date: date.optional(),
         is_rereading: z.boolean().describe("Whether currently rereading.").optional(),
         num_times_reread: z.int().min(0).describe("Times reread.").optional(),
         reread_value: rewatchValue.optional(),

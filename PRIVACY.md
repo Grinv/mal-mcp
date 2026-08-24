@@ -88,8 +88,7 @@ connected, the calling AI model can, on your behalf:
 - **Modify your real MyAnimeList list**: `update_my_anime_status` and
   `update_my_manga_status` add a new entry or change an existing one, using
   whatever fields the model passes (status, score, episodes/chapters/volumes
-  progress, tags, comments, plus start and finish dates on the anime tool —
-  the manga tool takes no dates). `delete_my_anime_list_item`
+  progress, dates, tags, comments). `delete_my_anime_list_item`
   and `delete_my_manga_list_item` **permanently remove** an entry from your
   list; MAL's delete endpoint is idempotent and reports success even if the
   entry never existed, so a successful delete result is not proof anything
