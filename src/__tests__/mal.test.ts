@@ -368,3 +368,73 @@ test("concurrent 401s trigger a single (deduped) token refresh", async (t) => {
   await Promise.all([client.getMyUserInfo(), client.getMyAnimeList({})]);
   assert.equal(refreshCalls, 1);
 });
+
+test("a rejected refresh token reports as unauthorized and points at login_mal", async (t) => {
+  // MAL answers an expired or revoked refresh token with 400, which used to reach the agent as
+  // "The request was rejected as invalid" with no hint that re-authorizing is the fix.
+  const storePath = tempStorePath("refresh-rejected");
+  rmSync(storePath, { force: true });
+
+  const config = loadConfig({
+    MAL_ACCESS_TOKEN: "old",
+    MAL_CLIENT_ID: "id",
+    MAL_REFRESH_TOKEN: "dead",
+  });
+  const store = new TokenStore(storePath, silentLogger());
+
+  const mock = mockFetch((url) => {
+    if (url.includes("/oauth2/token")) {
+      return jsonResponse({ error: "invalid_grant" }, { status: 400 });
+    }
+    return jsonResponse({ error: "unauthorized" }, { status: 401 });
+  });
+  installFetch(t, mock);
+  try {
+    const client = new MalClient(config, silentLogger(), store);
+    await assert.rejects(
+      () => client.getMyUserInfo(),
+      (err: unknown) => {
+        assert.ok(err instanceof ApiError);
+        assert.equal(err.code, "unauthorized");
+        assert.match(err.message, /expired or been revoked/);
+        assert.match(err.message, /login_mal/);
+        return true;
+      },
+    );
+    // The dead token is dropped rather than replayed against MAL on every later call.
+    const persisted = JSON.parse(readFileSync(storePath, "utf8")) as TokenState;
+    assert.equal(persisted.refreshToken, "");
+    assert.equal(persisted.accessToken, "");
+  } finally {
+    rmSync(storePath, { force: true });
+  }
+});
+
+test("a 5xx during refresh does not discard the stored refresh token", async (t) => {
+  // An outage says nothing about the token's validity; throwing it away would log the user out
+  // over a blip.
+  const storePath = tempStorePath("refresh-outage");
+  rmSync(storePath, { force: true });
+
+  const config = loadConfig({
+    MAL_ACCESS_TOKEN: "old",
+    MAL_CLIENT_ID: "id",
+    MAL_REFRESH_TOKEN: "still-good",
+  });
+  const store = new TokenStore(storePath, silentLogger());
+  store.save({ accessToken: "old", refreshToken: "still-good", expiresAt: 0 });
+
+  const mock = mockFetch((url) => {
+    if (url.includes("/oauth2/token")) return jsonResponse({ error: "boom" }, { status: 503 });
+    return jsonResponse({ error: "unauthorized" }, { status: 401 });
+  });
+  installFetch(t, mock);
+  try {
+    const client = new MalClient(config, silentLogger(), store);
+    await assert.rejects(() => client.getMyUserInfo());
+    const persisted = JSON.parse(readFileSync(storePath, "utf8")) as TokenState;
+    assert.equal(persisted.refreshToken, "still-good");
+  } finally {
+    rmSync(storePath, { force: true });
+  }
+});

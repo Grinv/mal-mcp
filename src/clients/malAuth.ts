@@ -133,12 +133,36 @@ export class MalAuthManager {
       client_id: this.#auth.clientId,
       refresh_token: refreshToken,
     });
-    const res = await this.#oauth.requestJson<TokenResponse>("token", {
-      method: "POST",
-      body,
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      retries: 0,
-    });
+    let res: TokenResponse;
+    try {
+      res = await this.#oauth.requestJson<TokenResponse>("token", {
+        method: "POST",
+        body,
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        retries: 0,
+      });
+    } catch (err) {
+      // MAL answers an expired or revoked refresh token with 400, which classifies as
+      // `bad_request` and reaches the agent as "The request was rejected as invalid" — no hint
+      // that re-authorizing is the fix. Restate it as `unauthorized` so result.ts's existing
+      // login_mal guidance applies. Only for a genuine rejection: a 5xx or a dropped connection
+      // says nothing about the token, and discarding it there would log the user out over a
+      // blip.
+      if (err instanceof ApiError && !err.retryable) {
+        // Drop the dead token so the next personal-list call fails fast with the same advice
+        // instead of replaying this exchange against MAL every time.
+        this.#state = { ...this.#state, accessToken: "", refreshToken: "", expiresAt: 0 };
+        this.#store?.save(this.#state);
+        throw new ApiError({
+          code: "unauthorized",
+          message:
+            "MyAnimeList rejected the stored refresh token; it has expired or been revoked. " +
+            "Run the login_mal tool to re-authorize.",
+          cause: err,
+        });
+      }
+      throw err;
+    }
 
     this.#state = {
       accessToken: res.access_token,
