@@ -218,3 +218,59 @@ test("a caller abort is propagated as a non-retryable error (no retries)", async
   );
   assert.equal(mock.calls.length, 1); // not retried
 });
+
+test("times out while the response body is still streaming", { timeout: 5000 }, async (t) => {
+  // fetch() settles as soon as the headers land, so a body that never finishes used to escape the
+  // timeout entirely: the timer had already been cleared and the call hung forever with no error.
+  const mock = mockFetch((_url, init) => {
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        init?.signal?.addEventListener("abort", () =>
+          controller.error(new DOMException("aborted", "AbortError")),
+        );
+      },
+    });
+    return new Response(body, { status: 200, headers: { "content-type": "application/json" } });
+  });
+  installFetch(t, mock);
+  await assert.rejects(
+    () => client({ retries: 0, timeoutMs: 30 }).getJson("stalled-body"),
+    (err: unknown) => {
+      assert.ok(err instanceof ApiError);
+      assert.equal(err.code, "timeout");
+      assert.equal(err.retryable, true);
+      assert.equal(err.message, "Request timed out after 30ms");
+      return true;
+    },
+  );
+});
+
+test("a caller abort during the body read stays non-retryable", { timeout: 5000 }, async (t) => {
+  const controller = new AbortController();
+  const mock = mockFetch((_url, init) => {
+    const body = new ReadableStream<Uint8Array>({
+      start(c) {
+        init?.signal?.addEventListener("abort", () =>
+          c.error(new DOMException("aborted", "AbortError")),
+        );
+      },
+    });
+    setTimeout(() => controller.abort(), 10);
+    return new Response(body, { status: 200, headers: { "content-type": "application/json" } });
+  });
+  installFetch(t, mock);
+  await assert.rejects(
+    () =>
+      client({ retries: 0, timeoutMs: 5000 }).getJson("stalled-body", {
+        signal: controller.signal,
+      }),
+    (err: unknown) => {
+      assert.ok(err instanceof ApiError);
+      assert.equal(err.code, "network");
+      assert.equal(err.retryable, false);
+      assert.equal(err.message, "Request aborted by caller");
+      return true;
+    },
+  );
+  assert.equal(mock.calls.length, 1);
+});

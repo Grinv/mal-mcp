@@ -82,63 +82,80 @@ export class HttpClient {
       ? AbortSignal.any([controller.signal, options.signal])
       : controller.signal;
 
-    let res: Response;
-    try {
-      res = await fetch(url, {
-        method: options.method ?? "GET",
-        headers: {
-          "User-Agent": USER_AGENT,
-          Accept: "application/json",
-          ...this.#opts.defaultHeaders,
-          ...options.headers,
-        },
-        ...(options.body === undefined ? {} : { body: options.body }),
-        signal,
-      });
-    } catch (err) {
+    // Which abort won, as an ApiError. Both the fetch call and the body read need this: fetch
+    // settles as soon as the response *headers* arrive, so a stalled body stream aborts later,
+    // through a different await.
+    const abortError = (err: unknown): ApiError => {
       if (options.signal?.aborted) {
         // Caller cancelled — propagate as a non-retryable abort.
-        throw new ApiError({ code: "network", message: "Request aborted by caller", cause: err });
+        return new ApiError({ code: "network", message: "Request aborted by caller", cause: err });
       }
       if (controller.signal.aborted) {
-        throw new ApiError({
+        return new ApiError({
           code: "timeout",
           message: `Request timed out after ${timeoutMs}ms`,
           retryable: true,
           cause: err,
         });
       }
-      throw toNetworkError(err);
+      return toNetworkError(err);
+    };
+
+    // The timer is cleared only once the whole exchange is done, body included. Clearing it when
+    // fetch() resolves would leave an upstream that sends headers and then stalls mid-body hanging
+    // forever: no timeout left to fire, no error, a tool call that never returns.
+    try {
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          method: options.method ?? "GET",
+          headers: {
+            "User-Agent": USER_AGENT,
+            Accept: "application/json",
+            ...this.#opts.defaultHeaders,
+            ...options.headers,
+          },
+          ...(options.body === undefined ? {} : { body: options.body }),
+          signal,
+        });
+      } catch (err) {
+        throw abortError(err);
+      }
+
+      if (!res.ok) throw await toHttpError(res);
+
+      if (res.status === 204) return undefined as T;
+      let text: string;
+      try {
+        text = await res.text();
+      } catch (err) {
+        throw abortError(err);
+      }
+      if (text.length === 0) return undefined as T;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch (err) {
+        throw new ApiError({
+          code: "unknown",
+          message: "Upstream returned invalid JSON",
+          cause: err,
+        });
+      }
+      const embedded = this.#opts.detectEmbeddedError?.(parsed);
+      if (embedded) {
+        const { code, retryable } = classifyStatus(embedded.status);
+        throw new ApiError({
+          code,
+          status: embedded.status,
+          retryable,
+          message: `HTTP ${embedded.status} (embedded in a 200 response): ${embedded.message}`,
+        });
+      }
+      return parsed as T;
     } finally {
       clearTimeout(timer);
     }
-
-    if (!res.ok) throw await toHttpError(res);
-
-    if (res.status === 204) return undefined as T;
-    const text = await res.text();
-    if (text.length === 0) return undefined as T;
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch (err) {
-      throw new ApiError({
-        code: "unknown",
-        message: "Upstream returned invalid JSON",
-        cause: err,
-      });
-    }
-    const embedded = this.#opts.detectEmbeddedError?.(parsed);
-    if (embedded) {
-      const { code, retryable } = classifyStatus(embedded.status);
-      throw new ApiError({
-        code,
-        status: embedded.status,
-        retryable,
-        message: `HTTP ${embedded.status} (embedded in a 200 response): ${embedded.message}`,
-      });
-    }
-    return parsed as T;
   }
 
   #buildUrl(path: string, query?: RequestOptions["query"]): string {
