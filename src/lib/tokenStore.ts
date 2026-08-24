@@ -2,7 +2,7 @@
 // silent-refresh flow survives restarts. MAL rotates the refresh token on each
 // refresh, so we must write the new one back. The file is created 0600 inside
 // the user's OS config directory.
-import { mkdirSync, readFileSync, writeFileSync, renameSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync, renameSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { dirname, join } from "node:path";
 import type { Logger } from "./logger.js";
@@ -63,8 +63,14 @@ export class TokenStore {
     // `mode` only applies when it creates the file, so an in-place rewrite of a
     // pre-existing looser-permissioned file would otherwise keep the old mode.
     // The pid suffix keeps two processes' temp files from colliding.
+    // The pid suffix keeps two processes' temp files from colliding. It does not make the name
+    // unique over time, though: pids are reused, so a temp file left behind by a killed process
+    // can still be sitting there. Writing into that leftover would hit the very `mode`-only-on-
+    // create rule this whole dance exists to dodge, and rename() would then carry its looser
+    // permissions onto the real file. `wx` fails instead of reusing it, so clear it out first.
     const tmp = `${this.#path}.${process.pid}.tmp`;
-    writeFileSync(tmp, JSON.stringify(state, null, 2), { mode: 0o600 });
+    rmSync(tmp, { force: true });
+    writeFileSync(tmp, JSON.stringify(state, null, 2), { mode: 0o600, flag: "wx" });
     renameSync(tmp, this.#path);
   }
 }
