@@ -39,8 +39,10 @@ const MANGA_FIELDS =
 
 // Superset of the above for get_anime/get_manga's fallback (a single-item detail lookup, not a
 // list) — adds the fields Tenrai's `detailed: true` output also carries. See
-// summarizeOfficialAnimeDetailed/summarizeOfficialMangaDetailed for what still can't be
-// reproduced (producers/licensors/streaming/themes/trailer/favorites — no official-API field).
+// ANIME_DETAIL_FALLBACK_GAPS/MANGA_DETAIL_FALLBACK_GAPS in ../lib/formatOfficial.js for the
+// authoritative list of what still can't be reproduced. Keeping a hand-written copy here only
+// let it rot: the previous one mixed a list-mode gap in with the detail-mode ones and had gone
+// several fields out of date.
 const ANIME_DETAIL_FIELDS =
   ANIME_FIELDS +
   ",source,average_episode_duration,broadcast,background,related_anime,related_manga," +

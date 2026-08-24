@@ -9,7 +9,7 @@ JavaScript, so a plain HTTP fetch returns only the title — open them in a brow
 
 - **API reference** — <https://tenrai.org/documentation> (interactive Scalar
   docs); a machine-readable summary lives at <https://api.tenrai.org/llms.txt>.
-  A full OpenAPI 3.0.3 spec (86 paths, every query param/enum/response shape) is
+  A full OpenAPI 3.0.3 spec (v1.0.19, 92 paths, every query param/enum/response shape) is
   cached locally at `notes/tenrai-openapi-spec.json` (gitignored, not
   committed — see `notes/tenrai-reliability.md` for the same local-notes
   convention) for fast programmatic lookup (e.g. `python3 -c "import json;
@@ -72,7 +72,7 @@ json.load(open('notes/tenrai-openapi-spec.json'))..."`) instead of re-fetching
   - **Beta status, self-declared**: the operators describe `/v1` as an
     interim bridge toward a `/v2` design, with occasional downtime expected.
   - **Full query-param audit (2026-07-30)**, cross-checked against the maintainer's local
-    OpenAPI spec (`api-1.json`/`api-1.yaml`, v1.0.17, 86 paths) and `api.tenrai.org/llms.txt`:
+    OpenAPI spec (then v1.0.17, 86 paths; now v1.0.19, 92 paths) and `api.tenrai.org/llms.txt`:
     `type` and `rating` on `/anime`, `/manga`, `/top/anime`, `/top/manga` and the seasonal
     (`filter`) endpoints are OpenAPI `array` params with `style: form, explode: false` — sent as
     one comma-joined query value (`type=tv,movie`), not repeated keys; `mal-mcp` previously
@@ -83,6 +83,26 @@ json.load(open('notes/tenrai-openapi-spec.json'))..."`) instead of re-fetching
     `episodes_watched` — never both on the same item, despite sharing one response schema.
     Every comma-separated ID list (`genres`, `genres_exclude`, `producers`, `magazines`) caps
     at 25 IDs per Tenrai's own docs.
+  - **Interest Stacks (2026-08-24)**, against the v1.0.19 spec: `/stacks`, `/stacks/{id}` and
+    `/anime|manga/{id}/stacks` (new in Tenrai 1.0.18) are exposed as
+    `get_interest_stacks`/`get_interest_stack`/`get_anime_interest_stacks`/
+    `get_manga_interest_stacks`. These are the one MAL data source that is human-curated rather
+    than vote- or score-derived, which is why they earned tools while the other 1.0.16-1.0.19
+    additions (featured articles, entity picture galleries, the episode forum, `/top/reviews`,
+    the deleted-entry lists) did not yet. Field set follows the spec rather than a sample
+    response: the entry shape includes `volumes`/`published_from_year` for manga stacks alongside
+    `episodes`/`aired_from_year` for anime ones. Verified live 2026-08-24 end-to-end through the
+    MCP protocol. No official-API equivalent exists, so none of the four falls back.
+  - **Recovered fields (2026-08-24)**: `relations` used to be flattened to bare titles, so an
+    agent could see that a franchise entry existed but not open it — the entries now carry
+    `mal_id`/`type`/`media_type`, and the official-API fallback's `groupRelations()` was widened
+    to match. `get_manga`'s `moreinfo` (added upstream in the 1.0.19 spec), `favorites` on
+    manga character entries, `duration`/`synopsis`/`replies`/`image_url` on episodes (Tenrai
+    1.0.10 and 1.0.16), and `duration`/`published_at`/`comment_count` on video clips (1.0.12)
+    were all being returned by Tenrai and dropped on the floor here. `dislikes`,
+    `privacy_status`, `embeddable` and `region_restriction` are deliberately still dropped:
+    YouTube no longer publishes dislike counts meaningfully, and the rest describe playback
+    policy rather than the video.
   - **Endpoint-coverage sweep (2026-07-30)**, against the same local spec: `get_magazines`,
     `get_producer` (single-producer detail — `/producers/{id}/full`'s `about`/`external` fields
     had no tool at all before), `get_anime_videos` (`/anime/{id}/videos`), the site-wide
@@ -113,7 +133,9 @@ Two separate clients use this API, for two unrelated concerns:
 `src/clients/mal.ts` (`MalClient`) for OAuth-authenticated personal-list
 reads/writes, and `src/clients/officialReads.ts` (`OfficialReadsClient`) for
 anonymous Client-ID-only public reads — the fallback for when a Tenrai call
-fails. See [auth.md](auth.md) for the three credential tiers (none / Client
+fails with a genuine upstream fault (5xx, timeout, connection error, 429, or
+invalid JSON; a real 404/400 is an answer, not an outage, and is never
+retried here). See [auth.md](auth.md) for the three credential tiers (none / Client
 ID / OAuth token) and exactly what each one unlocks.
 
 > **Why reads default to Tenrai, not this API.** This API can serve public
@@ -152,6 +174,13 @@ ID / OAuth token) and exactly what each one unlocks.
 > endpoint) gives the watch-status counts (`watching`/`completed`/`on_hold`/
 > `dropped`/`plan_to_watch`/`num_list_users`), but has **no** score-distribution
 > histogram at all, so `scores` is simply absent during that fallback.
+> Two gaps apply to **every** fallback-eligible anime/manga tool, list and
+> detail alike: the official API returns one flat `genres` array with no
+> themes/demographics split, so `themes` and `demographics` always come back
+> empty (`ANIME_LIST_FALLBACK_GAPS`/`MANGA_LIST_FALLBACK_GAPS`, folded into
+> `*_DETAIL_FALLBACK_GAPS_FULL` for the detail tools). `broadcast` differs by
+> mode: absent from a list fallback, which never requests it, but present in
+> `get_anime`'s detail fallback, which asks for it explicitly.
 > `get_manga_statistics` has no equivalent whatsoever — `MangaForDetails` carries
 > no `statistics` property — so it stays fully Tenrai-only. Every other read tool
 > (reviews, schedule, producers, news, episodes, genres, random

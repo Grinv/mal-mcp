@@ -27,11 +27,11 @@ Nothing is required to get started. You can skip straight to
 [Install](#install). Everything below is optional, and each step just adds
 more:
 
-| You set...                                                                                                                                            | You get...                                                                                                                                                                        |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| _(nothing)_                                                                                                                                           | Search, details, rankings, seasons, characters, reviews, and more. Works immediately, no signup.                                                                                  |
-| A MyAnimeList **Client ID** ([2 minutes, free →](#connect-your-myanimelist-account-for-the-personal-list-tools))                                      | Same as above, plus: 11 read tools (search, rankings, seasons, recommendations, details, statistics) keep working smoothly even during a MyAnimeList hiccup. Still no login step. |
-| The Client ID above, **plus** running the `login_mal` tool once ([same walkthrough →](#connect-your-myanimelist-account-for-the-personal-list-tools)) | Everything above, plus your **own MyAnimeList list**: view it, add/update entries, mark things watched, remove entries.                                                           |
+| You set...                                                                                                                                            | You get...                                                                                                                                                                                                                                            |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _(nothing)_                                                                                                                                           | Search, details, rankings, seasons, characters, reviews, and more. Works immediately, no signup.                                                                                                                                                      |
+| A MyAnimeList **Client ID** ([2 minutes, free →](#connect-your-myanimelist-account-for-the-personal-list-tools))                                      | Same as above, plus: 11 read tools (search, rankings, seasons, recommendations, details, statistics) keep working when Tenrai, the default read backend, has an outage. They retry against the official MyAnimeList API instead. Still no login step. |
+| The Client ID above, **plus** running the `login_mal` tool once ([same walkthrough →](#connect-your-myanimelist-account-for-the-personal-list-tools)) | Everything above, plus your **own MyAnimeList list**: view it, add/update entries, mark things watched, remove entries.                                                                                                                               |
 
 Without a login, the personal-list tools reply with a clear message telling
 you how to get one. Everything else keeps working regardless.
@@ -69,28 +69,29 @@ Once it's connected, just ask your agent in natural language.
 
 ## Tools
 
-| Tool                                                                                  | Backend | Auth  |
-| ------------------------------------------------------------------------------------- | ------- | ----- |
-| `search_anime`, `search_manga`                                                        | Tenrai  | none  |
-| `get_anime`, `get_manga`                                                              | Tenrai  | none  |
-| `get_anime_characters`, `get_anime_recommendations`, `get_anime_reviews`              | Tenrai  | none  |
-| `get_manga_characters`, `get_manga_recommendations`, `get_manga_reviews`              | Tenrai  | none  |
-| `get_recent_anime_recommendations`, `get_recent_manga_recommendations`                | Tenrai  | none  |
-| `get_anime_episodes`, `get_anime_videos`                                              | Tenrai  | none  |
-| `get_anime_genres`, `get_manga_genres`                                                | Tenrai  | none  |
-| `search_characters`, `get_character`                                                  | Tenrai  | none  |
-| `search_people`, `get_person`, `get_anime_staff`                                      | Tenrai  | none  |
-| `get_anime_statistics`, `get_manga_statistics`                                        | Tenrai  | none  |
-| `get_random_anime`, `get_random_manga`, `get_random_character`, `get_random_person`   | Tenrai  | none  |
-| `get_anime_news`, `get_manga_news`, `get_news`                                        | Tenrai  | none  |
-| `get_top_anime`, `get_top_manga`                                                      | Tenrai  | none  |
-| `get_top_people`, `get_top_characters`                                                | Tenrai  | none  |
-| `get_seasonal_anime`, `get_upcoming_season`, `get_seasons_list`, `get_anime_schedule` | Tenrai  | none  |
-| `get_producers`, `get_producer`, `get_magazines`                                      | Tenrai  | none  |
-| `get_my_user_info`, `get_my_anime_list`, `get_my_manga_list`                          | MAL     | token |
-| `update_my_anime_status`, `update_my_manga_status`                                    | MAL     | token |
-| `delete_my_anime_list_item`, `delete_my_manga_list_item`                              | MAL     | token |
-| `login_mal`, `submit_mal_redirect`                                                    | MAL     | login |
+| Tool                                                                                                  | Backend | Auth  |
+| ----------------------------------------------------------------------------------------------------- | ------- | ----- |
+| `search_anime`, `search_manga`                                                                        | Tenrai  | none  |
+| `get_anime`, `get_manga`                                                                              | Tenrai  | none  |
+| `get_anime_characters`, `get_anime_recommendations`, `get_anime_reviews`                              | Tenrai  | none  |
+| `get_manga_characters`, `get_manga_recommendations`, `get_manga_reviews`                              | Tenrai  | none  |
+| `get_recent_anime_recommendations`, `get_recent_manga_recommendations`                                | Tenrai  | none  |
+| `get_anime_episodes`, `get_anime_videos`                                                              | Tenrai  | none  |
+| `get_anime_genres`, `get_manga_genres`                                                                | Tenrai  | none  |
+| `search_characters`, `get_character`                                                                  | Tenrai  | none  |
+| `search_people`, `get_person`, `get_anime_staff`                                                      | Tenrai  | none  |
+| `get_anime_statistics`, `get_manga_statistics`                                                        | Tenrai  | none  |
+| `get_random_anime`, `get_random_manga`, `get_random_character`, `get_random_person`                   | Tenrai  | none  |
+| `get_anime_news`, `get_manga_news`, `get_news`                                                        | Tenrai  | none  |
+| `get_top_anime`, `get_top_manga`                                                                      | Tenrai  | none  |
+| `get_top_people`, `get_top_characters`                                                                | Tenrai  | none  |
+| `get_seasonal_anime`, `get_upcoming_season`, `get_seasons_list`, `get_anime_schedule`                 | Tenrai  | none  |
+| `get_producers`, `get_producer`, `get_magazines`                                                      | Tenrai  | none  |
+| `get_interest_stacks`, `get_interest_stack`, `get_anime_interest_stacks`, `get_manga_interest_stacks` | Tenrai  | none  |
+| `get_my_user_info`, `get_my_anime_list`, `get_my_manga_list`                                          | MAL     | token |
+| `update_my_anime_status`, `update_my_manga_status`                                                    | MAL     | token |
+| `delete_my_anime_list_item`, `delete_my_manga_list_item`                                              | MAL     | token |
+| `login_mal`, `submit_mal_redirect`                                                                    | MAL     | login |
 
 `token` = needs a MyAnimeList login (run `login_mal` once). Prompts:
 `recommend_similar`, `seasonal_overview`, `hidden_gems`. `recommend_similar`'s

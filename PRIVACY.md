@@ -88,7 +88,8 @@ connected, the calling AI model can, on your behalf:
 - **Modify your real MyAnimeList list**: `update_my_anime_status` and
   `update_my_manga_status` add a new entry or change an existing one, using
   whatever fields the model passes (status, score, episodes/chapters/volumes
-  progress, dates, tags, comments). `delete_my_anime_list_item`
+  progress, tags, comments, plus start and finish dates on the anime tool —
+  the manga tool takes no dates). `delete_my_anime_list_item`
   and `delete_my_manga_list_item` **permanently remove** an entry from your
   list; MAL's delete endpoint is idempotent and reports success even if the
   entry never existed, so a successful delete result is not proof anything
@@ -113,13 +114,17 @@ would for any other tool that acts on a real external account.
   below is memory-only. Deleting that file (or never running `login_mal`
   and never supplying `MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`) leaves nothing
   behind.
-- **Caching**: successful API responses (search results, details, rankings,
-  etc.) are cached in the server process's own memory only (never written
-  to disk), for a short configurable TTL (`CACHE_TTL_MS`, default 5
-  minutes) to cut latency and avoid hammering Tenrai/MyAnimeList. The cache
-  is cleared entirely when the process exits and is never shared across
-  machines or users. Paginated/frequently-changing data (reviews, episode
-  lists, random picks, your own list) is deliberately **not** cached.
+- **Caching**: responses to by-id lookups and rarely-changing reference data
+  are cached in the server process's own memory only (never written to
+  disk), for a short configurable TTL (`CACHE_TTL_MS`, default 5 minutes)
+  to cut latency and avoid hammering Tenrai/MyAnimeList. That covers an
+  anime or manga's details, characters, staff, videos, statistics and
+  recommendations; a character, person or producer profile; and the genre
+  and season lists. The cache is cleared entirely when the process exits
+  and is never shared across machines or users. Everything paginated or
+  fast-moving is deliberately **not** cached at all: every search, ranking,
+  seasonal and schedule listing, the news feeds, reviews, episode lists,
+  random picks, and your own list.
 - **Logging**: operational logs go to stderr only (never a file, never a
   remote endpoint), with credentials redacted before anything is written.
   Log verbosity is controlled by `LOG_LEVEL` (default `info`); logs live

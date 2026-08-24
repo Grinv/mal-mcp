@@ -41,7 +41,7 @@ src/
                   # interfaces, split out once tenrai.ts grew too large to scan) +
                   # readFallback.ts (retry policy), mal.ts (personal-list CRUD — MyUserInfoSchema/
                   # MalListResponseSchema/ListStatusUpdateResponseSchema stay here as
-                  # .passthrough(), see below) + malEnums.ts (mal.ts's own enum arrays, same
+                  # z.looseObject(), see below) + malEnums.ts (mal.ts's own enum arrays, same
                   # reasoning/pattern as tenraiEnums.ts, shared with tools/mylist.ts) +
                   # malAuth.ts (MalAuthManager: OAuth token refresh + the login_mal/
                   # submit_mal_redirect PKCE flow, composed into MalClient — split out because
@@ -103,7 +103,7 @@ npm run check:api      # live upstream health-check (network)
 - Tool failures return `{ isError: true }` results (via `guard()` / `result.ts`),
   never thrown — the agent should get an actionable message.
 - Every tool declares an `outputSchema` (SEP-2106, MCP structured content) — add
-  or reuse a schema in `format.schemas.ts` (or the matching client's passthrough
+  or reuse a schema in `format.schemas.ts` (or the matching client's loose
   schema, e.g. in `clients/mal.ts`) for any new tool.
 - Schemas in `format.schemas.ts` are `z.strictObject()` (they describe shaped/
   summarized output — an unexpected field means the shaper and schema have
