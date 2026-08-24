@@ -156,6 +156,7 @@ export const mangaSummarySchema = z.strictObject({
 // "absent rather than approximated" principle).
 export const mangaDetailSchema = mangaSummarySchema.extend({
   title_japanese: z.string().optional(),
+  moreinfo: z.string().optional(),
   publishing: z.boolean().optional(),
   scored_by: z.int().nonnegative().optional(),
   favorites: z.int().nonnegative().optional(),
@@ -181,6 +182,7 @@ export const characterEntrySchema = z.strictObject({
   mal_id: z.int().positive(),
   name: z.string().optional(),
   role: z.string().optional(),
+  favorites: z.int().nonnegative().optional(),
   url: z.string().optional(),
   voice_actors: z.array(z.string()).optional(),
 });
@@ -242,6 +244,11 @@ export const episodeEntrySchema = z.strictObject({
   mal_id: z.int().positive().optional(),
   title: z.string().optional(),
   title_japanese: z.string().optional(),
+  duration: z.int().nonnegative().optional(),
+  synopsis: z.string().optional(),
+  // Forum reply count (Tenrai 1.0.10) — a rough proxy for how much an episode was talked about.
+  replies: z.int().nonnegative().optional(),
+  image_url: z.string().optional(),
   // .catch(undefined): an unparseable date degrades to absent instead of dropping the whole episode.
   aired: z.iso.datetime({ offset: true }).optional().catch(undefined),
   score: z.number().optional(),
@@ -406,6 +413,11 @@ export const videoClipEntrySchema = z.strictObject({
   image_url: z.string().optional(),
   views: z.int().nonnegative().optional(),
   likes: z.int().nonnegative().optional(),
+  // Extended YouTube metadata (Tenrai 1.0.12). duration is an ISO 8601 period string as YouTube
+  // reports it (e.g. "PT1M30S"), not seconds.
+  duration: z.string().optional(),
+  published_at: z.string().optional(),
+  comment_count: z.int().nonnegative().optional(),
 });
 
 export const episodePreviewEntrySchema = z.strictObject({

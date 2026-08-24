@@ -140,6 +140,9 @@ export interface RawAnime extends AnimeMangaRawBase {
 }
 
 export interface RawManga extends AnimeMangaRawBase {
+  // Free-text editor note, same field anime has had all along; Tenrai's 1.0.19 spec added it to
+  // /manga/{id}/full and it comes back populated (verified live on Berserk).
+  moreinfo?: string | null;
   chapters?: number | null;
   volumes?: number | null;
   publishing?: boolean;
@@ -446,6 +449,7 @@ export function summarizeCharacters(
         mal_id: c.character?.mal_id,
         name: c.character?.name,
         role: c.role,
+        favorites: c.favorites ?? undefined,
         url: c.character?.url,
       };
       if (!withVoiceActors) return base;
@@ -560,6 +564,10 @@ export interface RawEpisode {
   score?: number | null;
   filler?: boolean;
   recap?: boolean;
+  duration?: number | null;
+  synopsis?: string | null;
+  replies?: number | null;
+  images?: RawImages;
 }
 
 // A single malformed episode (e.g. an unparseable `aired`) is dropped rather than failing the
@@ -577,6 +585,12 @@ export function summarizeEpisodes(
       score: e.score ?? undefined,
       filler: e.filler,
       recap: e.recap,
+      duration: e.duration ?? undefined,
+      // Per-episode synopses run long and there are hundreds of them on a list endpoint; preview
+      // them the same way a list-mode anime synopsis is previewed.
+      synopsis: trimSynopsis(e.synopsis, false),
+      replies: e.replies ?? undefined,
+      image_url: imageUrl(e.images),
     })),
     page: pageInfo(pagination),
   });
@@ -839,6 +853,13 @@ interface RawVideoClip {
   title?: string | null;
   views?: number | null;
   likes?: number | null;
+  // Extended YouTube metadata (Tenrai 1.0.12). `dislikes`, `privacy_status`, `embeddable` and
+  // `region_restriction` are also returned but deliberately not surfaced: dislikes are no longer
+  // meaningful since YouTube stopped publishing them, and the rest describe playback policy
+  // rather than the video, which is not something an agent answering about an anime needs.
+  duration?: string | null;
+  published_at?: string | null;
+  comment_count?: number | null;
 }
 export interface RawAnimeVideos {
   promo?: { title?: string; trailer?: RawVideoClip }[];
@@ -868,6 +889,9 @@ export function summarizeAnimeVideos(v: RawAnimeVideos): z.infer<typeof animeVid
         image_url: clipImageUrl(p.trailer),
         views: p.trailer?.views ?? undefined,
         likes: p.trailer?.likes ?? undefined,
+        duration: p.trailer?.duration ?? undefined,
+        published_at: p.trailer?.published_at ?? undefined,
+        comment_count: p.trailer?.comment_count ?? undefined,
       }),
     ),
     episodes: mapLenient(v.episodes ?? [], episodePreviewEntrySchema, (e) =>
@@ -886,6 +910,9 @@ export function summarizeAnimeVideos(v: RawAnimeVideos): z.infer<typeof animeVid
         image_url: clipImageUrl(m.video),
         views: m.video?.views ?? undefined,
         likes: m.video?.likes ?? undefined,
+        duration: m.video?.duration ?? undefined,
+        published_at: m.video?.published_at ?? undefined,
+        comment_count: m.video?.comment_count ?? undefined,
       }),
     ),
   });

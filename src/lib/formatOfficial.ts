@@ -370,7 +370,21 @@ export function summarizeOfficialManga(
 
 // Detail-mode fallback for get_manga — see summarizeOfficialAnimeDetailed's comment for the
 // scope of what the official API can and can't reproduce from Tenrai's `detailed: true` output.
-export const MANGA_DETAIL_FALLBACK_GAPS = ["favorites", "explicit_genres", "external"] as const;
+export const MANGA_DETAIL_FALLBACK_GAPS = [
+  "favorites",
+  // Same gap the anime side already declares: the official API has no equivalent of MAL's
+  // free-text editor note.
+  "moreinfo",
+  "explicit_genres",
+  "external",
+] as const;
+
+/** Manga counterpart of ANIME_DETAIL_FALLBACK_GAPS_FULL — same themes/demographics reasoning. */
+export const MANGA_DETAIL_FALLBACK_GAPS_FULL = [
+  "themes",
+  "demographics",
+  ...MANGA_DETAIL_FALLBACK_GAPS,
+] as const;
 
 export function summarizeOfficialMangaDetailed(
   n: OfficialMangaNode,
