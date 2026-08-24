@@ -21,7 +21,7 @@ coverage/
 /notes/
 
 # Agent harness local state (per-machine, not project source) — .claude/skills
-# and .agents/skills are symlinks to /skills and DO get committed, see AGENTS.md
+# is a tracked symlink to .agents/skills and DOES get committed, see AGENTS.md
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 .claude/worktrees/

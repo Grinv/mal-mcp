@@ -37,7 +37,7 @@ Check every one of these, not just a sample:
 - `docs/auth.md`'s credential-tier breakdown still matches what each tool
   actually requires.
 - `AGENTS.md`'s project-shape/file-tree description (including this
-  `skills/` entry) still matches the filesystem.
+  `.agents/skills/` entry) still matches the filesystem.
 - `notes/tenrai-reliability.md` (gitignored) — if this pass turned up a new
   Tenrai quirk or reliability data point, log it there with a date, the same
   way past passes have; don't let a fresh finding live only in this

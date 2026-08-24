@@ -60,19 +60,19 @@ src/
                   # e.g. for completable() autocomplete on recommend_similar's title
   __tests__/      # node:test (*.test.ts) + helpers.ts
 scripts/          # build-tests.mjs, run-tests.mjs, check-api.mjs, sync-version.mjs,
-                  # preversion-check.mjs (npm version gate — see skills/release/SKILL.md),
+                  # preversion-check.mjs (npm version gate — see .agents/skills/release/SKILL.md),
                   # check-changelog-coverage.mjs (see docs-consistency-check skill),
                   # check-chainable-optional-fields.mjs (see tool-description-check skill)
-skills/           # reusable agent workflows for this repo (e.g. live-audit/) —
+.agents/skills/   # reusable agent workflows for this repo (e.g. live-audit/) —
                   # plain Markdown with a YAML frontmatter name/description,
                   # not tied to any one tool's orchestration features, per
                   # this file's agent-agnostic policy; same skill name/layout
                   # as this project's sibling MCP servers (tmdb-mcp,
                   # steam-games-mcp, anilist-mcp-server) — sync improvements
-                  # both ways rather than letting them drift. `.claude/skills`
-                  # and `.agents/skills` are symlinks to this directory, so
-                  # Claude Code/Codex CLI/Gemini CLI pick up every skill here
-                  # without duplicating content per client path.
+                  # both ways rather than letting them drift. Codex CLI and
+                  # Gemini CLI read `.agents/skills` directly and Claude Code
+                  # via the `.claude/skills` symlink, so every skill is picked
+                  # up without duplicating content per client path.
 ```
 
 ## Commands
@@ -185,10 +185,11 @@ npm run check:api      # live upstream health-check (network)
 For a full audit of the currently published (or just-fixed) package —
 build/test/lint plus hammering the live MCP tools with edge cases,
 cross-checked against source — follow
-[skills/live-audit/SKILL.md](skills/live-audit/SKILL.md). It covers the
-safety rules for testing mutation tools against a real authenticated MAL
-account, the dual-backend (Tenrai / official-API-fallback) awareness needed
-when reporting a finding, and known bug classes worth checking don't recur.
+[.agents/skills/live-audit/SKILL.md](.agents/skills/live-audit/SKILL.md).
+It covers the safety rules for testing mutation tools against a real
+authenticated MAL account, the dual-backend (Tenrai / official-API-fallback)
+awareness needed when reporting a finding, and known bug classes worth
+checking don't recur.
 
 ## Before opening a PR
 
