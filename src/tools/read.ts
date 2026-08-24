@@ -54,13 +54,15 @@ import {
   seasonsListSchema,
   staffSchema,
   statisticsSchema,
+  stacksSchema,
+  stackDetailSchema,
 } from "../lib/format.schemas.js";
 import {
   ANIME_LIST_FALLBACK_GAPS,
-  ANIME_DETAIL_FALLBACK_GAPS,
+  ANIME_DETAIL_FALLBACK_GAPS_FULL,
   ANIME_STATISTICS_FALLBACK_GAPS,
   MANGA_LIST_FALLBACK_GAPS,
-  MANGA_DETAIL_FALLBACK_GAPS,
+  MANGA_DETAIL_FALLBACK_GAPS_FULL,
 } from "../lib/formatOfficial.js";
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: true } as const;
@@ -301,7 +303,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "video. Obtain the mal_id from search_anime first. `sfw`/`sfw_strict` don't affect this " +
         "anime itself (its id was requested explicitly) — they filter NSFW entries out of its " +
         "`relations` list. If Tenrai is unavailable and MAL_CLIENT_ID is set, transparently " +
-        `retries via the official API, which omits ${gapList(ANIME_DETAIL_FALLBACK_GAPS)} (no ` +
+        `retries via the official API, which omits ${gapList(ANIME_DETAIL_FALLBACK_GAPS_FULL)} (no ` +
         "equivalent fields there) and ignores `sfw`/`sfw_strict` entirely.",
       inputSchema: z.strictObject({
         id: malId,
@@ -321,7 +323,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "`sfw`/`sfw_strict` don't affect this manga itself (its id was requested explicitly) — " +
         "they filter NSFW entries out of its `relations` list. If Tenrai is unavailable and " +
         "MAL_CLIENT_ID is set, transparently retries via the official " +
-        `API, which omits ${gapList(MANGA_DETAIL_FALLBACK_GAPS)} (no equivalent field there) ` +
+        `API, which omits ${gapList(MANGA_DETAIL_FALLBACK_GAPS_FULL)} (no equivalent fields there) ` +
         "and ignores `sfw`/`sfw_strict` entirely.",
       inputSchema: z.strictObject({
         id: malId,
@@ -723,9 +725,11 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       name: "get_person",
       title: "Get person details",
       description:
-        "Get full details for one person by mal_id: bio, their anime/manga staff positions and " +
-        "voiced roles (capped to the first 50 for prolific people, in whatever order the " +
-        "upstream API returns them — not necessarily their most notable roles). Obtain the " +
+        "Get full details for one person by mal_id: bio, their complete anime/manga staff-credit " +
+        "lists, and their voiced roles. The staff-credit lists are NOT capped — a prolific " +
+        "sound director or producer can return several hundred entries. Only `voice_roles` is " +
+        "capped, to the first 50, in whatever order the upstream API returns them (not " +
+        "necessarily their most notable roles). Obtain the " +
         "mal_id from search_people, or from get_character's voice_actors (which include each " +
         "actor's mal_id — get_anime_characters' voice_actors are names only, with no id). " +
         "`sfw`/`sfw_strict` filter NSFW/adult-adjacent titles out of the person's own " +
@@ -947,8 +951,9 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       name: "get_random_person",
       title: "Get a random person",
       description:
-        "Return one random person — voice actor, director, author (full details). Good for " +
-        "discovery / trivia. No official-API fallback exists for this tool — it always needs " +
+        "Return one random person — voice actor, director, author (full details, shaped exactly " +
+        "like get_person: staff credits uncapped, `voice_roles` capped to the first 50). Good " +
+        "for discovery / trivia. No official-API fallback exists for this tool — it always needs " +
         "Tenrai itself to be reachable.",
       inputSchema: z.strictObject({}),
       outputSchema: personEntitySchema,

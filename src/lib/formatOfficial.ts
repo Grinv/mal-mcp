@@ -223,6 +223,18 @@ export const ANIME_DETAIL_FALLBACK_GAPS = [
   "external",
 ] as const;
 
+// What a *detail* fallback actually drops. ANIME_DETAIL_FALLBACK_GAPS alone understates it: the
+// detail shapers build on summarizeOfficialAnime, which hardcodes empty themes/demographics
+// (the official API returns one flat `genres` array with no such split), and clean() then strips
+// them. get_anime's description renders this list, and formatOfficial.test.ts asserts against
+// it, so the two cannot drift. `broadcast` is deliberately absent here: it is a list-mode gap
+// only, since the detail fallback requests that field explicitly.
+export const ANIME_DETAIL_FALLBACK_GAPS_FULL = [
+  "themes",
+  "demographics",
+  ...ANIME_DETAIL_FALLBACK_GAPS,
+] as const;
+
 export function summarizeOfficialAnimeDetailed(
   n: OfficialAnimeNode,
 ): z.infer<typeof animeDetailSchema> {

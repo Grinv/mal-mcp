@@ -8,10 +8,10 @@ import {
   summarizeOfficialMangaDetailed,
   summarizeOfficialRecommendations,
   ANIME_LIST_FALLBACK_GAPS,
-  ANIME_DETAIL_FALLBACK_GAPS,
+  ANIME_DETAIL_FALLBACK_GAPS_FULL,
+  MANGA_DETAIL_FALLBACK_GAPS_FULL,
   ANIME_STATISTICS_FALLBACK_GAPS,
   MANGA_LIST_FALLBACK_GAPS,
-  MANGA_DETAIL_FALLBACK_GAPS,
   type OfficialAnimeNode,
   type OfficialMangaNode,
   type OfficialAnimeStatistics,
@@ -106,7 +106,7 @@ test("summarizeOfficialAnime (list mode) populates every field except ANIME_LIST
 
 test("summarizeOfficialAnimeDetailed populates every field except ANIME_DETAIL_FALLBACK_GAPS (themes/demographics still gap, broadcast is not)", () => {
   const s = summarizeOfficialAnimeDetailed(fullAnimeNode);
-  const detailGaps: readonly string[] = ["themes", "demographics", ...ANIME_DETAIL_FALLBACK_GAPS];
+  const detailGaps: readonly string[] = ANIME_DETAIL_FALLBACK_GAPS_FULL;
   for (const key of Object.keys(animeDetailSchema.shape)) {
     if (detailGaps.includes(key)) {
       assert.ok(!(key in s), `${key} should be absent (declared as a detail-fallback gap)`);
@@ -157,7 +157,7 @@ test("summarizeOfficialManga (list mode) populates every field except MANGA_LIST
 
 test("summarizeOfficialMangaDetailed populates every field except themes/demographics/MANGA_DETAIL_FALLBACK_GAPS", () => {
   const s = summarizeOfficialMangaDetailed(fullMangaNode);
-  const detailGaps: readonly string[] = ["themes", "demographics", ...MANGA_DETAIL_FALLBACK_GAPS];
+  const detailGaps: readonly string[] = MANGA_DETAIL_FALLBACK_GAPS_FULL;
   for (const key of Object.keys(mangaDetailSchema.shape)) {
     if (detailGaps.includes(key)) {
       assert.ok(!(key in s), `${key} should be absent (declared as a detail-fallback gap)`);
@@ -206,4 +206,16 @@ test("summarizeOfficialRecommendations drops an edge with no resolvable node id"
   ]) as { recommendations: { mal_id: number }[] };
   assert.equal(r.recommendations.length, 1);
   assert.equal(r.recommendations[0]!.mal_id, 1);
+});
+
+test("the detail-gap constants include the always-empty themes/demographics", () => {
+  // get_anime/get_manga render these same constants in their descriptions, so a tool promising
+  // a field the fallback silently drops is now impossible without failing here.
+  assert.ok(ANIME_DETAIL_FALLBACK_GAPS_FULL.includes("themes"));
+  assert.ok(ANIME_DETAIL_FALLBACK_GAPS_FULL.includes("demographics"));
+  assert.ok(MANGA_DETAIL_FALLBACK_GAPS_FULL.includes("themes"));
+  assert.ok(MANGA_DETAIL_FALLBACK_GAPS_FULL.includes("demographics"));
+  // broadcast is a list-mode gap only: the detail fallback requests that field explicitly.
+  const anyGaps: readonly string[] = ANIME_DETAIL_FALLBACK_GAPS_FULL;
+  assert.ok(!anyGaps.includes("broadcast"));
 });
