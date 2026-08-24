@@ -9,6 +9,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Add `get_interest_stacks`, `get_interest_stack`, `get_anime_interest_stacks` and `get_manga_interest_stacks` for MyAnimeList Interest Stacks: themed lists curated by real users, each entry carrying the curator's own score and note. The one MAL source that is human-curated rather than vote-derived ([1b891d3](https://github.com/Grinv/mal-mcp/commit/1b891d3)).
+- Cap `get_person`'s staff credits at the first 200, with `full_credits: true` to opt out and `credits_truncated`/`total_*_credits` reporting when the cap bit. Sampled against Tenrai first: the 90th percentile is 23 credits and Anno has 77, so only an outlier like Jin Aketagawa (534, 44 KB) is affected ([9bc56f6](https://github.com/Grinv/mal-mcp/commit/9bc56f6)).
 - Add `start_date`/`finish_date` to `update_my_manga_status`. MAL's manga endpoint accepts both — confirmed with a live PATCH — the tool just never offered them, unlike its anime sibling ([f1f1eda](https://github.com/Grinv/mal-mcp/commit/f1f1eda)).
 - Surface the fields Tenrai already returned but this server dropped: `mal_id`/`type`/`media_type` on `relations` entries, `moreinfo` on `get_manga`, `favorites` on manga character entries, `duration`/`synopsis`/`replies`/`image_url` on episodes, and `duration`/`published_at`/`comment_count` on video clips ([06cbc3c](https://github.com/Grinv/mal-mcp/commit/06cbc3c)).
 
