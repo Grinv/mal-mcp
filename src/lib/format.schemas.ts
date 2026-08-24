@@ -33,9 +33,20 @@ export const recommendationEntrySchema = z.strictObject({
 
 // A {relation, entries} group, as produced by both Tenrai's grouped `relations`
 // and the official-API fallback's groupRelations().
+// mal_id is required: get_anime/get_manga advertise `relations` as the way to walk a franchise,
+// and a related entry you can't look up is not a related entry. `type` says which tool to walk it
+// with — an adaptation and its source share a title, so the name alone can't disambiguate.
+const relationEntrySchema = z.strictObject({
+  mal_id: z.int().positive(),
+  type: z.string().optional(),
+  name: z.string().optional(),
+  url: z.string().optional(),
+  media_type: z.string().optional(),
+});
+
 const relationSchema = z.strictObject({
   relation: z.string().optional(),
-  entries: z.array(z.string()).optional(),
+  entries: z.array(relationEntrySchema).optional(),
 });
 
 // ---- pageInfo() ---------------------------------------------------------------

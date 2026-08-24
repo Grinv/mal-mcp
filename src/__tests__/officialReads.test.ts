@@ -302,8 +302,13 @@ test("animeDetailsOfficial maps the detail-mode fields onto Tenrai's `detailed: 
   assert.equal(res["broadcast"], "Wednesdays at 22:56 (JST)");
   assert.equal(res["scored_by"], 12345);
   assert.equal(res["background"], "Some background text.");
+  // The entry carries the id and type a caller needs to actually follow the relation, not just
+  // a title (which an adaptation would share with its source).
   assert.deepEqual(res["relations"], [
-    { relation: "Sequel", entries: ["3-gatsu no Lion 2nd Season"] },
+    {
+      relation: "Sequel",
+      entries: [{ mal_id: 35180, type: "anime", name: "3-gatsu no Lion 2nd Season" }],
+    },
   ]);
   // Fields with no official-API equivalent are simply absent, not present-but-empty.
   assert.equal("producers" in res, false);
@@ -340,7 +345,9 @@ test("mangaDetailsOfficial maps serialization and related entries", async (t) =>
   assert.equal(res["publishing"], true);
   assert.equal(res["scored_by"], 999);
   assert.deepEqual(res["serializations"], ["Young Animal"]);
-  assert.deepEqual(res["relations"], [{ relation: "Prequel", entries: ["Berserk: Prototype"] }]);
+  assert.deepEqual(res["relations"], [
+    { relation: "Prequel", entries: [{ mal_id: 3, type: "manga", name: "Berserk: Prototype" }] },
+  ]);
 });
 
 test("animeStatisticsOfficial maps watch-status counts and never fabricates a score histogram", async (t) => {

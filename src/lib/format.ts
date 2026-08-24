@@ -54,6 +54,28 @@ interface NamedRef {
   url?: string;
 }
 
+// A related-entry ref carries one extra field over NamedRef: the specific media type of the
+// related work ("Light Novel", "TV", "Movie"), which `type` alone ("anime"/"manga") doesn't say.
+interface RelationRef extends NamedRef {
+  media_type?: string;
+}
+
+/** Related entries, keeping the ids and types a caller needs to actually follow the relation.
+ *  Entries with no resolvable mal_id are dropped rather than emitted unfollowable. */
+function relationEntries(entry: RelationRef[] | undefined): Record<string, unknown>[] {
+  return (entry ?? [])
+    .filter((e) => typeof e.mal_id === "number")
+    .map((e) =>
+      clean({
+        mal_id: e.mal_id,
+        type: e.type,
+        name: e.name,
+        url: e.url,
+        media_type: e.media_type,
+      }),
+    );
+}
+
 interface RawImages {
   jpg?: { image_url?: string; large_image_url?: string };
 }
@@ -90,7 +112,7 @@ interface AnimeMangaRawBase {
   explicit_genres?: NamedRef[];
   title_synonyms?: string[];
   external?: { name?: string; url?: string }[];
-  relations?: { relation?: string; entry?: NamedRef[] }[];
+  relations?: { relation?: string; entry?: RelationRef[] }[];
 }
 
 export interface RawAnime extends AnimeMangaRawBase {
@@ -329,7 +351,7 @@ export function summarizeAnime(
       // Trailer: prefer the watch URL, fall back to the embed URL; both nullable.
       trailer: a.trailer?.url ?? a.trailer?.embed_url ?? undefined,
       relations: (a.relations ?? []).map((r) =>
-        clean({ relation: r.relation, entries: names(r.entry) }),
+        clean({ relation: r.relation, entries: relationEntries(r.entry) }),
       ),
       moreinfo: a.moreinfo ?? undefined,
       explicit_genres: names(a.explicit_genres),
@@ -377,9 +399,10 @@ export function summarizeManga(
       scored_by: m.scored_by ?? undefined,
       favorites: m.favorites ?? undefined,
       background: m.background ?? undefined,
+      moreinfo: m.moreinfo ?? undefined,
       serializations: names(m.serializations),
       relations: (m.relations ?? []).map((r) =>
-        clean({ relation: r.relation, entries: names(r.entry) }),
+        clean({ relation: r.relation, entries: relationEntries(r.entry) }),
       ),
       explicit_genres: names(m.explicit_genres),
       title_synonyms: m.title_synonyms ?? undefined,

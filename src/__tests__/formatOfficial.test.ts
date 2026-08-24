@@ -88,7 +88,7 @@ const fullAnimeNode: OfficialAnimeNode = {
   average_episode_duration: 1440,
   background: "bg",
   broadcast: { day_of_the_week: "friday", start_time: "23:00" },
-  related_anime: [{ node: { title: "Rel" }, relation_type_formatted: "Sequel" }],
+  related_anime: [{ node: { id: 99, title: "Rel" }, relation_type_formatted: "Sequel" }],
   related_manga: [],
   nsfw: "white",
 };
@@ -139,7 +139,7 @@ const fullMangaNode: OfficialMangaNode = {
   authors: [{ node: { first_name: "A", last_name: "B" } }],
   background: "bg",
   related_anime: [],
-  related_manga: [{ node: { title: "Rel" }, relation_type_formatted: "Sequel" }],
+  related_manga: [{ node: { id: 99, title: "Rel" }, relation_type_formatted: "Sequel" }],
   serialization: [{ node: { name: "Mag" } }],
   nsfw: "white",
 };

@@ -105,7 +105,7 @@ function formatBroadcast(b: OfficialBroadcast | undefined): string | undefined {
 }
 
 interface OfficialRelationEdge {
-  node?: { title?: string };
+  node?: { id?: number; title?: string };
   relation_type_formatted?: string;
 }
 
@@ -113,15 +113,23 @@ interface OfficialRelationEdge {
 // them by relation type instead. Merge both lists (an anime can relate to manga and vice versa)
 // into the same {relation, entries} shape Tenrai uses, so get_anime/get_manga's `relations` field
 // looks identical regardless of which upstream answered.
+interface RelationEntry {
+  mal_id: number;
+  type: string;
+  name?: string;
+}
+
 function groupRelations(
-  ...edgeLists: (OfficialRelationEdge[] | undefined)[]
-): { relation: string; entries: string[] }[] {
-  const byRelation = new Map<string, string[]>();
-  for (const edges of edgeLists) {
+  ...edgeLists: { edges: OfficialRelationEdge[] | undefined; type: "anime" | "manga" }[]
+): { relation: string; entries: RelationEntry[] }[] {
+  const byRelation = new Map<string, RelationEntry[]>();
+  for (const { edges, type } of edgeLists) {
     for (const e of edges ?? []) {
-      if (!e.relation_type_formatted || !e.node?.title) continue;
+      // Drop an edge with no id for the same reason the Tenrai shaper does: relationEntrySchema
+      // requires mal_id, because an entry the caller can't look up is not usable as a relation.
+      if (!e.relation_type_formatted || typeof e.node?.id !== "number") continue;
       const list = byRelation.get(e.relation_type_formatted) ?? [];
-      list.push(e.node.title);
+      list.push({ mal_id: e.node.id, type, name: e.node.title });
       byRelation.set(e.relation_type_formatted, list);
     }
   }
@@ -229,7 +237,10 @@ export function summarizeOfficialAnimeDetailed(
       broadcast: formatBroadcast(n.broadcast),
       scored_by: n.num_scoring_users ?? undefined,
       background: n.background ?? undefined,
-      relations: groupRelations(n.related_anime, n.related_manga),
+      relations: groupRelations(
+        { edges: n.related_anime, type: "anime" },
+        { edges: n.related_manga, type: "manga" },
+      ),
       title_synonyms: n.alternative_titles?.synonyms ?? undefined,
     }),
   );
@@ -376,7 +387,10 @@ export function summarizeOfficialMangaDetailed(
       serializations: (n.serialization ?? [])
         .map((s) => s.node?.name)
         .filter((name): name is string => Boolean(name)),
-      relations: groupRelations(n.related_anime, n.related_manga),
+      relations: groupRelations(
+        { edges: n.related_anime, type: "anime" },
+        { edges: n.related_manga, type: "manga" },
+      ),
       title_synonyms: n.alternative_titles?.synonyms ?? undefined,
     }),
   );
