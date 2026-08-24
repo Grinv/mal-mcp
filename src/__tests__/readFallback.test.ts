@@ -151,3 +151,116 @@ test("currentSeason/nextSeason follow MAL's month grouping and wrap the year at 
   assert.deepEqual(currentSeason(new Date(Date.UTC(2026, 9, 1))), { year: 2026, season: "fall" });
   assert.deepEqual(nextSeason(new Date(Date.UTC(2026, 9, 1))), { year: 2027, season: "winter" });
 });
+
+test("withFallback falls back on a Tenrai 429 rather than surfacing the rate limit", async () => {
+  const logger = fakeLogger();
+  const out = await withFallback(
+    logger,
+    fakeFallback(),
+    "anime search",
+    async () => {
+      throw new ApiError({ code: "rate_limited", status: 429, retryable: true, message: "429" });
+    },
+    async () => ({ results: ["official"] }),
+  );
+  assert.deepEqual(out, { results: ["official"] });
+});
+
+test("withFallback falls back when Tenrai answers 200 with unparseable JSON", async () => {
+  const logger = fakeLogger();
+  const out = await withFallback(
+    logger,
+    fakeFallback(),
+    "anime search",
+    async () => {
+      throw new ApiError({ code: "unknown", message: "Upstream returned invalid JSON" });
+    },
+    async () => ({ results: ["official"] }),
+  );
+  assert.deepEqual(out, { results: ["official"] });
+});
+
+test("a 429 with no Client ID configured carries the client_id_would_help hint", async () => {
+  const logger = fakeLogger();
+  await assert.rejects(
+    withFallback(
+      logger,
+      fakeFallback(false),
+      "anime search",
+      async () => {
+        throw new ApiError({ code: "rate_limited", status: 429, retryable: true, message: "429" });
+      },
+      async () => ({ results: ["official"] }),
+    ),
+    (err: unknown) =>
+      err instanceof ApiError && err.code === "rate_limited" && err.hint === "client_id_would_help",
+  );
+});
+
+test("a failing fallback rethrows the original Tenrai error, not the fallback's own", async () => {
+  // The regression this guards: a revoked Client ID turned a Tenrai outage into "MyAnimeList
+  // rejected the access token — run login_mal" on a read tool that needs no token at all.
+  const logger = fakeLogger();
+  await assert.rejects(
+    withFallback(
+      logger,
+      fakeFallback(),
+      "anime search",
+      async () => {
+        throw new ApiError({
+          code: "server_error",
+          status: 503,
+          retryable: true,
+          message: "HTTP 503",
+        });
+      },
+      async () => {
+        throw new ApiError({ code: "unauthorized", status: 401, message: "HTTP 401" });
+      },
+    ),
+    (err: unknown) => {
+      assert.ok(err instanceof ApiError);
+      assert.equal(err.code, "server_error");
+      assert.equal(err.status, 503);
+      assert.match(err.message, /HTTP 503 \(the official MAL API fallback also failed\)/);
+      return true;
+    },
+  );
+  assert.ok(
+    logger.warnings.some((w) => /fallback for anime search also failed \(unauthorized\)/.test(w)),
+  );
+});
+
+test("withFallback signals a caller when the fallback served the response", async () => {
+  const logger = fakeLogger();
+  let degraded = false;
+  await withFallback(
+    logger,
+    fakeFallback(),
+    "anime details",
+    async () => {
+      throw new ApiError({ code: "server_error", status: 503, retryable: true, message: "503" });
+    },
+    async () => ({ mal_id: 1 }),
+    () => {
+      degraded = true;
+    },
+  );
+  assert.equal(degraded, true);
+});
+
+test("withFallback leaves the signal untouched when the primary succeeds", async () => {
+  const logger = fakeLogger();
+  let degraded = false;
+  await withFallback(
+    logger,
+    fakeFallback(),
+    "anime details",
+    async () => ({ mal_id: 1 }),
+    async () => ({ mal_id: 2 }),
+    () => {
+      degraded = true;
+    },
+  );
+  assert.equal(degraded, false);
+});
