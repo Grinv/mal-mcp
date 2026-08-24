@@ -120,7 +120,10 @@ export function listenForCode(opts: {
       } catch {
         /* fall through to the generic reply */
       }
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      // Without this the browser keeps the socket alive, and server.close() then waits on it —
+      // long enough (Node's keepAliveTimeout is 5s) that a login_mal run right after a successful
+      // one can fail to bind the port and silently degrade to manual paste.
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", Connection: "close" });
       res.end(
         denied
           ? "<h2>MyAnimeList login was denied. You can close this tab.</h2>"
@@ -132,7 +135,15 @@ export function listenForCode(opts: {
     });
     server.on("error", reject);
     server.listen(opts.port, "127.0.0.1", () => {
-      resolve({ server, close: () => server.close() });
+      resolve({
+        server,
+        close: () => {
+          server.close();
+          // close() only stops accepting; established keep-alive sockets would keep the handle
+          // (and the port) alive until they time out on their own.
+          server.closeAllConnections();
+        },
+      });
     });
   });
 }

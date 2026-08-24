@@ -21,6 +21,11 @@ import type { Config } from "../config.js";
 
 const REFRESH_SKEW_MS = 60_000;
 
+// How long an unfinished interactive login stays open. Generous enough for a real person to find
+// the browser tab, approve, and be redirected back; short enough that an abandoned attempt gives
+// the port and the PKCE verifier back the same session rather than at process exit.
+const LOGIN_TTL_MS = 10 * 60_000;
+
 interface TokenResponse {
   access_token: string;
   refresh_token?: string;
@@ -47,6 +52,7 @@ export class MalAuthManager {
   // awaiting a code, and the localhost listener (if one could be bound).
   #pendingLogin: { verifier: string; redirectUri: string; state: string } | undefined;
   #loginServer: { close: () => void } | undefined;
+  #loginExpiry: ReturnType<typeof setTimeout> | undefined;
 
   constructor(config: Config, logger: Logger, store?: TokenStore) {
     this.#auth = config.auth;
@@ -92,6 +98,12 @@ export class MalAuthManager {
       return await fn(token);
     } catch (err) {
       if (err instanceof ApiError && err.code === "unauthorized" && this.#canRefresh()) {
+        // A concurrent call may already have refreshed while this request was in flight. The
+        // single-flight in #refresh() only coalesces *overlapping* refreshes, so without this
+        // check every parallel 401 buys its own token exchange and rotates the refresh token
+        // again. Retry with whatever token is current before spending another round trip.
+        const current = this.#state.accessToken;
+        if (current && current !== token) return await fn(current);
         this.#logger.info("access token rejected; attempting silent refresh");
         const fresh = await this.#refresh();
         return await fn(fresh);
@@ -194,8 +206,7 @@ export class MalAuthManager {
     if (!this.#auth.clientId) {
       throw new ApiError({ code: "unauthorized", message: "Set MAL_CLIENT_ID before login." });
     }
-    this.#loginServer?.close(); // supersede any prior pending login
-    this.#loginServer = undefined;
+    this.#abandonPendingLogin(); // supersede any prior pending login
 
     const verifier = generateVerifier();
     const state = generateState();
@@ -221,6 +232,7 @@ export class MalAuthManager {
         },
       });
       listening = true;
+      this.#armLoginExpiry();
     } catch (err) {
       // Port busy / can't bind → user completes via submit_mal_redirect instead.
       this.#logger.info(`login_mal: local callback unavailable (${errMsg(err)}); use manual paste`);
@@ -276,9 +288,29 @@ export class MalAuthManager {
       expiresAt: Date.now() + (res.expires_in ?? 0) * 1000,
     };
     this.#store?.save(this.#state);
+    this.#abandonPendingLogin();
+    this.#logger.info("login_mal: obtained and stored a MyAnimeList token");
+  }
+
+  /** Give up on an unfinished login after LOGIN_TTL_MS. Without this an abandoned login (the user
+   *  just closes the tab) leaves the localhost listener holding port 8080 and the PKCE verifier
+   *  in memory for the lifetime of the process, since nothing else ever clears either. The timer
+   *  is unref'd so it never keeps the process alive on its own. */
+  #armLoginExpiry(): void {
+    clearTimeout(this.#loginExpiry);
+    this.#loginExpiry = setTimeout(() => {
+      if (!this.#pendingLogin) return;
+      this.#logger.info("login_mal: no redirect received in time; closing the local callback");
+      this.#abandonPendingLogin();
+    }, LOGIN_TTL_MS);
+    this.#loginExpiry.unref?.();
+  }
+
+  #abandonPendingLogin(): void {
+    clearTimeout(this.#loginExpiry);
+    this.#loginExpiry = undefined;
     this.#pendingLogin = undefined;
     this.#loginServer?.close();
     this.#loginServer = undefined;
-    this.#logger.info("login_mal: obtained and stored a MyAnimeList token");
   }
 }
