@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { completable, type McpServer } from "@modelcontextprotocol/server";
 import type { TenraiClient } from "./clients/tenrai.js";
+import { currentSeason } from "./clients/readFallback.js";
 
 const COMPLETION_LIMIT = 8;
 
@@ -79,7 +80,27 @@ export function registerPrompts(server: McpServer, tenrai: TenraiClient): void {
       },
     },
     ({ season, year }) => {
-      const which = season && year ? `the ${season} ${year} season` : "the current season";
+      // get_seasonal_anime needs year and season together, but the two arguments here are
+      // independently optional, so a partial one used to be dropped in silence: asking for
+      // `season: "spring"` rendered the current-season text with no trace of the input, and the
+      // model would confidently answer about the wrong season. Every supplied value now reaches
+      // the rendered text.
+      const { year: thisYear } = currentSeason(new Date());
+      let which: string;
+      let instruction: string;
+      if (season && year) {
+        which = `the ${season} ${year} season`;
+        instruction = `Call get_seasonal_anime with year=${year} and season=${season}`;
+      } else if (season) {
+        which = `the ${season} ${thisYear} season`;
+        instruction = `Call get_seasonal_anime with year=${thisYear} and season=${season} (no year was given, so this is ${season} of the current year)`;
+      } else if (year) {
+        which = `the ${year} anime year`;
+        instruction = `Call get_seasonal_anime once per season with year=${year} and season=winter, spring, summer and fall in turn (that tool needs a year and a season together, and only the year was given)`;
+      } else {
+        which = "the current season";
+        instruction = "Call get_seasonal_anime";
+      }
       return {
         messages: [
           {
@@ -88,8 +109,7 @@ export function registerPrompts(server: McpServer, tenrai: TenraiClient): void {
               type: "text",
               text:
                 `Give an overview of ${which} in anime.\n` +
-                "Call get_seasonal_anime" +
-                (season && year ? ` with year=${year} and season=${season}` : "") +
+                instruction +
                 ", then group the results into highlights (highest scored / most anticipated) and " +
                 "notable genres. Keep it concise.",
             },
