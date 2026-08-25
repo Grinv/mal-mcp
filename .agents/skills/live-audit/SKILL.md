@@ -223,6 +223,16 @@ calls verbatim. This is one of the workstreams in "How to run this" above.
   for anime/manga/character/person, a search returning zero results,
   `delete_my_anime_list_item`/`delete_my_manga_list_item` on an id with no
   existing list entry.
+- **Both backends must agree on a value, not merely carry the field.** §2's
+  dual-backend bullet covers which fields exist on a fallback response; this
+  covers whether the numbers match. The same `mal_id` can be shaped by
+  `lib/format.ts` (Tenrai) or `lib/formatOfficial.ts` (official fallback), so
+  `score`/`rank`/`popularity` and title romanization can each come back
+  different depending on which tier answered — and no single call looks wrong.
+  Fetch one entity through both paths (force the fallback per §2) and diff field
+  by field. A mismatch in a field the fallback IS documented to cover is a
+  finding; so is either shaper reporting a different quantity under the same name
+  (a weighted score vs a plain mean).
 - **Score/rating edge cases**: an anime/manga with a Tenrai `score` of exactly
   `0` (should surface as absent, not literal `0` — shipped in 0.2.0, worth a
   regression spot-check), a brand-new/unranked entry with no `rank`/
@@ -308,6 +318,16 @@ pass on the last group unless something specific points there) for:
   sibling-consistent (but wrong) name returned the unfiltered global feed
   instead of erroring or filtering. Re-check the strictness claim before
   relying on it; it has already gone stale here once.
+- A field both shapers produce under one name without either establishing it's
+  the same quantity. `lib/format.ts` and `lib/formatOfficial.ts` shape the same
+  tools' output from different upstreams, and they already derive one field from
+  differently-named sources: `score` is `score(a.score)` from Tenrai and
+  `score(n.mean)` from the official API. That pairing is intended, but it's the
+  shape of the mistake — grep every field name the two share and confirm each
+  side really maps the equivalent source field, especially the ones a caller
+  would compare or sort on (`score`, `rank`, `popularity`, `num_list_users`).
+  Reporting two different aggregates under one name is silent: nothing errors,
+  the number is just not what the caller thinks it is.
 - A `summarize*`/shaper function in `src/lib/format.ts`/`formatOfficial.ts`
   that doesn't end by calling its paired schema's `.parse()` in
   `src/lib/format.schemas.ts` — AGENTS.md's schema-first convention requires
@@ -401,6 +421,26 @@ before calling it done. Re-verify live only after the running MCP server
 process has been restarted (it won't pick up source changes on its own) —
 build/test passing is necessary but re-confirming actual live behavior
 changed is stronger evidence than trusting the diff alone.
+
+**When the bug is "we read the wrong source for a fact", measure how often the
+wrong one is actually wrong before switching sources — and check what the
+replacement gets wrong.** Generalizing from the one example that exposed the bug
+produces a worse bug. Found in steam-games-mcp, whose two price sources this
+cost two wrong fixes: over a 500-item sample (421 priced), the legacy source was
+wrong for 2 while the "modern" one answered with a multi-game bundle's price for
+5, so the obvious "use the newer API" swap broke more than it fixed. Sample a few
+hundred ids, diff the two sources, and read the disagreements one by one — they
+are usually several distinct causes wearing one symptom, needing a rule rather
+than a swap.
+
+**Measure the cost you cite to justify a design, in the unit that matters.** In
+the same repo a narrow follow-up request was justified on payload size (~2.2 KB →
+~10.2 KB per item) with nobody timing it; measured interleaved, asking up front
+cost ~+40 ms on a 50-item batch — inside run-to-run noise — against ~+300 ms for
+the extra round-trip, so the "optimization" was a pessimization plus an extra
+failure path. Interleave the A/B runs (5 each, compare medians AND minimums):
+sequential blocks drift enough on these APIs to invent a difference that isn't
+there.
 
 ## 7. Commit + changelog, if asked
 
