@@ -588,7 +588,7 @@ test("get_seasonal_anime/get_upcoming_season accept kids/continuing/unapproved/o
       season: "fall",
       kids: true,
       continuing: false,
-      unapproved: false,
+      unapproved: "false",
       order_by: "start_date",
       sort: "asc",
     },
@@ -630,7 +630,7 @@ test("get_anime_schedule accepts kids/unapproved/page", async (t) => {
 
   const res = await client.callTool({
     name: "get_anime_schedule",
-    arguments: { kids: true, unapproved: false, page: 2 },
+    arguments: { kids: true, unapproved: "false", page: 2 },
   });
   assert.notEqual(res.isError, true);
   assert.match(mock.calls.at(-1)!.url, /kids=true/);

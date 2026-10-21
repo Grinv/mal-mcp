@@ -27,9 +27,6 @@ import type {
   StackType,
 } from "./tenraiEnums.js";
 
-/** Tenrai's `unapproved` flag: true/false, or "only" for exclusively unapproved entries. */
-export type Unapproved = boolean | "only";
-
 // Shared by every "search by name" style endpoint — pagination, sort direction, and the
 // alphabetical `letter` browse are identical everywhere. `order_by` is deliberately NOT here:
 // each of characters/people/producers/magazines (and, below, anime/manga) has its own,
@@ -75,7 +72,7 @@ interface AnimeMangaSearchParamsBase extends SearchParamsBase {
   max_score?: number;
   start_date?: string;
   end_date?: string;
-  unapproved?: Unapproved;
+  unapproved?: TriState;
 }
 
 export interface AnimeSearchParams extends AnimeMangaSearchParamsBase {
@@ -120,7 +117,7 @@ export interface SeasonParams {
   sfw_strict?: boolean;
   filter?: AnimeMediaType[];
   rating?: ContentRating[];
-  unapproved?: Unapproved;
+  unapproved?: TriState;
   continuing?: boolean;
   kids?: boolean;
   order_by?: SeasonOrderBy;
@@ -133,7 +130,7 @@ export interface ScheduleParams {
   sfw?: boolean;
   sfw_strict?: boolean;
   kids?: boolean;
-  unapproved?: Unapproved;
+  unapproved?: TriState;
   page?: number;
 }
 

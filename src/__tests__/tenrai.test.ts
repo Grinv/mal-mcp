@@ -129,7 +129,7 @@ test("searchAnime forwards genres_exclude/producers/min_score/max_score/letter/s
     letter: "a",
     start_date: "2020-01-01",
     end_date: "2020-12-31",
-    unapproved: true,
+    unapproved: "true",
   });
   const url = mock.calls[0]!.url;
   assert.match(url, /genres_exclude=9%2C49/);
@@ -159,7 +159,7 @@ test("getSeason forwards filter/rating/unapproved/continuing/kids/order_by/sort"
     season: "spring",
     filter: ["tv"],
     rating: ["pg13"],
-    unapproved: true,
+    unapproved: "true",
     continuing: true,
     kids: false,
     order_by: "score",
@@ -179,7 +179,7 @@ test("getSeason forwards filter/rating/unapproved/continuing/kids/order_by/sort"
 test("getSchedule forwards kids/unapproved/page", async (t) => {
   const mock = mockFetch(() => jsonResponse({ data: [] }));
   installFetch(t, mock);
-  await tenrai().getSchedule({ day: "monday", limit: 5, kids: true, unapproved: false, page: 2 });
+  await tenrai().getSchedule({ day: "monday", limit: 5, kids: true, unapproved: "false", page: 2 });
   const url = mock.calls[0]!.url;
   assert.match(url, /filter=monday/);
   assert.match(url, /kids=true/);

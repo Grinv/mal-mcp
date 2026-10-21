@@ -165,10 +165,10 @@ const endDate = partialDate.describe(
     "YYYY for the end of that month/year. Entries with no end date are excluded.",
 );
 const unapproved = z
-  .union([z.boolean(), z.literal("only")])
+  .enum(TRI_STATES)
   .describe(
-    "Entries not yet approved by MAL's moderators: true also includes them, false (default) " +
-      "excludes them, 'only' returns exclusively unapproved entries.",
+    "Entries not yet approved by MAL's moderators: 'true' also includes them, 'false' " +
+      "(default) excludes them, 'only' returns exclusively unapproved entries.",
   );
 const kidsFlag = z
   .boolean()
