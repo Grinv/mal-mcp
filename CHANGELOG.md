@@ -6,6 +6,22 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Raise `limit` to 100 and `page` to 20000 on every list tool, matching Tenrai's current ceilings ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
+- Make `q` optional in `search_anime`/`search_manga` so they can browse by filters alone ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
+- Bump `@modelcontextprotocol/server` to 2.3.1 and `zod` to 4.6.7 ([579de43](https://github.com/Grinv/mal-mcp/commit/579de43)).
+
+### Added
+
+- Add `unapproved: "only"` and `YYYY`/`YYYY-MM` dates to the anime/manga list filters ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
+- Add `sfw`/`sfw_strict` to `get_news`, `get_anime_genres` and `get_manga_genres` ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
+
+### Fixed
+
+- Fix `letter` in `search_anime`/`search_manga`, which always failed because it can't be combined with `q` ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
+- Fix review and stack filter descriptions that claimed spoiler/preliminary entries are included by default ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
+
 ## [0.10.0] - 2026-08-24
 
 ### Added
