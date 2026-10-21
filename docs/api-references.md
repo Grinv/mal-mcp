@@ -9,17 +9,21 @@ JavaScript, so a plain HTTP fetch returns only the title — open them in a brow
 
 - **API reference** — <https://tenrai.org/documentation> (interactive Scalar
   docs); a machine-readable summary lives at <https://api.tenrai.org/llms.txt>.
-  A full OpenAPI 3.0.3 spec (v1.0.19, 92 paths, every query param/enum/response shape) is
-  cached locally at `notes/tenrai-openapi-spec.json` (gitignored, not
+  The full OpenAPI 3.0.3 spec is served at
+  <https://api.tenrai.org/documentation/openapi.json> (v1.0.24, 101 paths as of 2026-10-21);
+  a copy is cached locally at `notes/tenrai-openapi-spec.json` (gitignored, not
   committed — see `notes/tenrai-reliability.md` for the same local-notes
   convention) for fast programmatic lookup (e.g. `python3 -c "import json;
 json.load(open('notes/tenrai-openapi-spec.json'))..."`) instead of re-fetching
-  the JS-rendered docs page every time. It's a point-in-time snapshot (fetched
-  2026-07-30) — Tenrai describes `/v1` as an interim design with a `/v2` planned,
+  the JS-rendered docs page every time. It's a point-in-time snapshot (the local copy
+  was fetched 2026-07-30 at v1.0.19 — re-download it from the URL above) — Tenrai describes `/v1` as an interim design with a `/v2` planned,
   so re-fetch and refresh this file before trusting it against a claim it
   doesn't already back up in this doc.
   - **Rate limiting:** 4 requests/second **and** 120 requests/minute for
-    public (unauthenticated) access, 40,000/day. Enforced client-side by the
+    public (unauthenticated) access; llms.txt now lists the daily cap as unlimited (it
+    was 40,000/day). `304 Not Modified` responses count toward the limit, and a
+    persistent `403` means Tenrai's anti-abuse block tripped (clears within 24h).
+    Enforced client-side by the
     sliding-window `RateLimiter`. An optional `X-Server-Key` (Patreon-gated)
     raises this to 5 req/s / 300 req/min with its own separate cache — not
     currently used by mal-mcp.
@@ -118,14 +122,41 @@ json.load(open('notes/tenrai-openapi-spec.json'))..."`) instead of re-fetching
     a mapping bug, but not independently confirmed non-empty on any title. `get_news`'s `q` param
     genuinely filters (a nonsense query returns 0 results) but matches more than the visible
     headline — a query like "Dragon Ball" returns articles whose titles don't contain the phrase.
-  - **`page` ceiling of 1000, undocumented outside `/anime`/`/manga`**: Tenrai's own OpenAPI spec
-    only declares `maximum: 1000` for `/anime` and `/manga`; every other page-taking route's
-    schema omits a `maximum`. Live testing (2026-07-30) shows the real ceiling is enforced almost
-    everywhere regardless — `page > 1000` 400s on `/producers`, `/magazines`, `/schedules`,
-    `/seasons/*`, `/{anime|manga}/{id}/reviews`, `/news`, `/recommendations/*`, `/characters`,
-    `/people`, and `/anime/{id}/episodes` too — except `/top/anime`, `/top/manga`, `/top/people`,
-    `/top/characters`, which serve real data well past it. `read.ts`'s shared `page`
-    constant caps at 1000 to match; `pageUnbounded` (no cap) is used only for those four tools.
+  - **Limits and filters as of v1.0.24 (verified live 2026-10-21)**:
+    - `page` is capped at **20000 on every route**, top lists included (`page=20001` → 400
+      "Page must be 20000 or lower"; `/producers?page=1001` → 200). This replaced the old
+      1000-page ceiling and the top lists' former "no ceiling", so `read.ts` has one `page`
+      constant (1-20000).
+    - `limit` is capped at **100 on every `limit`-taking list route** (`limit=101` → 400), up
+      from 50. Checked on `/anime`, `/manga`, `/characters`, `/people`, `/top/*`, `/seasons/*`,
+      `/schedules`, `/producers`, `/news`, `/stacks`, `/anime/{id}/stacks` and
+      `/recommendations/anime`. `read.ts` has one `limit` constant (1-100).
+    - Routes with **no `limit` at all**, where any cap has to be applied client-side:
+      `/{anime|manga}/{id}/reviews` (fixed 20 per page — `get_*_reviews` caps its own `limit`
+      at 20), `/anime/{id}/episodes` (100 per page), `/anime/{id}/news` (30 per page),
+      `/{anime|manga}/{id}/recommendations` (all entries, unpaginated — 166 for id 1),
+      `/{anime|manga}/{id}/characters` (no language filter either: `language=Japanese` is
+      ignored), `/people/{id}/full` and `/people/{id}/voices` (the latter ignores `limit`/`page`,
+      512 roles for id 118). These are why `format.ts` still trims recommendations, voice
+      roles and staff credits itself.
+    - `letter` **cannot be combined with `q`** on `/anime`/`/manga` (400 "The letter query
+      parameter cannot be combined with q"); on `/characters`/`/people` the two combine fine.
+      `search_anime`/`search_manga` therefore make `q` optional and reject `q`+`letter`.
+    - `sort` only applies together with `order_by` — on its own it's ignored (identical order
+      for `sort=asc`/`desc`).
+    - `unapproved` is tri-state `true`/`false`/`only` on `/anime`, `/manga`, `/seasons/*`,
+      `/schedules` (`only` → exclusively `approved: false` entries).
+    - `start_date`/`end_date` accept `YYYY` and `YYYY-MM` as well as `YYYY-MM-DD`.
+    - `sfw`/`sfw-strict` now also apply to `/news` (16001 → 14627 → 13985 items) and
+      `/genres/anime|manga` (78 → 76 → 75 anime genres).
+    - Review `spoilers`/`preliminary` and stack `spoilers`/`challenges`/`official` are
+      **excluded by default** — `true` widens the set (`/stacks` 19761 → 22466 with
+      `spoilers=true`).
+    - Endpoints added since v1.0.19 and not wrapped yet: `/seasons/previous`, `/manga/adapted`,
+      `/{anime|manga}/{id}/statistics/history`, `/manga/{id}/forum`, and the
+      `/{anime|manga}/unapproved|denied` moderation queues. Still unwrapped from earlier
+      releases: site-wide `/reviews/anime|manga`, `/top/reviews`, articles, `/news/tags`.
+    - Every response carries an `ETag` and `If-None-Match` is honored (not used by mal-mcp).
 
 ## MyAnimeList official API
 

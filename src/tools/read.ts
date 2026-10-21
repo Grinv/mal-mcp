@@ -81,22 +81,17 @@ const animeType = z.enum(ANIME_MEDIA_TYPES).describe("A media type.");
 const animeStatus = z.enum(ANIME_STATUSES).describe("Filter by airing status.");
 const mangaType = z.enum(MANGA_MEDIA_TYPES).describe("A publication type.");
 const mangaStatus = z.enum(MANGA_STATUSES).describe("Filter by publication status.");
-const sortDir = z.enum(SORT_DIRS).describe("Sort direction.");
-const limit = z.int().min(1).max(50).describe("Max results per page (1-50).");
-// A handful of Tenrai list endpoints (magazines, the two site-wide recommendation feeds) have a
-// 100 (not 50) per-page ceiling.
-const limit100 = z.int().min(1).max(100).describe("Max results per page (1-100).");
-// Verified live against every page-taking endpoint: Tenrai rejects page > 1000 with a 400
-// ("Page must be 1000 or lower") everywhere except get_top_anime/get_top_manga/get_top_people/
-// get_top_characters, which serve real data well past it (their own catalogs run into the tens
-// of thousands of entries) — see `pageUnbounded` below for those four.
-const page = z.int().min(1).max(1000).describe("1-based page number for pagination (1-1000).");
-const pageUnbounded = z
-  .int()
-  .min(1)
-  .describe(
-    "1-based page number for pagination. No upper bound — this ranking runs to the end of MAL's own catalog.",
-  );
+// Tenrai ignores `sort` unless `order_by` is also set (verified live: `sort=asc`/`desc` alone
+// return the identical default order).
+const sortDir = z
+  .enum(SORT_DIRS)
+  .describe("Sort direction. Only takes effect together with `order_by`; ignored on its own.");
+// Tenrai v1.0.24: every `limit`-taking list endpoint shares one 100-per-page ceiling (verified
+// live — `limit=101` is a 400 "must be <= 100").
+const limit = z.int().min(1).max(100).describe("Max results per page (1-100).");
+// Tenrai v1.0.24: one 20000-page ceiling on every page-taking route, top lists included
+// (verified live — `page=20001` is a 400 "Page must be 20000 or lower").
+const page = z.int().min(1).max(20000).describe("1-based page number for pagination (1-20000).");
 const sfw = z
   .boolean()
   .describe(
@@ -148,23 +143,43 @@ const letterFilter = z
   .string()
   .length(1)
   .describe("Restrict results to entries whose title starts with this single letter.");
-const startDate = z
+/** search_anime/search_manga: Tenrai 400s on `letter` together with `q` ("The letter query
+ *  parameter cannot be combined with q", verified live) — reject it before the round-trip. */
+const notBothQAndLetter = (a: { q?: string; letter?: string }): boolean =>
+  !(a.q !== undefined && a.letter !== undefined);
+const notBothQAndLetterError = {
+  message: "`letter` cannot be combined with `q` — pass one or the other.",
+  path: ["letter"],
+};
+// Tenrai also accepts a bare year or year-month (verified live: `2020-05` and `2020-05-01` match
+// the same set).
+const partialDate = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format.")
-  .describe("Only include entries whose start date is on or after this date (YYYY-MM-DD).");
-const endDate = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format.")
-  .describe("Only include entries whose end date is on or before this date (YYYY-MM-DD).");
+  .regex(/^\d{4}(-\d{2}(-\d{2})?)?$/, "Date must be YYYY, YYYY-MM or YYYY-MM-DD.");
+const startDate = partialDate.describe(
+  "Only include entries whose start date is on or after this date: YYYY-MM-DD, or YYYY-MM / " +
+    "YYYY for the start of that month/year.",
+);
+const endDate = partialDate.describe(
+  "Only include entries whose end date is on or before this date: YYYY-MM-DD, or YYYY-MM / " +
+    "YYYY for the end of that month/year. Entries with no end date are excluded.",
+);
 const unapproved = z
-  .boolean()
+  .union([z.boolean(), z.literal("only")])
   .describe(
-    "If true, also include entries not yet approved by MAL's moderators (excluded by " +
-      "default). Defaults to false.",
+    "Entries not yet approved by MAL's moderators: true also includes them, false (default) " +
+      "excludes them, 'only' returns exclusively unapproved entries.",
   );
 const kidsFlag = z
   .boolean()
   .describe("If true, exclude entries tagged as children's/kids content. Defaults to false.");
+// The per-title review endpoints take no `limit` and always serve a fixed 20-review page
+// (verified live), so `limit` can only trim that page client-side — never more than 20.
+const reviewLimit = z
+  .int()
+  .min(1)
+  .max(20)
+  .describe("How many of the page's reviews to return (1-20; a page holds 20).");
 const reviewSort = z
   .enum(REVIEW_SORTS)
   .describe("Sort order. Defaults to most_helpful (Tenrai's own default) when omitted.");
@@ -172,8 +187,8 @@ const reviewTriState = (subject: string) =>
   z
     .enum(TRI_STATES)
     .describe(
-      `Filter by ${subject}. 'true' includes them alongside other reviews (default), ` +
-        `'false' excludes them, 'only' returns exclusively ${subject} reviews.`,
+      `Filter by ${subject}. 'true' includes them alongside other reviews, 'false' (default) ` +
+        `excludes them, 'only' returns exclusively ${subject} reviews.`,
     );
 const stackOrderBy = z
   .enum(STACK_ORDER_BY)
@@ -183,7 +198,7 @@ const stackTriState = (subject: string) =>
   z
     .enum(TRI_STATES)
     .describe(
-      `Filter by ${subject}. 'true' includes them alongside the rest (default), 'false' ` +
+      `Filter by ${subject}. 'true' includes them alongside the rest, 'false' (default) ` +
         `excludes them, 'only' returns exclusively those.`,
     )
     .optional();
@@ -203,8 +218,9 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       description:
         "Search MyAnimeList anime by keyword; returns compact summaries (with the mal_id that " +
         "other anime tools require) plus pagination info. If Tenrai is unavailable and " +
-        "MAL_CLIENT_ID is set, transparently retries via the official API, which ignores every " +
-        "filter except `q`/`sfw`/`limit`/`page` (`type`/`status`/`genres`/`genres_exclude`/" +
+        "MAL_CLIENT_ID is set and `q` is given (a filter-only browse has no fallback — the " +
+        "official search requires a query), transparently retries via the official API, which " +
+        "ignores every filter except `q`/`sfw`/`limit`/`page` (`type`/`status`/`genres`/`genres_exclude`/" +
         "`rating`/`score`/`min_score`/`max_score`/`letter`/`producers`/`start_date`/`end_date`/" +
         "`unapproved`/`order_by`/`sort` are silently dropped), " +
         `always returns empty ${gapList(ANIME_LIST_FALLBACK_GAPS)} (no official-API ` +
@@ -214,38 +230,52 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "unrelated anime instead of an empty result (a quirk of the official search endpoint " +
         "itself, not a mal-mcp bug; don't treat a nonsense-query result as a real match during " +
         "a fallback).",
-      inputSchema: z.strictObject({
-        q: z.string().trim().min(1).describe("Search query, e.g. an anime title."),
-        type: z.array(animeType).min(1).describe("Restrict to one or more media types.").optional(),
-        status: animeStatus.optional(),
-        rating: ratingFilter.optional(),
-        genres: genreIds("get_anime_genres").optional(),
-        genres_exclude: genreIdsExclude("get_anime_genres").optional(),
-        score: z
-          .number()
-          .min(1)
-          .max(9.99)
-          .describe(
-            "Restrict to entries with exactly this average score (rarely useful — prefer min_score/max_score for a range).",
-          )
-          .optional(),
-        min_score: minScore.optional(),
-        max_score: maxScore.optional(),
-        producers: commaIds
-          .describe(
-            "Comma-separated MAL producer/studio IDs to restrict to (max 25). Look up IDs with get_producers.",
-          )
-          .optional(),
-        start_date: startDate.optional(),
-        end_date: endDate.optional(),
-        unapproved: unapproved.optional(),
-        letter: letterFilter.optional(),
-        order_by: z.enum(ANIME_ORDER_BY).describe("Field to order by.").optional(),
-        sort: sortDir.optional(),
-        ...sfwParams,
-        limit: limit.optional(),
-        page: page.optional(),
-      }),
+      inputSchema: z
+        .strictObject({
+          q: z
+            .string()
+            .trim()
+            .min(1)
+            .describe(
+              "Search query, e.g. an anime title. Omit to browse by the other filters alone " +
+                "(e.g. genres + order_by). Cannot be combined with `letter`.",
+            )
+            .optional(),
+          type: z
+            .array(animeType)
+            .min(1)
+            .describe("Restrict to one or more media types.")
+            .optional(),
+          status: animeStatus.optional(),
+          rating: ratingFilter.optional(),
+          genres: genreIds("get_anime_genres").optional(),
+          genres_exclude: genreIdsExclude("get_anime_genres").optional(),
+          score: z
+            .number()
+            .min(1)
+            .max(9.99)
+            .describe(
+              "Restrict to entries with exactly this average score (rarely useful — prefer min_score/max_score for a range).",
+            )
+            .optional(),
+          min_score: minScore.optional(),
+          max_score: maxScore.optional(),
+          producers: commaIds
+            .describe(
+              "Comma-separated MAL producer/studio IDs to restrict to (max 25). Look up IDs with get_producers.",
+            )
+            .optional(),
+          start_date: startDate.optional(),
+          end_date: endDate.optional(),
+          unapproved: unapproved.optional(),
+          letter: letterFilter.optional(),
+          order_by: z.enum(ANIME_ORDER_BY).describe("Field to order by.").optional(),
+          sort: sortDir.optional(),
+          ...sfwParams,
+          limit: limit.optional(),
+          page: page.optional(),
+        })
+        .refine(notBothQAndLetter, notBothQAndLetterError),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
       handler: (args) => reply(() => tenrai.searchAnime(args)),
@@ -256,8 +286,9 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       description:
         "Search MyAnimeList manga by keyword (also light novels, manhwa/manhua); returns compact " +
         "summaries with the mal_id that other manga tools require. If Tenrai is unavailable and " +
-        "MAL_CLIENT_ID is set, transparently retries via the official API, which ignores every " +
-        "filter except `q`/`sfw`/`limit`/`page` (`type`/`status`/`genres`/`genres_exclude`/" +
+        "MAL_CLIENT_ID is set and `q` is given (a filter-only browse has no fallback — the " +
+        "official search requires a query), transparently retries via the official API, which " +
+        "ignores every filter except `q`/`sfw`/`limit`/`page` (`type`/`status`/`genres`/`genres_exclude`/" +
         "`score`/`min_score`/`max_score`/`letter`/`magazines`/`start_date`/`end_date`/" +
         "`unapproved`/`order_by`/`sort` are silently dropped), " +
         `always returns empty ${gapList(MANGA_LIST_FALLBACK_GAPS)} (no official-API equivalent), enforces ` +
@@ -266,41 +297,51 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "unrelated manga instead of an empty result (a quirk of the official search endpoint " +
         "itself, not a mal-mcp bug; don't treat a nonsense-query result as a real match during " +
         "a fallback).",
-      inputSchema: z.strictObject({
-        q: z.string().trim().min(1).describe("Search query, e.g. a manga title."),
-        type: z
-          .array(mangaType)
-          .min(1)
-          .describe("Restrict to one or more publication types.")
-          .optional(),
-        status: mangaStatus.optional(),
-        genres: genreIds("get_manga_genres").optional(),
-        genres_exclude: genreIdsExclude("get_manga_genres").optional(),
-        score: z
-          .number()
-          .min(1)
-          .max(9.99)
-          .describe(
-            "Restrict to entries with exactly this average score (rarely useful — prefer min_score/max_score for a range).",
-          )
-          .optional(),
-        min_score: minScore.optional(),
-        max_score: maxScore.optional(),
-        magazines: commaIds
-          .describe(
-            "Comma-separated MAL magazine IDs to restrict to (max 25). Look up IDs with get_magazines.",
-          )
-          .optional(),
-        start_date: startDate.optional(),
-        end_date: endDate.optional(),
-        unapproved: unapproved.optional(),
-        letter: letterFilter.optional(),
-        order_by: z.enum(MANGA_ORDER_BY).describe("Field to order by.").optional(),
-        sort: sortDir.optional(),
-        ...sfwParams,
-        limit: limit.optional(),
-        page: page.optional(),
-      }),
+      inputSchema: z
+        .strictObject({
+          q: z
+            .string()
+            .trim()
+            .min(1)
+            .describe(
+              "Search query, e.g. a manga title. Omit to browse by the other filters alone " +
+                "(e.g. genres + order_by). Cannot be combined with `letter`.",
+            )
+            .optional(),
+          type: z
+            .array(mangaType)
+            .min(1)
+            .describe("Restrict to one or more publication types.")
+            .optional(),
+          status: mangaStatus.optional(),
+          genres: genreIds("get_manga_genres").optional(),
+          genres_exclude: genreIdsExclude("get_manga_genres").optional(),
+          score: z
+            .number()
+            .min(1)
+            .max(9.99)
+            .describe(
+              "Restrict to entries with exactly this average score (rarely useful — prefer min_score/max_score for a range).",
+            )
+            .optional(),
+          min_score: minScore.optional(),
+          max_score: maxScore.optional(),
+          magazines: commaIds
+            .describe(
+              "Comma-separated MAL magazine IDs to restrict to (max 25). Look up IDs with get_magazines.",
+            )
+            .optional(),
+          start_date: startDate.optional(),
+          end_date: endDate.optional(),
+          unapproved: unapproved.optional(),
+          letter: letterFilter.optional(),
+          order_by: z.enum(MANGA_ORDER_BY).describe("Field to order by.").optional(),
+          sort: sortDir.optional(),
+          ...sfwParams,
+          limit: limit.optional(),
+          page: page.optional(),
+        })
+        .refine(notBothQAndLetter, notBothQAndLetterError),
       outputSchema: listPageSchema(mangaSummarySchema),
       annotations: READ_ONLY,
       handler: (args) => reply(() => tenrai.searchManga(args)),
@@ -426,7 +467,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "to be reachable.",
       inputSchema: z.strictObject({
         ...sfwParams,
-        limit: limit100.optional(),
+        limit: limit.optional(),
         page: page.optional(),
       }),
       outputSchema: recentRecommendationsSchema,
@@ -446,7 +487,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "underlying set before that cap is applied. Get the mal_id from search_anime.",
       inputSchema: z.strictObject({
         id: malId,
-        limit: limit.default(5),
+        limit: reviewLimit.default(5),
         page: page.optional(),
         sort: reviewSort.optional(),
         preliminary: reviewTriState("preliminary").optional(),
@@ -493,7 +534,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "to be reachable.",
       inputSchema: z.strictObject({
         ...sfwParams,
-        limit: limit100.optional(),
+        limit: limit.optional(),
         page: page.optional(),
       }),
       outputSchema: recentRecommendationsSchema,
@@ -514,7 +555,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "search_manga.",
       inputSchema: z.strictObject({
         id: malId,
-        limit: limit.default(5),
+        limit: reviewLimit.default(5),
         page: page.optional(),
         sort: reviewSort.optional(),
         preliminary: reviewTriState("preliminary").optional(),
@@ -546,7 +587,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         rating: ratingFilter.optional(),
         ...sfwParams,
         limit: limit.optional(),
-        page: pageUnbounded.optional(),
+        page: page.optional(),
       }),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
@@ -571,7 +612,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         filter: z.enum(MANGA_TOP_FILTERS).describe("Special ranking filter.").optional(),
         ...sfwParams,
         limit: limit.optional(),
-        page: pageUnbounded.optional(),
+        page: page.optional(),
       }),
       outputSchema: listPageSchema(mangaSummarySchema),
       annotations: READ_ONLY,
@@ -662,22 +703,26 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       title: "Get anime genres",
       description:
         "List anime genres/themes/demographics with their MAL IDs. Use this to discover the " +
-        "numeric IDs that the `genres` parameter of search_anime expects.",
-      inputSchema: z.strictObject({ filter: genreFilter.optional() }),
+        "numeric IDs that the `genres` parameter of search_anime expects. `sfw`/`sfw_strict` " +
+        "drop the adult (and, for sfw_strict, Ecchi) genres from the list itself.",
+      inputSchema: z.strictObject({ filter: genreFilter.optional(), ...sfwParams }),
       outputSchema: genresSchema,
       annotations: READ_ONLY,
-      handler: ({ filter }) => reply(() => tenrai.getAnimeGenres(filter)),
+      handler: ({ filter, sfw, sfw_strict }) =>
+        reply(() => tenrai.getAnimeGenres(filter, sfw, sfw_strict)),
     }),
     defineTool({
       name: "get_manga_genres",
       title: "Get manga genres",
       description:
         "List manga genres/themes/demographics with their MAL IDs. Use this to discover the " +
-        "numeric IDs that the `genres` parameter of search_manga expects.",
-      inputSchema: z.strictObject({ filter: genreFilter.optional() }),
+        "numeric IDs that the `genres` parameter of search_manga expects. `sfw`/`sfw_strict` " +
+        "drop the adult (and, for sfw_strict, Ecchi) genres from the list itself.",
+      inputSchema: z.strictObject({ filter: genreFilter.optional(), ...sfwParams }),
       outputSchema: genresSchema,
       annotations: READ_ONLY,
-      handler: ({ filter }) => reply(() => tenrai.getMangaGenres(filter)),
+      handler: ({ filter, sfw, sfw_strict }) =>
+        reply(() => tenrai.getMangaGenres(filter, sfw, sfw_strict)),
     }),
 
     // ---- characters & people (Tier 1) ----------------------------------------
@@ -916,7 +961,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         order_by: z.enum(MAGAZINE_ORDER_BY).describe("Field to order by.").optional(),
         sort: sortDir.optional(),
         letter: letterFilter.optional(),
-        limit: limit100.optional(),
+        limit: limit.optional(),
         page: page.optional(),
       }),
       outputSchema: listPageSchema(magazineSchema),
@@ -929,7 +974,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       description:
         "Get the most popular/favorited people (voice actors, staff, authors), ranked overall. " +
         "Use search_people instead to look up a specific person by name.",
-      inputSchema: z.strictObject({ limit: limit.optional(), page: pageUnbounded.optional() }),
+      inputSchema: z.strictObject({ limit: limit.optional(), page: page.optional() }),
       outputSchema: listPageSchema(personEntitySchema),
       annotations: READ_ONLY,
       handler: (args) => reply(() => tenrai.getTopPeople(args)),
@@ -940,7 +985,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       description:
         "Get the most popular/favorited characters, ranked overall. Use search_characters instead " +
         "to look up a specific character by name.",
-      inputSchema: z.strictObject({ limit: limit.optional(), page: pageUnbounded.optional() }),
+      inputSchema: z.strictObject({ limit: limit.optional(), page: page.optional() }),
       outputSchema: listPageSchema(characterEntitySchema),
       annotations: READ_ONLY,
       handler: (args) => reply(() => tenrai.getTopCharacters(args)),
@@ -1135,7 +1180,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "List recent MyAnimeList news articles site-wide (headline, date, author, excerpt) — " +
         "not tied to one anime or manga. Use `q` to search by keyword or `tag` to filter by " +
         "topic tag. Use get_anime_news/get_manga_news instead for news about one specific " +
-        "anime/manga by mal_id.",
+        "anime/manga by mal_id. `sfw`/`sfw_strict` drop articles about adult content.",
       inputSchema: z.strictObject({
         q: z
           .string()
@@ -1146,6 +1191,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
           )
           .optional(),
         tag: z.string().describe("Filter by topic tag.").optional(),
+        ...sfwParams,
         limit: limit.optional(),
         page: page.optional(),
       }),

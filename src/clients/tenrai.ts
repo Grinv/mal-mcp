@@ -228,7 +228,9 @@ export class TenraiClient {
   async searchAnime(p: AnimeSearchParams): Promise<Record<string, unknown>> {
     return withFallback(
       this.#logger,
-      this.#fallback,
+      // The official search endpoint requires a query — a filter-only browse has nothing to
+      // fall back to, so the Tenrai failure surfaces as-is.
+      p.q ? this.#fallback : undefined,
       "anime search",
       () =>
         this.#list<RawAnime>(
@@ -238,7 +240,7 @@ export class TenraiClient {
         ),
       () =>
         this.#fallback!.searchAnimeOfficial({
-          q: p.q ?? "",
+          q: p.q!,
           limit: p.limit,
           page: p.page,
           // The official API's client-side nsfw filter can't distinguish "adult-rated" from
@@ -252,7 +254,7 @@ export class TenraiClient {
   async searchManga(p: MangaSearchParams): Promise<Record<string, unknown>> {
     return withFallback(
       this.#logger,
-      this.#fallback,
+      p.q ? this.#fallback : undefined,
       "manga search",
       () =>
         this.#list<RawManga>(
@@ -262,7 +264,7 @@ export class TenraiClient {
         ),
       () =>
         this.#fallback!.searchMangaOfficial({
-          q: p.q ?? "",
+          q: p.q!,
           limit: p.limit,
           page: p.page,
           sfw: p.sfw || p.sfw_strict,
@@ -440,21 +442,35 @@ export class TenraiClient {
     );
   }
 
-  async getAnimeGenres(filter?: GenreFilter): Promise<Record<string, unknown>> {
-    return this.#genres("anime", filter);
+  async getAnimeGenres(
+    filter?: GenreFilter,
+    sfw?: boolean,
+    sfwStrict?: boolean,
+  ): Promise<Record<string, unknown>> {
+    return this.#genres("anime", filter, sfw, sfwStrict);
   }
 
-  async getMangaGenres(filter?: GenreFilter): Promise<Record<string, unknown>> {
-    return this.#genres("manga", filter);
+  async getMangaGenres(
+    filter?: GenreFilter,
+    sfw?: boolean,
+    sfwStrict?: boolean,
+  ): Promise<Record<string, unknown>> {
+    return this.#genres("manga", filter, sfw, sfwStrict);
   }
 
-  // Genre IDs feed the `genres` param of search_*; they rarely change, so cache.
-  #genres(kind: "anime" | "manga", filter?: GenreFilter): Promise<Record<string, unknown>> {
+  // Genre IDs feed the `genres` param of search_*; they rarely change, so cache. sfw/sfw_strict
+  // drop the adult/Ecchi genres themselves from the list (verified live: 78 → 76 → 75 anime).
+  #genres(
+    kind: "anime" | "manga",
+    filter?: GenreFilter,
+    sfw?: boolean,
+    sfwStrict?: boolean,
+  ): Promise<Record<string, unknown>> {
     return this.#cached<RawGenre[]>(
-      `genres:${kind}:${filter ?? "all"}`,
+      this.#sfwCacheKey(`genres:${kind}:${filter ?? "all"}`, sfw, sfwStrict),
       `genres/${kind}`,
       summarizeGenres,
-      { filter },
+      { filter, sfw, ...sfwStrictQuery(sfwStrict) },
     );
   }
 
@@ -710,7 +726,6 @@ export class TenraiClient {
     );
   }
 
-  // Site-wide news feed, not tied to one anime — not cached (paginated/frequently-changing).
   // Interest Stacks: user-curated anime/manga lists on MAL. Paginated and community-authored, so
   // not cached (same category as searches and news feeds). No official-API equivalent exists.
   async getStacks(p: StackSearchParams): Promise<Record<string, unknown>> {
@@ -753,12 +768,19 @@ export class TenraiClient {
     return summarizeStacks(res.data, res.pagination);
   }
 
+  // Site-wide news feed, not tied to one anime — not cached (paginated/frequently-changing).
   async getNews(p: {
     q?: string;
     tag?: string;
     limit?: number;
     page?: number;
+    sfw?: boolean;
+    sfw_strict?: boolean;
   }): Promise<Record<string, unknown>> {
-    return this.#list<RawNewsItem>("news", { ...p }, summarizeNewsItem);
+    return this.#list<RawNewsItem>(
+      "news",
+      { ...p, ...sfwStrictQuery(p.sfw_strict) },
+      summarizeNewsItem,
+    );
   }
 }

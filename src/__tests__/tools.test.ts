@@ -288,18 +288,18 @@ test("get_anime_schedule defaults its limit when omitted", async (t) => {
   assert.match(mock.calls.at(-1)!.url, /limit=25(&|$)/);
 });
 
-test("search_anime's limit cap is 50, matching Tenrai's real per-page ceiling", async (t) => {
+test("search_anime's limit cap is 100, matching Tenrai's real per-page ceiling", async (t) => {
   const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
   installFetch(t, mock);
   const { client, close } = await connectServer({});
   t.after(close);
 
-  const atCap = await client.callTool({ name: "search_anime", arguments: { q: "x", limit: 50 } });
+  const atCap = await client.callTool({ name: "search_anime", arguments: { q: "x", limit: 100 } });
   assert.notEqual(atCap.isError, true);
 
   const overCap = await client.callTool({
     name: "search_anime",
-    arguments: { q: "x", limit: 51 },
+    arguments: { q: "x", limit: 101 },
   });
   assert.equal(overCap.isError, true);
 });
@@ -452,7 +452,67 @@ test("search_anime/search_manga reject a letter filter longer than one character
   assert.equal(mock.calls.length, 0);
 });
 
-test("search_anime rejects a page past Tenrai's own 1000-page ceiling", async (t) => {
+test("search_anime rejects a page past Tenrai's own 20000-page ceiling", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const atCap = await client.callTool({ name: "search_anime", arguments: { q: "x", page: 20000 } });
+  assert.notEqual(atCap.isError, true);
+  const res = await client.callTool({
+    name: "search_anime",
+    arguments: { q: "x", page: 20001 },
+  });
+  assert.equal(res.isError, true);
+  assert.equal(mock.calls.length, 1);
+});
+
+test("get_top_anime shares the same 20000-page ceiling — verified live, top lists are no longer unbounded", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const res = await client.callTool({ name: "get_top_anime", arguments: { page: 20001 } });
+  assert.equal(res.isError, true);
+  assert.equal(mock.calls.length, 0);
+});
+
+test("search_anime/search_manga reject letter together with q — Tenrai 400s on that combination", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  for (const name of ["search_anime", "search_manga"]) {
+    const res = await client.callTool({ name, arguments: { q: "x", letter: "a" } });
+    assert.equal(res.isError, true, `${name} should reject q+letter`);
+    assert.match(toolText(res), /letter.*cannot be combined with.*q/);
+  }
+  assert.equal(mock.calls.length, 0);
+});
+
+test("search_anime/search_manga browse by filters alone when q is omitted", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const byLetter = await client.callTool({ name: "search_anime", arguments: { letter: "a" } });
+  assert.notEqual(byLetter.isError, true);
+  assert.match(mock.calls.at(-1)!.url, /letter=a/);
+  assert.doesNotMatch(mock.calls.at(-1)!.url, /[?&]q=/);
+
+  const byGenre = await client.callTool({
+    name: "search_manga",
+    arguments: { genres: "22", order_by: "score", sort: "desc" },
+  });
+  assert.notEqual(byGenre.isError, true);
+  assert.match(mock.calls.at(-1)!.url, /genres=22/);
+});
+
+test("search_anime accepts unapproved: 'only' and partial YYYY / YYYY-MM dates", async (t) => {
   const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
   installFetch(t, mock);
   const { client, close } = await connectServer({});
@@ -460,40 +520,59 @@ test("search_anime rejects a page past Tenrai's own 1000-page ceiling", async (t
 
   const res = await client.callTool({
     name: "search_anime",
-    arguments: { q: "x", page: 1001 },
+    arguments: { q: "x", unapproved: "only", start_date: "2020", end_date: "2021-05" },
   });
-  assert.equal(res.isError, true);
-  assert.equal(mock.calls.length, 0);
+  assert.notEqual(res.isError, true);
+  const url = mock.calls.at(-1)!.url;
+  assert.match(url, /unapproved=only/);
+  assert.match(url, /start_date=2020(&|$)/);
+  assert.match(url, /end_date=2021-05(&|$)/);
+
+  const bad = await client.callTool({
+    name: "search_anime",
+    arguments: { q: "x", start_date: "2020-5" },
+  });
+  assert.equal(bad.isError, true);
 });
 
-test("get_anime_episodes also rejects a page past 1000 — Tenrai enforces this ceiling almost everywhere, verified live", async (t) => {
-  const mock = mockFetch(() => jsonResponse({ data: [] }));
-  installFetch(t, mock);
-  const { client, close } = await connectServer({});
-  t.after(close);
-
-  const res = await client.callTool({
-    name: "get_anime_episodes",
-    arguments: { id: 1, page: 1001 },
-  });
-  assert.equal(res.isError, true);
-  assert.equal(mock.calls.length, 0);
-});
-
-test("get_top_anime/get_top_characters accept a page past 1000 — verified live that these two (unlike everything else) serve real data well beyond it", async (t) => {
+test("get_anime_reviews caps limit at 20 — the per-title review page is a fixed 20 entries", async (t) => {
   const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
   installFetch(t, mock);
   const { client, close } = await connectServer({});
   t.after(close);
 
-  const anime = await client.callTool({ name: "get_top_anime", arguments: { page: 1001 } });
-  assert.notEqual(anime.isError, true);
-  const characters = await client.callTool({
-    name: "get_top_characters",
-    arguments: { page: 1001 },
+  const atCap = await client.callTool({
+    name: "get_anime_reviews",
+    arguments: { id: 1, limit: 20 },
   });
-  assert.notEqual(characters.isError, true);
-  assert.equal(mock.calls.length, 2);
+  assert.notEqual(atCap.isError, true);
+  const overCap = await client.callTool({
+    name: "get_anime_reviews",
+    arguments: { id: 1, limit: 21 },
+  });
+  assert.equal(overCap.isError, true);
+});
+
+test("get_news and get_anime_genres forward sfw/sfw_strict", async (t) => {
+  const mock = mockFetch((url) =>
+    url.includes("/genres/")
+      ? jsonResponse({ data: [] })
+      : jsonResponse({ data: [], pagination: {} }),
+  );
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const news = await client.callTool({ name: "get_news", arguments: { sfw: true } });
+  assert.notEqual(news.isError, true);
+  assert.match(mock.calls.at(-1)!.url, /\/news\?.*sfw=true/);
+
+  const genres = await client.callTool({
+    name: "get_anime_genres",
+    arguments: { sfw_strict: true },
+  });
+  assert.notEqual(genres.isError, true);
+  assert.match(mock.calls.at(-1)!.url, /\/genres\/anime\?.*sfw-strict=true/);
 });
 
 test("get_seasonal_anime/get_upcoming_season accept kids/continuing/unapproved/order_by", async (t) => {

@@ -95,6 +95,14 @@ test("searchAnime's sfw_strict degrades to sfw during a fallback (no Ecchi-genre
   ]);
 });
 
+test("searchAnime without q skips the fallback — the official search requires a query", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ message: "boom" }, { status: 500 }));
+  installFetch(t, mock);
+  const fallback = fakeFallback();
+  await assert.rejects(tenrai(fallback).searchAnime({ letter: "a" }), ApiError);
+  assert.deepEqual(fallback.calls, []);
+});
+
 test("searchManga falls back to the official MAL API on a retryable upstream failure", async (t) => {
   const mock = mockFetch(() => jsonResponse({ message: "boom" }, { status: 500 }));
   installFetch(t, mock);
