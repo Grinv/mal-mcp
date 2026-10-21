@@ -8,13 +8,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Breaking:** take `unapproved` as `"true"`/`"false"`/`"only"`, like the other tri-state filters ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c), [510693d](https://github.com/Grinv/mal-mcp/commit/510693d)).
 - Raise `limit` to 100 and `page` to 20000 on every list tool, matching Tenrai's current ceilings ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
 - Make `q` optional in `search_anime`/`search_manga` so they can browse by filters alone ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
 - Bump `@modelcontextprotocol/server` to 2.3.1 and `zod` to 4.6.7 ([579de43](https://github.com/Grinv/mal-mcp/commit/579de43)).
 
 ### Added
 
-- Add `unapproved: "only"` and `YYYY`/`YYYY-MM` dates to the anime/manga list filters ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
+- Add `YYYY`/`YYYY-MM` dates to the anime/manga list filters ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
 - Add `sfw`/`sfw_strict` to `get_news`, `get_anime_genres` and `get_manga_genres` ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
 
 ### Fixed
