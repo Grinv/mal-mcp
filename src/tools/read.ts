@@ -442,8 +442,8 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "to this title either. `sfw`/`sfw_strict` filter NSFW entries out of the recommendation " +
         "list itself. If " +
         "Tenrai is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
-        "API's own recommendations field (same output shape, but ordering/counts may differ " +
-        "slightly from Tenrai's, and `sfw`/`sfw_strict` are ignored entirely).",
+        "API's own recommendations field (same output shape, but at most 10 entries, ordering " +
+        "may differ from Tenrai's, and `sfw`/`sfw_strict` are ignored entirely).",
       inputSchema: z.strictObject({
         id: malId,
         ...sfwParams,
@@ -509,8 +509,8 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "to this title either. `sfw`/`sfw_strict` filter NSFW entries out of the recommendation " +
         "list itself. If " +
         "Tenrai is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
-        "API's own recommendations field (same output shape, but ordering/counts may differ " +
-        "slightly from Tenrai's, and `sfw`/`sfw_strict` are ignored entirely).",
+        "API's own recommendations field (same output shape, but at most 10 entries, ordering " +
+        "may differ from Tenrai's, and `sfw`/`sfw_strict` are ignored entirely).",
       inputSchema: z.strictObject({
         id: malId,
         ...sfwParams,

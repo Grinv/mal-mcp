@@ -295,6 +295,9 @@ bypopularity, favorite`. Both `client_auth (-)` — no OAuth scope needed,
       `limit=200` without complaint. mal-mcp's read tools stop at Tenrai's 100.
     - No genre/status/rating/type filter exists on search/ranking/season, so
       those Tenrai filters stay unavailable during a fallback.
+    - **Recommendations** (the `recommendations` detail field) come back capped
+      at 10 by MAL itself; `recommendations.limit(n)` is ignored. Ranking also
+      ignores `nsfw=false`, which is why the client-side `"white"` check stays.
   - **No-match search doesn't return empty** (verified live 2026-07-27, both
     through the fallback and directly against `GET /v2/anime?q=...`): a query
     with no real title match (e.g. a random unmatchable string) comes back

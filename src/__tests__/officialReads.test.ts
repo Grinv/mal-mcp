@@ -289,9 +289,9 @@ test("mangaRecommendationsOfficial hits manga/{id} and points url at /manga/", a
   assert.match(decodeURIComponent(mock.calls[0]!.url), /\/manga\/2\?/);
 });
 
-test("animeRecommendationsOfficial caps results at 25", async (t) => {
+test("animeRecommendationsOfficial passes through every entry MAL returns (MAL itself caps at 10)", async (t) => {
   const config = loadConfig({ MAL_CLIENT_ID: "cid" });
-  const many = Array.from({ length: 30 }, (_, i) => ({
+  const many = Array.from({ length: 10 }, (_, i) => ({
     node: { id: i + 1, title: `Anime ${i}` },
     num_recommendations: 1,
   }));
@@ -301,7 +301,7 @@ test("animeRecommendationsOfficial caps results at 25", async (t) => {
   const res = (await client.animeRecommendationsOfficial(1)) as {
     recommendations: Record<string, unknown>[];
   };
-  assert.equal(res.recommendations.length, 25);
+  assert.equal(res.recommendations.length, 10);
 });
 
 test("animeDetailsOfficial maps the detail-mode fields onto Tenrai's `detailed: true` shape", async (t) => {

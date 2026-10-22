@@ -295,13 +295,15 @@ export interface OfficialRecommendationEdge {
 }
 
 /** A recommendation edge with no resolvable node id (a malformed/edge-case upstream record) is
- *  dropped rather than failing the whole list — see `mapLenient`. */
+ *  dropped rather than failing the whole list — see `mapLenient`. No client-side cap: MAL itself
+ *  returns at most 10 recommendations and has no way to ask for more (verified live 2026-10-22 —
+ *  `recommendations.limit(n)` is ignored), well under Tenrai's top-25. */
 export function summarizeOfficialRecommendations(
   kind: "anime" | "manga",
   edges: OfficialRecommendationEdge[],
 ): z.infer<typeof recommendationsSchema> {
   return recommendationsSchema.parse({
-    recommendations: mapLenient(edges.slice(0, 25), recommendationEntrySchema, (e) => ({
+    recommendations: mapLenient(edges, recommendationEntrySchema, (e) => ({
       mal_id: e.node?.id,
       title: e.node?.title,
       votes: e.num_recommendations,
