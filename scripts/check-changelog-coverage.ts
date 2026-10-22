@@ -10,7 +10,7 @@ import { join } from "node:path";
 
 const root = join(import.meta.dirname, "..");
 
-function sh(cmd) {
+function sh(cmd: string): string {
   return execSync(cmd, { cwd: root, encoding: "utf8" }).trim();
 }
 
@@ -18,15 +18,20 @@ const lastTag = sh("git describe --tags --abbrev=0");
 const log = sh(`git log ${lastTag}..HEAD --format=%h%x09%s`);
 const commits = log
   ? log.split("\n").map((line) => {
-      const [sha, ...rest] = line.split("\t");
+      const [sha = "", ...rest] = line.split("\t");
       return { sha, subject: rest.join("\t") };
     })
   : [];
 
 const changelog = readFileSync(join(root, "CHANGELOG.md"), "utf8");
 
-const covered = [];
-const uncovered = [];
+interface Commit {
+  sha: string;
+  subject: string;
+}
+
+const covered: Commit[] = [];
+const uncovered: Commit[] = [];
 for (const c of commits) {
   (changelog.includes(c.sha) ? covered : uncovered).push(c);
 }

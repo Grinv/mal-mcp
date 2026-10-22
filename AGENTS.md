@@ -59,10 +59,11 @@ src/
   prompts.ts      # registerPrompts(server, tenrai) — clients get threaded in as needed,
                   # e.g. for completable() autocomplete on recommend_similar's title
   __tests__/      # node:test (*.test.ts) + helpers.ts
-scripts/          # run-tests.mjs, check-api.mjs, sync-version.mjs,
-                  # preversion-check.mjs (npm version gate — see .agents/skills/release/SKILL.md),
-                  # check-changelog-coverage.mjs (see docs-consistency-check skill),
-                  # check-chainable-optional-fields.mjs (see tool-description-check skill)
+scripts/          # dev tooling, .ts run directly by node (typechecked with src/):
+                  # run-tests.ts, check-api.ts, sync-version.ts,
+                  # preversion-check.ts (npm version gate — see .agents/skills/release/SKILL.md),
+                  # check-changelog-coverage.ts (see docs-consistency-check skill),
+                  # check-chainable-optional-fields.ts (see tool-description-check skill)
 .agents/skills/   # reusable agent workflows for this repo (e.g. live-audit/) —
                   # plain Markdown with a YAML frontmatter name/description,
                   # not tied to any one tool's orchestration features, per
@@ -213,7 +214,7 @@ unpushed tags) and MCP Registry details.
 
 This server follows a reusable shape: a generic carcass (`src/lib/` + build
 tooling, tests infra, CI) and a thin domain layer (`config.ts`, `clients/`,
-domain `tools/`, `prompts.ts`, `check-api.mjs`). New MCP servers (e.g. TMDB,
+domain `tools/`, `prompts.ts`, `check-api.ts`). New MCP servers (e.g. TMDB,
 Steam) start from the **`mcp-server-template`** repository, which extracts that
 carcass; only the domain layer is rewritten. Extract `lib/` into a shared npm
 package only once cross-server duplication actually hurts (YAGNI) — not before.

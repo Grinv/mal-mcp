@@ -205,7 +205,7 @@ Purpose — double-check those two first on any new or edited tool.
   became required. When reviewing a new or edited description, explicitly
   ask this question for every "obtain/use/chain" claim it makes, rather
   than waiting for it to resurface a third time. Run
-  `node scripts/check-chainable-optional-fields.mjs` for a heuristic first
+  `node scripts/check-chainable-optional-fields.ts` for a heuristic first
   pass — it greps descriptions for chainability-promise phrases, resolves
   the tool's `outputSchema` (including one level into a nested `z.array()`
   item schema, e.g. `get_seasons_list`'s `seasonEntrySchema`), and lists

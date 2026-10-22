@@ -12,14 +12,14 @@ const TENRAI = process.env.TENRAI_BASE_URL ?? "https://api.tenrai.org/v1";
 const MAL = process.env.MAL_BASE_URL ?? "https://api.myanimelist.net/v2";
 const SPACING_MS = 700;
 
-const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+const delay = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 class TransientError extends Error {}
 class ContractError extends Error {}
 
 // Fetch with retries for transient 429/5xx; network failures are transient too.
-async function fetchResilient(url, attempts = 3) {
-  let last;
+async function fetchResilient(url: string, attempts = 3): Promise<Response> {
+  let last: TransientError | undefined;
   for (let i = 0; ; i += 1) {
     try {
       const res = await fetch(url, {
@@ -36,8 +36,13 @@ async function fetchResilient(url, attempts = 3) {
   }
 }
 
-const checks = [];
-const tenrai = (name, path, assertFn) =>
+interface Check {
+  name: string;
+  run: () => Promise<void>;
+}
+
+const checks: Check[] = [];
+const tenrai = (name: string, path: string, assertFn: (body: unknown) => void) =>
   checks.push({
     name,
     run: async () => {
@@ -47,11 +52,14 @@ const tenrai = (name, path, assertFn) =>
     },
   });
 
-const hasData = (b) => {
-  if (!b || b.data === undefined) throw new ContractError("missing `data`");
+// Response bodies are untyped JSON; only the `data` envelope is inspected here.
+type Body = { data?: unknown } | null | undefined;
+
+const hasData = (b: unknown) => {
+  if (!b || (b as Body)?.data === undefined) throw new ContractError("missing `data`");
 };
-const hasArray = (b) => {
-  if (!Array.isArray(b?.data)) throw new ContractError("`data` is not an array");
+const hasArray = (b: unknown) => {
+  if (!Array.isArray((b as Body)?.data)) throw new ContractError("`data` is not an array");
 };
 
 tenrai("anime search", "/anime?q=frieren&limit=1", hasArray);
@@ -95,8 +103,8 @@ checks.push({
   },
 });
 
-const failures = [];
-const warnings = [];
+const failures: string[] = [];
+const warnings: string[] = [];
 for (const check of checks) {
   try {
     await check.run();

@@ -158,7 +158,7 @@ describe("e2e (real built bundle over stdio)", () => {
       // outputSchema once tools/list is cached — see connectServer()'s comment in
       // helpers.ts for the same reasoning). mal_id=1 (Cowboy Bebop) is a well-known,
       // heavily-cached entry, but still tolerate a transient upstream 5xx rather
-      // than fail this suite on Tenrai's own mood, matching check-api.mjs's
+      // than fail this suite on Tenrai's own mood, matching check-api.ts's
       // "transient — not blocking" convention.
       const anime = await client.callTool({ name: "get_anime", arguments: { id: 1 } });
       if (anime.isError) {

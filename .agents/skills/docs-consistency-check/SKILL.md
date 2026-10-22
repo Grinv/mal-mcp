@@ -25,7 +25,7 @@ Check every one of these, not just a sample:
 - `CHANGELOG.md`'s `[Unreleased]` section (see the `changelog-style` skill for
   entry style) has one line per real behavior change made in this pass — add
   missing entries, don't just flag them as missing. Run
-  `node scripts/check-changelog-coverage.mjs` to list every commit since the
+  `node scripts/check-changelog-coverage.ts` to list every commit since the
   last release tag and flag which ones CHANGELOG.md doesn't reference at
   all — it's not a hard gate (plenty of commits are legitimately internal:
   dev-dependency bumps, docs-about-docs, CI-only fixes), but triage every

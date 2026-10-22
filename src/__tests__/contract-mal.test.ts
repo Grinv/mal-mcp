@@ -4,7 +4,7 @@
 // These exist to catch upstream schema drift the new response-validation in
 // mal.ts (MyUserInfoSchema/MalListResponseSchema/ListStatusUpdateResponseSchema)
 // would reject — a mocked test can't tell us the *real* API still matches them.
-//   RUN_LIVE=1 npm test   (reads .env via --env-file, see scripts/run-tests.mjs)
+//   RUN_LIVE=1 npm test   (reads .env via --env-file, see scripts/run-tests.ts)
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { MalClient } from "../clients/mal.ts";

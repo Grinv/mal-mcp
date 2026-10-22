@@ -12,7 +12,7 @@ import { join } from "node:path";
 
 const root = join(import.meta.dirname, "..");
 
-function patch(rel, edits) {
+function patch(rel: string, edits: [RegExp, string][]): void {
   const file = join(root, rel);
   let text = readFileSync(file, "utf8");
   for (const [pattern, replacement] of edits) {
@@ -27,13 +27,13 @@ function patch(rel, edits) {
 // The leading quote means this never matches `"manifest_version"` in manifest.json.
 const versionField = /("version":\s*")[^"]*(")/;
 
-// Shared with preversion-check.mjs's checkChangelog(): does CHANGELOG.md's
+// Shared with preversion-check.ts's checkChangelog(): does CHANGELOG.md's
 // [Unreleased] section (everything up to the next "## [" heading) contain a
 // real bullet? Checks for an actual bullet (`- `) rather than just "is a
 // heading immediately next" — robust to stray blank lines. Exported so both
 // scripts encode this one rule exactly once instead of two independently
 // drifting regexes.
-export function unreleasedHasBullets(text) {
+export function unreleasedHasBullets(text: string): boolean {
   const marker = "## [Unreleased]\n";
   const idx = text.indexOf(marker);
   if (idx === -1) {
@@ -67,7 +67,7 @@ export function unreleasedHasBullets(text) {
 // release workflow's "empty RELEASE_NOTES.md" guard needs every real release
 // to have a non-empty section, including a CONFIRM_EMPTY_CHANGELOG=1
 // dependency-only release.
-export function renderChangelogRelease(text, version, date) {
+export function renderChangelogRelease(text: string, version: string, date: string): string {
   if (text.includes(`## [${version}] - `)) {
     return text;
   }
@@ -102,7 +102,9 @@ export function renderChangelogRelease(text, version, date) {
 }
 
 function main() {
-  const { version } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+  const { version } = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as {
+    version: string;
+  };
 
   patch("src/version.ts", [[/(export const VERSION = ")[^"]*(")/, `$1${version}$2`]]);
   patch("manifest.json", [[versionField, `$1${version}$2`]]);

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseSchemaOptionalFields } from "../../scripts/check-chainable-optional-fields.mjs";
+import { parseSchemaOptionalFields } from "../../scripts/check-chainable-optional-fields.ts";
 
 // Regression guard for the check-chainable-optional-fields heuristic. The declaration regex
 // once matched only `z.object(`, so after format.schemas.ts migrated to `z.strictObject(` the

@@ -7,7 +7,7 @@
 // judgment call, not something regexes prove. It over-reports (flags tools whose promise doesn't
 // actually name an optional field) and can under-report (a promise phrased differently than the
 // trigger list below). Treat its output as a candidate list for a human/agent to eyeball, the
-// same way check-changelog-coverage.mjs's "uncovered" list needs triage, not blind trust.
+// same way check-changelog-coverage.ts's "uncovered" list needs triage, not blind trust.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -22,7 +22,7 @@ const TRIGGER_PHRASES = [
 
 /** Given the index of an opening `{`, return the index of its matching `}` (brace-depth counted,
  *  so nested object literals inside don't confuse the boundary), or -1 if unbalanced. */
-function findMatchingBrace(text, openBrace) {
+function findMatchingBrace(text: string, openBrace: number): number {
   let depth = 0;
   for (let i = openBrace; i < text.length; i++) {
     if (text[i] === "{") depth++;
@@ -36,8 +36,8 @@ function findMatchingBrace(text, openBrace) {
 
 /** Find every top-level `defineTool({ ... })` block in a source file (brace-matched, so nested
  *  object literals inside a tool's own config don't confuse the boundary). */
-function findToolBlocks(text) {
-  const blocks = [];
+function findToolBlocks(text: string): string[] {
+  const blocks: string[] = [];
   const marker = "defineTool({";
   let from = 0;
   while (true) {
@@ -53,7 +53,7 @@ function findToolBlocks(text) {
 }
 
 /** Extract a `key: "..." + "..." + ...` concatenated string literal's joined text. */
-function extractConcatenatedString(block, key) {
+function extractConcatenatedString(block: string, key: string): string | undefined {
   const keyIdx = block.indexOf(`${key}:`);
   if (keyIdx === -1) return undefined;
   // Scan forward from just after the key, collecting quoted string literals joined by `+`,
@@ -61,7 +61,7 @@ function extractConcatenatedString(block, key) {
   let i = keyIdx + key.length + 1;
   let text = "";
   while (i < block.length) {
-    while (/\s/.test(block[i])) i++;
+    while (/\s/.test(block[i] ?? "")) i++;
     if (block[i] === '"') {
       const strEnd = block.indexOf('"', i + 1);
       // Doesn't handle escaped quotes — none of this codebase's descriptions use them.
@@ -81,11 +81,11 @@ function extractConcatenatedString(block, key) {
 }
 
 /** Extract a `key: <bare expression>,` value's raw text (for outputSchema references). */
-function extractBareValue(block, key) {
+function extractBareValue(block: string, key: string): string | undefined {
   const keyIdx = block.indexOf(`${key}:`);
   if (keyIdx === -1) return undefined;
   let i = keyIdx + key.length + 1;
-  while (/\s/.test(block[i])) i++;
+  while (/\s/.test(block[i] ?? "")) i++;
   const end = block.indexOf(",\n", i);
   return block.slice(i, end === -1 ? undefined : end).trim();
 }
@@ -97,22 +97,27 @@ function extractBareValue(block, key) {
  *  (The declaration regex once matched only `z.object(`, so after the schemas migrated to
  *  `z.strictObject(` it silently matched nothing and reported every schema as unresolved — see
  *  the check-chainable regression test.) */
-export function parseSchemaOptionalFields(text) {
-  const fields = new Map();
+export interface SchemaFields {
+  optionalFields: string[];
+  nestedSchemaRefs: string[];
+}
+
+export function parseSchemaOptionalFields(text: string): Map<string, SchemaFields> {
+  const fields = new Map<string, SchemaFields>();
   const declPattern =
     /(?:export )?const (\w+Schema) = z\s*\n?\s*\.(?:object|strictObject|looseObject)\(\{/g;
-  let m;
+  let m: RegExpExecArray | null;
   while ((m = declPattern.exec(text))) {
-    const name = m[1];
+    const name = m[1]!;
     const openBrace = text.indexOf("{", m.index + m[0].length - 1);
     const end = findMatchingBrace(text, openBrace);
     const body = text.slice(openBrace + 1, end);
-    const optionalFields = [...body.matchAll(/(\w+):[^,\n]*\.optional\(\)/g)].map((mm) => mm[1]);
+    const optionalFields = [...body.matchAll(/(\w+):[^,\n]*\.optional\(\)/g)].map((mm) => mm[1]!);
     // A field wrapping z.array(someSchema) — e.g. `seasons: z.array(seasonEntrySchema)` — isn't
     // itself optional, but its own fields are where a chainable value can hide one level deeper
     // (exactly where get_seasons_list's `year` bug lived — this schema had zero optional fields
     // of its own, all the interesting ones were inside the nested array's item schema).
-    const nestedSchemaRefs = [...body.matchAll(/z\.array\((\w+Schema)\)/g)].map((mm) => mm[1]);
+    const nestedSchemaRefs = [...body.matchAll(/z\.array\((\w+Schema)\)/g)].map((mm) => mm[1]!);
     fields.set(name, { optionalFields, nestedSchemaRefs });
   }
   return fields;
@@ -128,7 +133,11 @@ function main() {
 
   /** Collect a schema's own optional fields plus, recursively, any nested array-item schema's
    *  optional fields (labeled with a dotted path so it's clear where each one actually lives). */
-  const collectOptionalFields = (schemaName, path = schemaName, seen = new Set()) => {
+  const collectOptionalFields = (
+    schemaName: string | undefined,
+    path: string | undefined = schemaName,
+    seen = new Set<string>(),
+  ): string[] => {
     if (!schemaName || seen.has(schemaName)) return [];
     seen.add(schemaName);
     const entry = schemaOptionalFields.get(schemaName);
@@ -144,7 +153,7 @@ function main() {
   for (const [file, text] of [
     ["read.ts", readTs],
     ["mylist.ts", myListTs],
-  ]) {
+  ] as const) {
     for (const block of findToolBlocks(text)) {
       const name = extractConcatenatedString(block, "name") || extractBareValue(block, "name");
       const description = extractConcatenatedString(block, "description");
@@ -180,7 +189,7 @@ function main() {
 // Only run as a script (not when the regression test imports parseSchemaOptionalFields).
 // pathToFileURL normalizes process.argv[1] (a raw OS path) to the same file:// URL form as
 // import.meta.url; the `process.argv[1] &&` guard avoids pathToFileURL(undefined) throwing on a
-// no-script invocation. Same idiom as scripts/sync-version.mjs.
+// no-script invocation. Same idiom as scripts/sync-version.ts.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }

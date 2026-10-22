@@ -6,7 +6,7 @@ description: Cut a release of mal-mcp — draft CHANGELOG entries, check docs/me
 # Releasing
 
 `package.json` is the **single source of truth** for the version. The npm
-`version` lifecycle hook runs `scripts/sync-version.mjs`, which propagates it to
+`version` lifecycle hook runs `scripts/sync-version.ts`, which propagates it to
 `src/version.ts`, `manifest.json`, `server.json` (incl. the `.mcpb` release-asset
 URL), **and `CHANGELOG.md`** — it renames `## [Unreleased]` to `## [<version>] -
 <date>` and reopens a fresh, empty `## [Unreleased]` above it, rolling the
@@ -16,7 +16,7 @@ directly (`renderChangelogRelease`). You do **not** need to rename the
 heading yourself — don't hand-edit it back to `[Unreleased]` after running
 `npm version`.
 
-A `preversion` hook (`scripts/preversion-check.mjs`) runs first — it's a
+A `preversion` hook (`scripts/preversion-check.ts`) runs first — it's a
 presence-only safety net, not a substitute for actually running the skill
 below as a real judgment step. It runs two checks, in order:
 

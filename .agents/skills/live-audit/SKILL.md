@@ -146,7 +146,7 @@ both Tenrai and (if `MAL_CLIENT_ID`/OAuth creds are set) the official API. A
 failure there can mean either a genuine shape drift (a real finding) or a
 transient Tenrai/MAL outage (see `notes/tenrai-reliability.md` — gitignored
 local log; check it before re-diagnosing a failure as new). **Note
-`check-api.mjs`'s own scope**: it does a raw `fetch()` with just
+`check-api.ts`'s own scope**: it does a raw `fetch()` with just
 `{ Accept: "application/json" }` — it never routes through
 `TenraiClient`/`HttpClient`, so it can neither exercise nor confirm any
 client-side header/config fix. Don't treat a `check:api` pass/fail on a given

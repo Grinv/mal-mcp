@@ -14,20 +14,6 @@ export default tseslint.config(
       ],
     },
   },
-  // Node build/test scripts: expose Node globals (process, etc.).
-  {
-    files: ["scripts/**/*.mjs"],
-    languageOptions: {
-      globals: {
-        process: "readonly",
-        console: "readonly",
-        URL: "readonly",
-        fetch: "readonly",
-        AbortSignal: "readonly",
-        setTimeout: "readonly",
-      },
-    },
-  },
   // Must be last: disables ESLint rules that conflict with Prettier.
   prettier,
 );

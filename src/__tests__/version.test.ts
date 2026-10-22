@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { VERSION } from "../version.ts";
 import { CREDENTIAL_ENV_VARS } from "../config.ts";
-import { renderChangelogRelease, unreleasedHasBullets } from "../../scripts/sync-version.mjs";
+import { renderChangelogRelease, unreleasedHasBullets } from "../../scripts/sync-version.ts";
 
 const root = join(import.meta.dirname, "..", "..");
 const readJson = (rel: string) => JSON.parse(readFileSync(join(root, rel), "utf8"));
@@ -26,7 +26,7 @@ const server = readJson("server.json") as {
   }[];
 };
 
-// package.json is the single source of truth; scripts/sync-version.mjs (the npm
+// package.json is the single source of truth; scripts/sync-version.ts (the npm
 // `version` hook) propagates it everywhere below. These assertions fail loudly
 // if any file drifts — including a hand-edit that bypassed the hook.
 test("VERSION constant matches package.json", () => {
@@ -95,7 +95,7 @@ test("manifest.json user_config and server.json environmentVariables match confi
 // A 2026-07-29 incident shipped a release commit/tag with CHANGELOG.md's heading
 // still saying "Unreleased" (renaming it to the version was a manual step nobody
 // remembered), which would have produced an empty GitHub Release body — the
-// workflow's extraction step matches on `## [<version>]` verbatim. sync-version.mjs
+// workflow's extraction step matches on `## [<version>]` verbatim. sync-version.ts
 // now does this rename itself; these tests guard the pure string-transform it uses.
 test("renderChangelogRelease renames Unreleased, reopens it, and rolls the compare links forward", () => {
   const fixture =

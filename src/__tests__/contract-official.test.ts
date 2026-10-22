@@ -1,7 +1,7 @@
 // Live contract tests against the real official MAL API's Client-ID-only public
 // reads (OfficialReadsClient/formatOfficial.ts). Skipped unless RUN_LIVE is set
 // AND a real MAL_CLIENT_ID is present — see docs/auth.md.
-//   RUN_LIVE=1 npm test   (reads .env via --env-file, see scripts/run-tests.mjs)
+//   RUN_LIVE=1 npm test   (reads .env via --env-file, see scripts/run-tests.ts)
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { OfficialReadsClient } from "../clients/officialReads.ts";

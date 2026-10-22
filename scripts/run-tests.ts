@@ -8,7 +8,8 @@ import { join } from "node:path";
 const COVERAGE_LINES_THRESHOLD = 80;
 
 // Any arg besides --coverage is passed straight through to `node --test`, so
-// e.g. `npm test -- --test-name-pattern=foo` can run a subset locally.
+// e.g. `npm test -- --test-name-pattern=foo` can run a subset locally, and a
+// file path (`npm test -- src/__tests__/http.test.ts`) narrows the run to it.
 const rawArgs = process.argv.slice(2);
 const coverage = rawArgs.includes("--coverage");
 const passthrough = rawArgs.filter((a) => a !== "--coverage");
@@ -19,8 +20,10 @@ if (coverage) {
   args.push(
     "--experimental-test-coverage",
     `--test-coverage-lines=${COVERAGE_LINES_THRESHOLD}`,
-    // Measure the code under test, not the tests measuring it.
+    // Measure the server code in src/, not the tests measuring it nor the dev-tooling
+    // scripts/ the tests import.
     "--test-coverage-exclude=src/__tests__/**",
+    "--test-coverage-exclude=scripts/**",
   );
 }
 
@@ -31,7 +34,8 @@ if (coverage) {
 if (process.env.RUN_LIVE) args.push(`--env-file-if-exists=${join(repoRoot, ".env")}`);
 
 // One argument, no shell: node --test expands the glob itself, the same way on every OS.
-args.push("src/**/*.test.ts");
+// Only the default when the caller named no file/glob of their own.
+if (!passthrough.some((a) => !a.startsWith("-"))) args.push("src/**/*.test.ts");
 
 const child = spawn(process.execPath, args, { cwd: repoRoot, stdio: "inherit" });
 child.on("exit", (code) => process.exit(code ?? 1));
