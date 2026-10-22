@@ -73,7 +73,8 @@ export const OFFICIAL_RATING: Record<string, string> = {
 };
 
 function mapped(table: Record<string, string>, v: string | null | undefined): string | undefined {
-  if (!v) return undefined;
+  // "unknown" is the official API's placeholder; Tenrai has null there, so the field is omitted.
+  if (!v || v === "unknown") return undefined;
   return table[v] ?? v;
 }
 
@@ -435,11 +436,7 @@ export function summarizeOfficialManga(
     rank: n.rank ?? undefined,
     popularity: n.popularity ?? undefined,
     members: n.num_list_users ?? undefined,
-    published: formatOfficialRange(
-      n.start_date,
-      n.end_date,
-      n.status === "finished" || n.media_type === "one_shot",
-    ),
+    published: formatOfficialRange(n.start_date, n.end_date, n.media_type === "one_shot"),
     genres: names(n.genres),
     themes: [],
     demographics: [],

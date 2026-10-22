@@ -28,10 +28,11 @@ export function registerPrompts(server: McpServer, tenrai: TenraiClient): void {
                 "suggestions. Omit to be asked which title you mean.",
             ),
           async (value) => {
-            // Under 3 characters a title search is too broad to be useful, and live typing would
-            // otherwise cost one Tenrai request per keystroke against a 4 req/s budget.
+            // A 1-2 letter Latin prefix matches too much to be useful, and live typing would
+            // otherwise cost one Tenrai request per keystroke against a 4 req/s budget. CJK titles
+            // are often just two characters (銀魂), so non-ASCII input starts at two.
             const q = value.trim();
-            if (q.length < 3) return [];
+            if ([...q].length < (/[^\p{ASCII}]/u.test(q) ? 2 : 3)) return [];
             // Best-effort: a completion list is a nice-to-have, so a transient
             // upstream failure degrades to no suggestions instead of an error
             // surfacing in the client's live-typing UI.

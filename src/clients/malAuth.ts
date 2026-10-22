@@ -95,7 +95,14 @@ export class MalAuthManager {
    *  config snapshot) so a token obtained via login_mal during this session, or
    *  loaded from the token store, counts immediately. */
   isConfigured(): boolean {
+    this.#adoptIfEmptyHanded();
     return Boolean(this.#state.accessToken || this.#canRefresh());
+  }
+
+  /** With no usable token in memory, look at the shared store: another process may have logged
+   *  in since we started, or saved a fresh pair after MAL rejected ours in a refresh race. */
+  #adoptIfEmptyHanded(): void {
+    if (!this.#hasFreshAccessToken() && !this.#canRefresh()) this.#adoptStoreUpdate();
   }
 
   // Can we silently refresh? A client id plus a refresh token (from the live
@@ -164,6 +171,7 @@ export class MalAuthManager {
   }
 
   async #ensureAccessToken(): Promise<string> {
+    this.#adoptIfEmptyHanded();
     if (this.#hasFreshAccessToken()) return this.#state.accessToken;
     if (this.#canRefresh()) return this.#refresh();
     if (this.#state.accessToken) return this.#state.accessToken;
@@ -288,7 +296,7 @@ export class MalAuthManager {
         path: "/callback",
         onCode: async (code, returnedState) => {
           try {
-            await this.#completeWithCode(code, returnedState);
+            return await this.#completeWithCode(code, returnedState);
           } catch (err) {
             this.#logger.warn(`login_mal callback exchange failed: ${errMsg(err)}`);
             throw err;
@@ -317,24 +325,19 @@ export class MalAuthManager {
    *  pasted back — the remote/headless path. Resolves to a warning when the token
    *  works but could not be saved. */
   async submitRedirect(redirect: string): Promise<string | undefined> {
-    const code = extractCode(redirect);
-    // The listener may already have this code (in flight or done); share that outcome.
-    if (this.#exchange?.code === code) return this.#exchange.done;
-    if (!this.#pendingLogin) {
-      throw new ApiError({
-        code: "bad_request",
-        message: "No login in progress; run login_mal first.",
-      });
-    }
-    return this.#completeWithCode(code, extractState(redirect));
+    return this.#completeWithCode(extractCode(redirect), extractState(redirect));
   }
 
   #completeWithCode(code: string, returnedState: string | null): Promise<string | undefined> {
+    // The listener and a manual paste can both deliver this code; share the one exchange.
     if (this.#exchange?.code === code) return this.#exchange.done;
     const pending = this.#pendingLogin;
     if (!pending) {
       return Promise.reject(
-        new ApiError({ code: "bad_request", message: "No login in progress." }),
+        new ApiError({
+          code: "bad_request",
+          message: "No login in progress; run login_mal first.",
+        }),
       );
     }
     // CSRF / authorization-code-injection guard: MAL echoes back the `state` we
@@ -350,7 +353,13 @@ export class MalAuthManager {
       );
     }
     const done = this.#exchangeCode(code, pending);
-    this.#exchange = { code, done };
+    const exchange = { code, done };
+    this.#exchange = exchange;
+    // A failed exchange (timeout, 5xx) mustn't be replayed to a retry of the same paste; if MAL
+    // did spend the code, the retry gets MAL's own answer.
+    done.catch(() => {
+      if (this.#exchange === exchange) this.#exchange = undefined;
+    });
     return done;
   }
 

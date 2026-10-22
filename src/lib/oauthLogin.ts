@@ -110,7 +110,8 @@ const PAGE = (text: string): string => `<h2>${text}</h2>`;
 export async function listenForCode(opts: {
   port: number;
   path: string;
-  onCode: (code: string, state: string | null) => Promise<void>;
+  /** Resolves to a warning when the login worked but the token couldn't be saved. */
+  onCode: (code: string, state: string | null) => Promise<string | undefined>;
   onDenied: (error: string, state: string | null) => void;
 }): Promise<{ close: () => void }> {
   const handler = (req: IncomingMessage, res: ServerResponse): void => {
@@ -129,9 +130,8 @@ export async function listenForCode(opts: {
     } catch {
       /* fall through to the generic reply */
     }
-    // Connection: close — without it the browser keeps the socket alive, and server.close() then
-    // waits on it long enough (Node's keepAliveTimeout is 5s) that a login_mal run right after a
-    // successful one can fail to bind the port and silently degrade to manual paste.
+    // Connection: close — the socket closes as soon as the page is sent, so close() below doesn't
+    // sit on a browser keep-alive connection for Node's 5s keepAliveTimeout.
     const reply = (html: string, after?: () => void): void => {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", Connection: "close" });
       res.end(html, after);
@@ -143,9 +143,14 @@ export async function listenForCode(opts: {
       );
     } else if (code) {
       opts.onCode(code, state).then(
-        () =>
+        (warning) =>
           reply(
-            PAGE("Logged in to MyAnimeList — you can close this tab and return to your client."),
+            PAGE(
+              warning
+                ? "Logged in to MyAnimeList, but the token could not be saved: it will be lost " +
+                    "when the server restarts. Check the server log."
+                : "Logged in to MyAnimeList — you can close this tab and return to your client.",
+            ),
           ),
         () =>
           reply(

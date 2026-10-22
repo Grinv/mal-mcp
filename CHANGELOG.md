@@ -15,7 +15,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Make `q` optional in `search_anime`/`search_manga` so they can browse by filters alone ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
 - Bump `@modelcontextprotocol/server` to 2.3.1 and `zod` to 4.6.7 ([579de43](https://github.com/Grinv/mal-mcp/commit/579de43)).
 - Reject an empty `q` in `get_producers`, `get_magazines` and `get_news`, like every other `q` ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5)).
-- Skip title autocompletion in `recommend_similar` until 3 characters are typed ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5)).
+- Skip title autocompletion in `recommend_similar` until 3 characters are typed (2 for non-Latin titles) ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5)).
 
 ### Added
 

@@ -387,3 +387,35 @@ test("a too-short search q skips the fallback without a client_id_would_help hin
   }
   assert.equal(fallback.calls.length, 0);
 });
+
+test("every endpoint that shapes `data` reports a data-less 200 as an upstream error", async (t) => {
+  // A maintenance or error envelope served with a 200. Each method must raise the retryable
+  // server_error (which also lets the official fallback run where one exists), never a TypeError.
+  installFetch(
+    t,
+    mockFetch(() => jsonResponse({ message: "maintenance" })),
+  );
+  const client = tenrai();
+  const calls: [string, () => Promise<unknown>][] = [
+    ["getAnime", () => client.getAnime(1)],
+    ["getManga", () => client.getManga(1)],
+    ["getAnimeRecommendations", () => client.getAnimeRecommendations(1)],
+    ["getMangaRecommendations", () => client.getMangaRecommendations(1)],
+    ["getRecentAnimeRecommendations", () => client.getRecentAnimeRecommendations({})],
+    ["getRecentMangaRecommendations", () => client.getRecentMangaRecommendations({})],
+    ["getAnimeReviews", () => client.getAnimeReviews(1, 5)],
+    ["getAnimeEpisodes", () => client.getAnimeEpisodes(1)],
+    ["getAnimeStatistics", () => client.getAnimeStatistics(1)],
+    ["getRandomAnime", () => client.getRandomAnime()],
+    ["getRandomManga", () => client.getRandomManga()],
+    ["getRandomCharacter", () => client.getRandomCharacter()],
+    ["getRandomPerson", () => client.getRandomPerson()],
+  ];
+  for (const [name, call] of calls) {
+    await assert.rejects(
+      call,
+      (err: unknown) => err instanceof ApiError && err.code === "server_error",
+      name,
+    );
+  }
+});

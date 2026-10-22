@@ -736,3 +736,119 @@ describe("login callback listener", { timeout: 10_000 }, () => {
     assert.equal(listening, false);
   });
 });
+
+test("a process with no token picks up a login another process saved", async (t) => {
+  const storePath = tempStorePath("late-login");
+  rmSync(storePath, { force: true });
+  t.after(() => rmSync(storePath, { force: true }));
+  installFetch(
+    t,
+    mockFetch((_url, init) => {
+      const auth = (init?.headers as Record<string, string>)["Authorization"];
+      return jsonResponse({ id: 1, name: "tester", used: auth });
+    }),
+  );
+  const b = new MalClient(
+    loadConfig({ MAL_CLIENT_ID: "id" }),
+    silentLogger(),
+    new TokenStore(storePath, silentLogger()),
+  );
+  assert.equal(b.isConfigured(), false);
+  // login_mal ran in another client's server process.
+  new TokenStore(storePath, silentLogger()).save({
+    accessToken: "from-a",
+    refreshToken: "r-a",
+    expiresAt: Date.now() + 3_600_000,
+  });
+  assert.equal(b.isConfigured(), true);
+  const res = (await b.getMyUserInfo()) as Record<string, unknown>;
+  assert.equal(res["used"], "Bearer from-a");
+});
+
+test("a process locked out by a lost refresh race recovers once the winner saves", async (t) => {
+  // MAL rejected B's spent token before A had written the rotated pair, so B found nothing newer
+  // and wiped. A's save lands afterwards; B must not stay logged out until a restart.
+  const storePath = tempStorePath("race-recover");
+  rmSync(storePath, { force: true });
+  t.after(() => rmSync(storePath, { force: true }));
+  const store = new TokenStore(storePath, silentLogger());
+  store.save({ accessToken: "a0", refreshToken: "r0", expiresAt: 0 });
+  installFetch(
+    t,
+    mockFetch((url, init) => {
+      if (url.includes("/oauth2/token"))
+        return jsonResponse({ error: "invalid_grant" }, { status: 400 });
+      const auth = (init?.headers as Record<string, string>)["Authorization"];
+      return jsonResponse({ id: 1, name: "tester", used: auth });
+    }),
+  );
+  const b = new MalClient(loadConfig({ MAL_CLIENT_ID: "id" }), silentLogger(), store);
+  await assert.rejects(() => b.getMyUserInfo(), /login_mal/);
+  assert.equal(b.isConfigured(), false);
+  new TokenStore(storePath, silentLogger()).save({
+    accessToken: "a1",
+    refreshToken: "r1",
+    expiresAt: Date.now() + 3_600_000,
+  });
+  const res = (await b.getMyUserInfo()) as Record<string, unknown>;
+  assert.equal(res["used"], "Bearer a1");
+});
+
+test("a code exchange that failed on a blip can be retried with the same paste", async (t) => {
+  const port = 8192;
+  const occupied = createServer();
+  await new Promise<void>((resolve) => occupied.listen(port, "127.0.0.1", resolve));
+  t.after(() => new Promise<void>((resolve) => occupied.close(() => resolve())));
+  let exchanges = 0;
+  installFetch(
+    t,
+    mockFetch((url) => {
+      if (url.includes("/oauth2/token")) {
+        exchanges += 1;
+        return exchanges === 1
+          ? jsonResponse({ error: "boom" }, { status: 503 })
+          : jsonResponse({ access_token: "acc", refresh_token: "ref", expires_in: 3600 });
+      }
+      return jsonResponse({ id: 1, name: "me" });
+    }),
+  );
+  const client = new MalClient(
+    loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: String(port) }),
+    silentLogger(),
+  );
+  const { authorizeUrl } = await client.startLogin({ open: () => {} });
+  const state = new URL(authorizeUrl).searchParams.get("state");
+  const redirect = `http://localhost:${port}/callback?code=C&state=${state}`;
+  await assert.rejects(() => client.submitRedirect(redirect));
+  await client.submitRedirect(redirect);
+  assert.equal(exchanges, 2);
+  assert.equal(client.isConfigured(), true);
+});
+
+test("the callback page says when the token couldn't be saved", { timeout: 10_000 }, async (t) => {
+  const blocker = tempStorePath("page-save-blocker");
+  writeFileSync(blocker, "");
+  t.after(() => rmSync(blocker, { force: true }));
+  installFetch(
+    t,
+    mockFetch(() => jsonResponse({ access_token: "acc", refresh_token: "ref", expires_in: 3600 })),
+  );
+  const port = 8191;
+  const config = loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: String(port) });
+  const client = new MalClient(
+    config,
+    silentLogger(),
+    new TokenStore(join(blocker, "t.json"), silentLogger()),
+  );
+  const { authorizeUrl, listening } = await client.startLogin({ open: () => {} });
+  assert.equal(listening, true);
+  const state = new URL(authorizeUrl).searchParams.get("state");
+  const page = await new Promise<string>((resolve, reject) => {
+    httpGet({ host: "127.0.0.1", port, path: `/callback?code=C&state=${state}` }, (res) => {
+      let body = "";
+      res.on("data", (c: Buffer) => (body += c.toString()));
+      res.on("end", () => resolve(body));
+    }).on("error", reject);
+  });
+  assert.match(page, /could not be saved/);
+});

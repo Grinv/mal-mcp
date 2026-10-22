@@ -293,4 +293,11 @@ test("summarizeOfficialManga formats published like Tenrai's published string", 
     published({ start_date: "2010-05-01", media_type: "one_shot", status: "finished" }),
     "May 1, 2010",
   );
+  // A finished series with no recorded end date reads "to ?", as MAL itself shows it.
+  assert.equal(published({ start_date: "2010-01-05", status: "finished" }), "Jan 5, 2010 to ?");
+});
+
+test('an official media_type of "unknown" is omitted, as Tenrai has null there', () => {
+  assert.equal(summarizeOfficialAnime({ id: 1, media_type: "unknown" })["type"], undefined);
+  assert.equal(summarizeOfficialManga({ id: 1, media_type: "unknown" })["type"], undefined);
 });

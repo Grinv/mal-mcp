@@ -86,4 +86,9 @@ test("recommend_similar title completion skips the upstream search under 3 chara
   assert.equal(mock.calls.length, 0);
   assert.deepEqual((await complete("nar")).completion.values, ["Naruto"]);
   assert.equal(mock.calls.length, 1);
+  // A two-character CJK title is a whole title, not a too-broad prefix.
+  await complete("銀魂");
+  assert.equal(mock.calls.length, 2);
+  await complete("銀");
+  assert.equal(mock.calls.length, 2);
 });

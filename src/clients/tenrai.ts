@@ -120,15 +120,15 @@ function seasonQuery(p: SeasonParams): Query {
   };
 }
 
-/** Query for the interest-stack list endpoints. An omitted `challenges`/`official` is sent as an
- *  explicit "false" rather than left out: Tenrai's own default for each is false, EXCEPT that
- *  `official=only` alone still returns challenge stacks unless `challenges=false` is also sent
- *  (verified live: 77 vs 59 results). Sending both always keeps "omitted" meaning "excluded". */
+/** Query for the interest-stack list endpoints. An omitted `challenges` is sent as an explicit
+ *  "false": Tenrai excludes challenge stacks by default, EXCEPT under `official=only`, which
+ *  still returns them unless `challenges=false` is sent too (verified live: 77 vs 59 results).
+ *  `official` is left alone: every challenge stack is also official, so defaulting it to "false"
+ *  would turn `challenges=only` into an always-empty list (verified live: 18 vs 0). */
 function stackQuery(p: StackParams): Query {
   return {
     ...p,
     challenges: p.challenges ?? "false",
-    official: p.official ?? "false",
     ...sfwStrictQuery(p.sfw_strict),
   };
 }
