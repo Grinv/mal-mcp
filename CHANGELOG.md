@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-22
+
 ### Changed
 
 - **Breaking:** raise the minimum Node version to 22.18 (was 20.11); Node 20 reached end of life in April 2026 ([0e2cf84](https://github.com/Grinv/mal-mcp/commit/0e2cf84)).
@@ -350,7 +352,8 @@ No user-facing changes — docs and release-process updates only.
 - Add in-memory TTL caching, polite Jikan rate limiting, and retries with backoff ([494d2c8](https://github.com/Grinv/mal-mcp/commit/494d2c8)).
 - Add `.mcpb` bundle packaging and `server.json` metadata for the MCP Registry ([494d2c8](https://github.com/Grinv/mal-mcp/commit/494d2c8)).
 
-[Unreleased]: https://github.com/Grinv/mal-mcp/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/Grinv/mal-mcp/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/Grinv/mal-mcp/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/Grinv/mal-mcp/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/Grinv/mal-mcp/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/Grinv/mal-mcp/compare/v0.8.0...v0.9.0
