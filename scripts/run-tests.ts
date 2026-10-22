@@ -16,11 +16,14 @@ const coverage = rawArgs.includes("--coverage");
 const passthrough = rawArgs.filter((a) => a !== "--coverage");
 
 const repoRoot = join(import.meta.dirname, "..");
+// A file or glob of the caller's own: run just that instead of the whole suite.
+const narrowed = passthrough.some((a) => !a.startsWith("-"));
 const args = ["--test", ...passthrough];
 if (coverage) {
   args.push(
     "--experimental-test-coverage",
-    `--test-coverage-lines=${COVERAGE_LINES_THRESHOLD}`,
+    // The gate is for the whole suite; a subset covers less code by design.
+    ...(narrowed ? [] : [`--test-coverage-lines=${COVERAGE_LINES_THRESHOLD}`]),
     // Measure the server code in src/, not the tests measuring it nor the dev-tooling
     // scripts/ the tests import.
     "--test-coverage-exclude=src/__tests__/**",
@@ -36,7 +39,7 @@ if (process.env.RUN_LIVE) args.push(`--env-file-if-exists=${join(repoRoot, ".env
 
 // One argument, no shell: node --test expands the glob itself, the same way on every OS.
 // Only the default when the caller named no file/glob of their own.
-if (!passthrough.some((a) => !a.startsWith("-"))) args.push("src/**/*.test.ts");
+if (!narrowed) args.push("src/**/*.test.ts");
 
 const child = spawn(process.execPath, args, { cwd: repoRoot, stdio: "inherit" });
 child.on("exit", (code) => process.exit(code ?? 1));

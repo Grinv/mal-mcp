@@ -33,7 +33,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npm test
+      - if: runner.os != 'Windows'
+        run: npm test
+      # Windows runs the coverage variant instead, so the coverage-exclude patterns meet
+      # Windows paths too (ubuntu's coverage gate runs in the quality job).
+      - if: runner.os == 'Windows'
+        run: npm run test:coverage
 
   quality:
     runs-on: ubuntu-latest

@@ -31,13 +31,33 @@ async function occupyPort(t: TestContext, host = "127.0.0.1"): Promise<number> {
   return (server.address() as AddressInfo).port;
 }
 
-/** A port that was free a moment ago, for a test whose own login listener must bind it. */
+/** A port that was free a moment ago on both loopbacks the login listener binds (127.0.0.1 and,
+ *  where there is one, ::1), for a test whose own listener must bind it. */
 async function freePort(): Promise<number> {
-  const server = createServer();
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const { port } = server.address() as AddressInfo;
-  await new Promise<void>((resolve) => server.close(() => resolve()));
-  return port;
+  const bind = (port: number, host: string) =>
+    new Promise<ReturnType<typeof createServer>>((resolve, reject) => {
+      const server = createServer();
+      server.once("error", reject);
+      server.listen(port, host, () => resolve(server));
+    });
+  const close = (server: ReturnType<typeof createServer>) =>
+    new Promise<void>((resolve) => server.close(() => resolve()));
+  for (;;) {
+    const v4 = await bind(0, "127.0.0.1");
+    const { port } = v4.address() as AddressInfo;
+    try {
+      await close(await bind(port, "::1"));
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === "EADDRINUSE") {
+        await close(v4);
+        continue; // taken on ::1 only; try another
+      }
+      if (code !== "EADDRNOTAVAIL" && code !== "EAFNOSUPPORT") throw err;
+    }
+    await close(v4);
+    return port;
+  }
 }
 
 test("silent refresh: 401 triggers refresh, retries, and persists the rotated token", async (t) => {
@@ -741,8 +761,12 @@ describe("login callback listener", { timeout: 10_000 }, () => {
     let port: number;
     try {
       port = await occupyPort(t, "::1");
-    } catch {
-      return t.skip("no IPv6 loopback on this machine");
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === "EADDRNOTAVAIL" || code === "EAFNOSUPPORT") {
+        return t.skip("no IPv6 loopback on this machine");
+      }
+      throw err;
     }
     const config = loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: String(port) });
     const client = new MalClient(config, silentLogger());

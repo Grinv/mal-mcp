@@ -101,9 +101,9 @@ npm run check:api      # live upstream health-check (network)
   (`manifest.test.ts` keeps it equal to `engines.node`). This floor covers
   `scripts/` too, not just `src/`. CI tests the exact floor (`"22.18.0"`)
   plus the newer LTS lines: a bare `22` would resolve to the newest 22.x
-  and let code needing a later minor than the declared floor pass CI. The
-  shipped bundle alone would run on 22.1, but only the tested floor is
-  declared: promising a version CI never runs is how the Node 20 floor drifted.
+  and let code needing a later minor than the declared floor pass CI. Only
+  the tested floor is declared, never an older version the code "should" run
+  on: promising a version CI never runs is how the Node 20 floor drifted.
 - `npm run typecheck` (also the first step of `npm run build`) covers `src/`,
   `scripts/`, `tsup.config.ts` and `eslint.config.js` (via `checkJs`; it stays
   `.js` because ESLint loads a `.ts` config only through `jiti` or an unstable
