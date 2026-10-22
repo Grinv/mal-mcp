@@ -8,6 +8,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Raise `get_my_anime_list`/`get_my_manga_list` `limit` to 1000 ([dcf0aad](https://github.com/Grinv/mal-mcp/commit/dcf0aad)).
+- Keep the members-descending order of seasonal anime when falling back to the official API ([dcf0aad](https://github.com/Grinv/mal-mcp/commit/dcf0aad)).
 - **Breaking:** take `unapproved` as `"true"`/`"false"`/`"only"`, like the other tri-state filters ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c), [510693d](https://github.com/Grinv/mal-mcp/commit/510693d)).
 - Raise `limit` to 100 and `page` to 20000 on every list tool, matching Tenrai's current ceilings ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
 - Make `q` optional in `search_anime`/`search_manga` so they can browse by filters alone ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
@@ -20,6 +22,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Fix `get_my_anime_list`/`get_my_manga_list` silently omitting the user's own NSFW-flagged entries ([dcf0aad](https://github.com/Grinv/mal-mcp/commit/dcf0aad)).
+- Fix the official-API fallback dropping NSFW-flagged search and seasonal results when `sfw` is not set ([dcf0aad](https://github.com/Grinv/mal-mcp/commit/dcf0aad)).
 - Fix `letter` in `search_anime`/`search_manga`, which always failed because it can't be combined with `q` ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
 - Fix review and stack filter descriptions that claimed spoiler/preliminary entries are included by default ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
 
