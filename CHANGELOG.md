@@ -16,7 +16,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Make `q` optional in `search_anime`/`search_manga` so they can browse by filters alone ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
 - Bump `@modelcontextprotocol/server` to 2.3.1 and `zod` to 4.6.7 ([579de43](https://github.com/Grinv/mal-mcp/commit/579de43)).
 - Reject an empty `q` in `get_producers`, `get_magazines` and `get_news`, like every other `q` ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5)).
-- Skip title autocompletion in `recommend_similar` until 3 characters are typed (2 for non-Latin titles) ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5)).
+- Skip title autocompletion in `recommend_similar` until 3 characters are typed (2 for non-Latin titles) ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5), [ca5e46f](https://github.com/Grinv/mal-mcp/commit/ca5e46f)).
 
 ### Added
 
@@ -27,15 +27,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- Fix a second server process (another MCP client) logging the user out when both share the token file and MAL rotates the refresh token ([b2df12a](https://github.com/Grinv/mal-mcp/commit/b2df12a)).
+- Fix a second server process (another MCP client) logging the user out when both share the token file and MAL rotates the refresh token ([b2df12a](https://github.com/Grinv/mal-mcp/commit/b2df12a), [ca5e46f](https://github.com/Grinv/mal-mcp/commit/ca5e46f)).
 - Use credentials set in the env after a rejected refresh left an empty token file, and stop replaying a rejected refresh token ([b2df12a](https://github.com/Grinv/mal-mcp/commit/b2df12a)).
-- Keep a successful login or token refresh working when the token file can't be written; `submit_mal_redirect` warns that it won't survive a restart ([b2df12a](https://github.com/Grinv/mal-mcp/commit/b2df12a)).
+- Keep a successful login or token refresh working when the token file can't be written; `submit_mal_redirect` warns that it won't survive a restart ([b2df12a](https://github.com/Grinv/mal-mcp/commit/b2df12a), [ca5e46f](https://github.com/Grinv/mal-mcp/commit/ca5e46f)).
 - Fix the login callback page claiming success before the code was exchanged, and a redirect delivered twice failing a login that worked ([b2df12a](https://github.com/Grinv/mal-mcp/commit/b2df12a)).
 - Fix the browser opening a truncated authorize URL on Windows ([b2df12a](https://github.com/Grinv/mal-mcp/commit/b2df12a)).
 - Fix `login_mal` promising auto-capture while another local server on `[::1]` would receive the redirect ([b2df12a](https://github.com/Grinv/mal-mcp/commit/b2df12a)).
-- Fix detail, recommendation, review, episode and random tools failing with a raw TypeError, and skipping the fallback, on a 200 response without data ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5)).
-- Make the official-API fallback return the same `type`, `rating` and `aired`/`published` text as Tenrai ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5)).
-- Fix interest-stack lists including challenge stacks when `official` is `"only"` ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5)).
+- Fix read tools failing with a raw TypeError, and skipping the fallback, on a 200 response without data ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5)).
+- Make the official-API fallback return the same `type`, `rating` and `aired`/`published` text as Tenrai ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5), [ca5e46f](https://github.com/Grinv/mal-mcp/commit/ca5e46f)).
+- Fix interest-stack lists including challenge stacks when `official` is `"only"` ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5), [ca5e46f](https://github.com/Grinv/mal-mcp/commit/ca5e46f)).
 - Fix recommendations coming back short when an early entry was malformed ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5)).
 - Fix a failed 1-2 character search suggesting to set `MAL_CLIENT_ID` when it was already set ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5)).
 - Fix the startup log saying "not yet authorized" to a user who already ran `login_mal` ([c792698](https://github.com/Grinv/mal-mcp/commit/c792698)).
