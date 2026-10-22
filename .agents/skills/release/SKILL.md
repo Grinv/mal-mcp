@@ -24,7 +24,8 @@ below as a real judgment step. It runs two checks, in order:
   local git tag, it blocks unless that tag is also on `origin` — this is the
   exact race that once orphaned a version in a sibling repo (`npm version`
   run twice within minutes, the first tag/commit never pushed, silently
-  buried under the second). Push the dangling tag (`git push origin
+  buried under the second). The `git fetch` it runs is pinned to `LC_ALL=C`, so
+  its "couldn't find remote ref" match holds on any locale. Push the dangling tag (`git push origin
 vX.Y.Z`) or delete it if it was a mistake (`git tag -d vX.Y.Z`), then
   retry.
 - **Empty changelog**: it blocks `npm version` if `CHANGELOG.md`'s
@@ -57,16 +58,20 @@ don't rely on the `preversion` hook alone to catch a skipped one:
    live 2026-07-29: a `git tag -f` without `-a` produced exactly this silent
    no-op.)
 
-The tag push (`v*`) runs the **Release** workflow: `check:api` gate → build → test
-→ pack `.mcpb` → GitHub Release → `npm publish` (OIDC trusted publishing, with
-provenance — no token) → **publish to the official MCP Registry** (`mcp-publisher`,
+The tag push (`v*`) runs the **Release** workflow: tag-matches-version gate (the
+tag must equal `v<package.json version>`) → `check:api` gate (15s per-request
+timeout) → build → test → pack `.mcpb` → `npm publish` (OIDC trusted publishing,
+with provenance — no token) → GitHub Release (after npm, so a failed publish
+never leaves a Release for a version that isn't on npm) → **publish to the
+official MCP Registry** (`mcp-publisher`,
 GitHub OIDC; the binary is pinned to an exact version + verified SHA-256 rather
 than `latest`). The workflow's CHANGELOG-extraction step fails loudly (not silently)
 if it can't find a `## [<version>]` section, as a backstop if the heading rename
 above is somehow bypassed. The `npm publish` step is itself pinned to an exact
 verified-good npm version — no token — and is skipped without failing the job
 if this version is already on npm, so a re-run after a partial failure doesn't
-abort. The `.mcpb` SHA-256 injection into `server.json` likewise fails loudly if
+abort. Only an `E404` from `npm view` counts as "not published yet"; any other
+`npm view` failure (network, auth, registry outage) fails the job. The `.mcpb` SHA-256 injection into `server.json` likewise fails loudly if
 the injection didn't actually match a package, instead of silently leaving a
 stale hash. Never hand-edit the version in the derived files; bump
 `package.json` via `npm version` and let the hook sync the rest.

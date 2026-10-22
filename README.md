@@ -96,7 +96,8 @@ Once it's connected, just ask your agent in natural language.
 `token` = needs a MyAnimeList login (run `login_mal` once). Prompts:
 `recommend_similar`, `seasonal_overview`, `hidden_gems`. `recommend_similar`'s
 title is optional: omit it and it'll ask which anime you mean. Clients that
-support prompt-argument completion get live title suggestions as you type.
+support prompt-argument completion get live title suggestions as you type
+(from the third character, or the second for non-Latin titles).
 
 ## Install
 

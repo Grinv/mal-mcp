@@ -132,7 +132,7 @@ json.load(open('notes/tenrai-openapi-spec.json'))..."`) instead of re-fetching
       `/recommendations/anime`. `read.ts` has one `limit` constant (1-100).
     - Routes with **no `limit` at all**, where any cap has to be applied client-side:
       `/{anime|manga}/{id}/reviews` (fixed 20 per page — `get_*_reviews` caps its own `limit`
-      at 20), `/anime/{id}/episodes` (100 per page), `/anime/{id}/news` (30 per page),
+      at 20 and returns Tenrai's `page` info for that 20-review page), `/anime/{id}/episodes` (100 per page), `/anime/{id}/news` (30 per page),
       `/{anime|manga}/{id}/recommendations` (all entries, unpaginated — 166 for id 1),
       `/{anime|manga}/{id}/characters` (no language filter either: `language=Japanese` is
       ignored), `/people/{id}/full` and `/people/{id}/voices` (the latter ignores `limit`/`page`,
@@ -153,6 +153,11 @@ json.load(open('notes/tenrai-openapi-spec.json'))..."`) instead of re-fetching
     - Review `spoilers`/`preliminary` and stack `spoilers`/`challenges`/`official` are
       **excluded by default** — `true` widens the set (`/stacks` 19761 → 22466 with
       `spoilers=true`).
+      One exception (verified live 2026-10-22): under `official=only`, challenge stacks
+      are still included unless `challenges=false` is sent too (77 vs 59 results), so the
+      stack tools send `challenges=false` when it's omitted. `official` is left unset:
+      every challenge stack is also official, so defaulting it to `false` would empty
+      `challenges=only` (18 vs 0).
     - Endpoints added since v1.0.19 and not wrapped yet: `/seasons/previous`, `/manga/adapted`,
       `/{anime|manga}/{id}/statistics/history`, `/manga/{id}/forum`, and the
       `/{anime|manga}/unapproved|denied` moderation queues. Still unwrapped from earlier
@@ -165,8 +170,8 @@ Two separate clients use this API, for two unrelated concerns:
 `src/clients/mal.ts` (`MalClient`) for OAuth-authenticated personal-list
 reads/writes, and `src/clients/officialReads.ts` (`OfficialReadsClient`) for
 anonymous Client-ID-only public reads — the fallback for when a Tenrai call
-fails with a genuine upstream fault (5xx, timeout, connection error, 429, or
-invalid JSON; a real 404/400 is an answer, not an outage, and is never
+fails with a genuine upstream fault (5xx, timeout, connection error, 429,
+invalid JSON, or a 200 with no `data`; a real 404/400 is an answer, not an outage, and is never
 retried here). See [auth.md](auth.md) for the three credential tiers (none / Client
 ID / OAuth token) and exactly what each one unlocks.
 
@@ -213,6 +218,12 @@ ID / OAuth token) and exactly what each one unlocks.
 > `*_DETAIL_FALLBACK_GAPS_FULL` for the detail tools). `broadcast` differs by
 > mode: absent from a list fallback, which never requests it, but present in
 > `get_anime`'s detail fallback, which asks for it explicitly.
+> The fields both backends do carry are reshaped to read like Tenrai's:
+> `media_type`/`rating` map onto Tenrai's labels (`tv` → `TV`, `r` →
+> `R - 17+ (violence & profanity)`; MAL's `unknown` placeholder is omitted), and
+> `aired`/`published` are rebuilt from `start_date`/`end_date` in Tenrai's
+> format (`Apr 3, 1998 to Apr 24, 1999`; `X to ?` with no end date; a single
+> date when the end equals the start, or for a one-episode anime or a one-shot).
 > `get_manga_statistics` has no equivalent whatsoever — `MangaForDetails` carries
 > no `statistics` property — so it stays fully Tenrai-only. Every other read tool
 > (reviews, schedule, producers, news, episodes, genres, random

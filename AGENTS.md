@@ -202,7 +202,7 @@ entry style.
 `package.json` is the single source of truth for the version; `npm version`
 bumps + syncs every derived file + tags the release. See the `release` skill
 for the full steps (including the `preversion` gate on `CHANGELOG.md` and
-tool descriptions) and MCP Registry details.
+unpushed tags) and MCP Registry details.
 
 ## Reuse / shared architecture
 

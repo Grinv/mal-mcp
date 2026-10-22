@@ -38,7 +38,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Fix a failed 1-2 character search suggesting to set `MAL_CLIENT_ID` when it was already set ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5)).
 - Fix the startup log saying "not yet authorized" to a user who already ran `login_mal` ([c792698](https://github.com/Grinv/mal-mcp/commit/c792698)).
 - Fix the `get_random_*` descriptions promising full details; they return core details only ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5)).
-
 - Reject a `q` longer than 300 characters up front instead of after a failed upstream call ([f96d407](https://github.com/Grinv/mal-mcp/commit/f96d407)).
 - Skip the official-API fallback for a 1-2 character search, which the official API rejects ([f96d407](https://github.com/Grinv/mal-mcp/commit/f96d407)).
 - Fix `get_my_anime_list`/`get_my_manga_list` silently omitting the user's own NSFW-flagged entries ([dcf0aad](https://github.com/Grinv/mal-mcp/commit/dcf0aad)).

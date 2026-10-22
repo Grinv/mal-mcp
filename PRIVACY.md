@@ -108,7 +108,8 @@ would for any other tool that acts on a real external account.
   pair), the resulting access + refresh token **are written to disk** at
   `~/.config/mal-mcp/tokens.json` (`%APPDATA%\mal-mcp\tokens.json` on
   Windows; overridable via `MAL_TOKEN_STORE`), with `0600` permissions, so
-  the silent-refresh flow survives a server restart. This is the one place
+  the silent-refresh flow survives a server restart. Every server process on
+  your machine (one per MCP client) reads and writes this same file. This is the one place
   `mal-mcp` persists anything beyond the running process: everything else
   below is memory-only. Deleting that file (or never running `login_mal`
   and never supplying `MAL_REFRESH_TOKEN`/`MAL_ACCESS_TOKEN`) leaves nothing
@@ -118,8 +119,11 @@ would for any other tool that acts on a real external account.
   disk), for a short configurable TTL (`CACHE_TTL_MS`, default 5 minutes)
   to cut latency and avoid hammering Tenrai/MyAnimeList. That covers an
   anime or manga's details, characters, staff, videos, statistics and
-  recommendations; a character, person or producer profile; and the genre
-  and season lists. The cache is cleared entirely when the process exits
+  recommendations; a character, person, producer or single interest-stack
+  profile; and the genre and season lists. If the upstream is down when an
+  entry has expired, that expired copy is served rather than an error, so it
+  can outlive the TTL while the process runs. Responses served by the
+  official-API fallback are never cached. The cache is cleared entirely when the process exits
   and is never shared across machines or users. Everything paginated or
   fast-moving is deliberately **not** cached at all: every search, ranking,
   seasonal and schedule listing, the news feeds, reviews, episode lists,
@@ -137,7 +141,7 @@ would for any other tool that acts on a real external account.
 Material changes will be noted in [CHANGELOG.md](CHANGELOG.md) and
 reflected here, at the same URL, with the effective date below updated.
 
-_Last updated: 2026-07-30._
+_Last updated: 2026-10-22._
 
 ## Contact
 
