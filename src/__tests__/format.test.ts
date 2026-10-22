@@ -316,6 +316,18 @@ test("summarizeRecommendations caps at 25 and maps the entry", () => {
   assert.equal(r.recommendations.length, 25);
 });
 
+test("summarizeRecommendations caps after dropping malformed entries, not before", () => {
+  const raw = [
+    ...Array.from({ length: 25 }, () => ({ votes: 1 })), // no `entry` — malformed
+    ...Array.from({ length: 5 }, (_v, i) => ({
+      entry: { mal_id: i + 1, title: `T${i}`, url: "u" },
+      votes: i,
+    })),
+  ];
+  const r = summarizeRecommendations(raw) as { recommendations: unknown[] };
+  assert.equal(r.recommendations.length, 5);
+});
+
 test("summarizeCharacters drops a malformed entry instead of failing the whole list", () => {
   const raw = [
     { character: { mal_id: 5, name: "Spike", url: "u" }, role: "Main" },

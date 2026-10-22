@@ -480,12 +480,14 @@ export function summarizeRecommendations(
   data: RawRecommendation[],
 ): z.infer<typeof recommendationsSchema> {
   return recommendationsSchema.parse({
-    recommendations: mapLenient(data.slice(0, 25), recommendationEntrySchema, (r) => ({
+    recommendations: mapLenient(data, recommendationEntrySchema, (r) => ({
       mal_id: r.entry?.mal_id,
       title: r.entry?.title,
       votes: r.votes,
       url: r.entry?.url,
-    })),
+    }))
+      // Cap AFTER dropping malformed entries, so bad leading items can't crowd out valid ones.
+      .slice(0, 25),
   });
 }
 
@@ -540,8 +542,12 @@ export interface RawReview {
 
 // A single malformed review (e.g. an unparseable `date`) is dropped rather than failing the
 // whole call — see `mapLenient`.
-export function summarizeReviews(data: RawReview[]): z.infer<typeof reviewsSchema> {
+export function summarizeReviews(
+  data: RawReview[],
+  pagination?: RawPagination,
+): z.infer<typeof reviewsSchema> {
   return reviewsSchema.parse({
+    page: pageInfo(pagination),
     reviews: mapLenient(data, reviewEntrySchema, (r) => ({
       user: r.user?.username,
       score: r.score,

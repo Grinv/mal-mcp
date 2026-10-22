@@ -120,6 +120,19 @@ function seasonQuery(p: SeasonParams): Query {
   };
 }
 
+/** Query for the interest-stack list endpoints. An omitted `challenges`/`official` is sent as an
+ *  explicit "false" rather than left out: Tenrai's own default for each is false, EXCEPT that
+ *  `official=only` alone still returns challenge stacks unless `challenges=false` is also sent
+ *  (verified live: 77 vs 59 results). Sending both always keeps "omitted" meaning "excluded". */
+function stackQuery(p: StackParams): Query {
+  return {
+    ...p,
+    challenges: p.challenges ?? "false",
+    official: p.official ?? "false",
+    ...sfwStrictQuery(p.sfw_strict),
+  };
+}
+
 // Tenrai's published limits (see api.tenrai.org/llms.txt "Auth & Rate Limits"): 4 req/s AND
 // 120 req/min for unauthenticated (public) access. A min-interval alone covers the per-second
 // cap but not the sustained per-minute one, so both windows are enforced.
@@ -233,47 +246,44 @@ export class TenraiClient {
   }
 
   async searchAnime(p: AnimeSearchParams): Promise<Record<string, unknown>> {
-    return withFallback(
-      this.#logger,
-      officialSearchable(p.q) ? this.#fallback : undefined,
-      "anime search",
-      () =>
-        this.#list<RawAnime>(
-          "anime",
-          { ...p, type: csv(p.type), rating: csv(p.rating), ...sfwStrictQuery(p.sfw_strict) },
-          (a) => summarizeAnime(a),
-        ),
-      () =>
-        this.#fallback!.searchAnimeOfficial({
-          q: p.q!,
-          limit: p.limit,
-          page: p.page,
-          // The official API's client-side nsfw filter can't distinguish "adult-rated" from
-          // "genre-tagged Ecchi but otherwise safe" — sfw_strict degrades to the same sfw
-          // filtering as a plain `sfw: true` during a fallback (documented gap, not a bug).
-          sfw: p.sfw || p.sfw_strict,
-        }),
+    const primary = () =>
+      this.#list<RawAnime>(
+        "anime",
+        { ...p, type: csv(p.type), rating: csv(p.rating), ...sfwStrictQuery(p.sfw_strict) },
+        (a) => summarizeAnime(a),
+      );
+    // An unsearchable q calls the primary directly, not withFallback(undefined): with no fallback
+    // passed, withFallback would still attach the client_id_would_help hint, which is wrong when
+    // MAL_CLIENT_ID is set and the q length alone is what rules the official API out.
+    if (!officialSearchable(p.q)) return primary();
+    return withFallback(this.#logger, this.#fallback, "anime search", primary, () =>
+      this.#fallback!.searchAnimeOfficial({
+        q: p.q!,
+        limit: p.limit,
+        page: p.page,
+        // The official API's client-side nsfw filter can't distinguish "adult-rated" from
+        // "genre-tagged Ecchi but otherwise safe" — sfw_strict degrades to the same sfw
+        // filtering as a plain `sfw: true` during a fallback (documented gap, not a bug).
+        sfw: p.sfw || p.sfw_strict,
+      }),
     );
   }
 
   async searchManga(p: MangaSearchParams): Promise<Record<string, unknown>> {
-    return withFallback(
-      this.#logger,
-      officialSearchable(p.q) ? this.#fallback : undefined,
-      "manga search",
-      () =>
-        this.#list<RawManga>(
-          "manga",
-          { ...p, type: csv(p.type), ...sfwStrictQuery(p.sfw_strict) },
-          (m) => summarizeManga(m),
-        ),
-      () =>
-        this.#fallback!.searchMangaOfficial({
-          q: p.q!,
-          limit: p.limit,
-          page: p.page,
-          sfw: p.sfw || p.sfw_strict,
-        }),
+    const primary = () =>
+      this.#list<RawManga>(
+        "manga",
+        { ...p, type: csv(p.type), ...sfwStrictQuery(p.sfw_strict) },
+        (m) => summarizeManga(m),
+      );
+    if (!officialSearchable(p.q)) return primary();
+    return withFallback(this.#logger, this.#fallback, "manga search", primary, () =>
+      this.#fallback!.searchMangaOfficial({
+        q: p.q!,
+        limit: p.limit,
+        page: p.page,
+        sfw: p.sfw || p.sfw_strict,
+      }),
     );
   }
 
@@ -302,6 +312,7 @@ export class TenraiClient {
           `${kind}/${id}/full`,
           { query: { sfw, ...sfwStrictQuery(sfwStrict) } },
         );
+        if (res.data == null) throw missingDataError(`${kind}/${id}/full`);
         return kind === "anime"
           ? summarizeAnime(res.data as RawAnime, true)
           : summarizeManga(res.data as RawManga, true);
@@ -358,6 +369,7 @@ export class TenraiClient {
           `${kind}/${id}/recommendations`,
           { query: { sfw, ...sfwStrictQuery(sfwStrict) } },
         );
+        if (!Array.isArray(res.data)) throw missingDataError(`${kind}/${id}/recommendations`);
         return summarizeRecommendations(res.data);
       },
       () =>
@@ -379,6 +391,7 @@ export class TenraiClient {
       "recommendations/anime",
       { query: { page: p.page, limit: p.limit, sfw: p.sfw, ...sfwStrictQuery(p.sfw_strict) } },
     );
+    if (!Array.isArray(res.data)) throw missingDataError("recommendations/anime");
     return summarizeRecentRecommendations(res.data, res.pagination);
   }
 
@@ -392,6 +405,7 @@ export class TenraiClient {
       "recommendations/manga",
       { query: { page: p.page, limit: p.limit, sfw: p.sfw, ...sfwStrictQuery(p.sfw_strict) } },
     );
+    if (!Array.isArray(res.data)) throw missingDataError("recommendations/manga");
     return summarizeRecentRecommendations(res.data, res.pagination);
   }
 
@@ -426,10 +440,11 @@ export class TenraiClient {
     const res = await this.#http.getJson<ListResponse<RawReview>>(`${kind}/${id}/reviews`, {
       query: { ...params },
     });
+    if (!Array.isArray(res.data)) throw missingDataError(`${kind}/${id}/reviews`);
     // Slice AFTER shaping, not before: summarizeReviews drops any malformed entry, so slicing the
     // raw array first could under-fill `limit` even when enough valid reviews exist further in.
-    const { reviews } = summarizeReviews(res.data);
-    return { reviews: reviews.slice(0, limit) };
+    const { reviews, page } = summarizeReviews(res.data, res.pagination);
+    return { reviews: reviews.slice(0, limit), page };
   }
 
   // Not cached: the response is paginated, and the cache key here would not
@@ -438,6 +453,7 @@ export class TenraiClient {
     const res = await this.#http.getJson<ListResponse<RawEpisode>>(`anime/${id}/episodes`, {
       query: { page },
     });
+    if (!Array.isArray(res.data)) throw missingDataError(`anime/${id}/episodes`);
     return summarizeEpisodes(res.data, res.pagination);
   }
 
@@ -631,6 +647,7 @@ export class TenraiClient {
     const res = await this.#http.getJson<ItemResponse<RawAnime>>("random/anime", {
       query: { sfw, ...sfwStrictQuery(sfwStrict) },
     });
+    if (res.data == null) throw missingDataError("random/anime");
     return summarizeAnime(res.data, true);
   }
 
@@ -638,6 +655,7 @@ export class TenraiClient {
     const res = await this.#http.getJson<ItemResponse<RawManga>>("random/manga", {
       query: { sfw, ...sfwStrictQuery(sfwStrict) },
     });
+    if (res.data == null) throw missingDataError("random/manga");
     return summarizeManga(res.data, true);
   }
 
@@ -647,6 +665,7 @@ export class TenraiClient {
       "anime statistics",
       async () => {
         const res = await this.#http.getJson<ItemResponse<RawStatistics>>(`anime/${id}/statistics`);
+        if (res.data == null) throw missingDataError(`anime/${id}/statistics`);
         return summarizeStatistics(res.data);
       },
       () => this.#fallback!.animeStatisticsOfficial(id),
@@ -695,11 +714,13 @@ export class TenraiClient {
 
   async getRandomCharacter(): Promise<Record<string, unknown>> {
     const res = await this.#http.getJson<ItemResponse<RawCharacterEntity>>("random/characters");
+    if (res.data == null) throw missingDataError("random/characters");
     return summarizeCharacter(res.data, true);
   }
 
   async getRandomPerson(): Promise<Record<string, unknown>> {
     const res = await this.#http.getJson<ItemResponse<RawPersonEntity>>("random/people");
+    if (res.data == null) throw missingDataError("random/people");
     return summarizePerson(res.data, true);
   }
 
@@ -739,7 +760,7 @@ export class TenraiClient {
   // not cached (same category as searches and news feeds). No official-API equivalent exists.
   async getStacks(p: StackSearchParams): Promise<Record<string, unknown>> {
     const res = await this.#http.getJson<ListResponse<RawStack>>("stacks", {
-      query: { ...p, ...sfwStrictQuery(p.sfw_strict) },
+      query: stackQuery(p),
     });
     if (!Array.isArray(res.data)) throw missingDataError("stacks");
     return summarizeStacks(res.data, res.pagination);
@@ -771,7 +792,7 @@ export class TenraiClient {
     p: StackParams,
   ): Promise<Record<string, unknown>> {
     const res = await this.#http.getJson<ListResponse<RawStack>>(`${kind}/${id}/stacks`, {
-      query: { ...p, ...sfwStrictQuery(p.sfw_strict) },
+      query: stackQuery(p),
     });
     if (!Array.isArray(res.data)) throw missingDataError(`${kind}/${id}/stacks`);
     return summarizeStacks(res.data, res.pagination);

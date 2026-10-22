@@ -384,3 +384,29 @@ test("getNews hits the site-wide /news endpoint (not /anime/{id}/news)", async (
   assert.match(mock.calls[0]!.url, /\/news\?/);
   assert.match(mock.calls[0]!.url, /q=announcement/);
 });
+
+test("getAnimeReviews returns Tenrai's page info alongside the reviews", async (t) => {
+  const mock = mockFetch(() =>
+    jsonResponse({ data: [], pagination: { last_visible_page: 10, has_next_page: true } }),
+  );
+  installFetch(t, mock);
+  const res = await tenrai().getAnimeReviews(57334, 5);
+  assert.deepEqual(res, { reviews: [], page: { last_visible_page: 10, has_next_page: true } });
+});
+
+test("interest-stack lists send challenges/official=false explicitly when omitted", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [] }));
+  installFetch(t, mock);
+  const client = tenrai();
+  await client.getStacks({});
+  await client.getAnimeStacks(1, { official: "only" });
+  await client.getMangaStacks(2, { challenges: "true" });
+  const [all, anime, manga] = mock.calls.map((c) => new URL(c.url).searchParams);
+  assert.equal(all!.get("challenges"), "false");
+  assert.equal(all!.get("official"), "false");
+  // official=only alone would still include challenge stacks upstream: challenges=false must go too.
+  assert.equal(anime!.get("official"), "only");
+  assert.equal(anime!.get("challenges"), "false");
+  assert.equal(manga!.get("challenges"), "true");
+  assert.equal(manga!.get("official"), "false");
+});

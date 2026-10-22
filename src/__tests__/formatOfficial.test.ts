@@ -12,6 +12,9 @@ import {
   MANGA_DETAIL_FALLBACK_GAPS_FULL,
   ANIME_STATISTICS_FALLBACK_GAPS,
   MANGA_LIST_FALLBACK_GAPS,
+  OFFICIAL_ANIME_MEDIA_TYPE,
+  OFFICIAL_MANGA_MEDIA_TYPE,
+  OFFICIAL_RATING,
   type OfficialAnimeNode,
   type OfficialMangaNode,
   type OfficialAnimeStatistics,
@@ -218,4 +221,76 @@ test("the detail-gap constants include the always-empty themes/demographics", ()
   // broadcast is a list-mode gap only: the detail fallback requests that field explicitly.
   const anyGaps: readonly string[] = ANIME_DETAIL_FALLBACK_GAPS_FULL;
   assert.ok(!anyGaps.includes("broadcast"));
+});
+
+// ---- Tenrai display-text parity ---------------------------------------------------
+// Expected strings are what Tenrai itself returns for the same entries (verified live).
+
+test("OFFICIAL_ANIME_MEDIA_TYPE maps anime media_type to Tenrai's labels, unknown passes through", () => {
+  const type = (media_type: string) => summarizeOfficialAnime({ id: 1, media_type })["type"];
+  assert.equal(type("tv"), "TV");
+  assert.equal(type("ova"), "OVA");
+  assert.equal(type("tv_special"), "TV Special");
+  assert.equal(type("some_new_type"), "some_new_type");
+  for (const [raw, label] of Object.entries(OFFICIAL_ANIME_MEDIA_TYPE)) {
+    assert.equal(type(raw), label);
+  }
+});
+
+test("OFFICIAL_MANGA_MEDIA_TYPE maps manga media_type to Tenrai's labels, unknown passes through", () => {
+  const type = (media_type: string) => summarizeOfficialManga({ id: 1, media_type })["type"];
+  assert.equal(type("light_novel"), "Light Novel");
+  assert.equal(type("one_shot"), "One-shot");
+  assert.equal(type("manga"), "Manga");
+  assert.equal(type("some_new_type"), "some_new_type");
+  for (const [raw, label] of Object.entries(OFFICIAL_MANGA_MEDIA_TYPE)) {
+    assert.equal(type(raw), label);
+  }
+});
+
+test("OFFICIAL_RATING maps rating to Tenrai's labels, unknown passes through", () => {
+  const rating = (r: string) => summarizeOfficialAnime({ id: 1, rating: r })["rating"];
+  assert.equal(rating("r"), "R - 17+ (violence & profanity)");
+  assert.equal(rating("rx"), "Rx - Hentai");
+  assert.equal(rating("pg_13"), "PG-13 - Teens 13 or older");
+  assert.equal(rating("x_new"), "x_new");
+  for (const [raw, label] of Object.entries(OFFICIAL_RATING)) {
+    assert.equal(rating(raw), label);
+  }
+});
+
+test("summarizeOfficialAnime formats aired like Tenrai's aired string", () => {
+  const aired = (n: Partial<OfficialAnimeNode>) => summarizeOfficialAnime({ id: 1, ...n })["aired"];
+  // Cowboy Bebop: a finished run.
+  assert.equal(
+    aired({ start_date: "1998-04-03", end_date: "1999-04-24", num_episodes: 26 }),
+    "Apr 3, 1998 to Apr 24, 1999",
+  );
+  // Still airing: no end date yet.
+  assert.equal(aired({ start_date: "2026-03-19", num_episodes: 12 }), "Mar 19, 2026 to ?");
+  // Spirited Away: a movie, end == start; and a one-episode entry with no end date.
+  assert.equal(aired({ start_date: "2001-07-20", end_date: "2001-07-20" }), "Jul 20, 2001");
+  assert.equal(aired({ start_date: "2026-10-20", num_episodes: 1 }), "Oct 20, 2026");
+  // Partial dates use MAL's own partial display.
+  assert.equal(aired({ start_date: "2027-01" }), "Jan 2027 to ?");
+  assert.equal(aired({ start_date: "2027" }), "2027 to ?");
+  assert.equal(aired({}), undefined);
+});
+
+test("summarizeOfficialManga formats published like Tenrai's published string", () => {
+  const published = (n: Partial<OfficialMangaNode>) =>
+    summarizeOfficialManga({ id: 1, ...n })["published"];
+  // Berserk: still publishing.
+  assert.equal(
+    published({ start_date: "1989-08-25", status: "currently_publishing" }),
+    "Aug 25, 1989 to ?",
+  );
+  assert.equal(
+    published({ start_date: "1997-07-22", end_date: "2004-02-10", status: "finished" }),
+    "Jul 22, 1997 to Feb 10, 2004",
+  );
+  assert.equal(
+    published({ start_date: "2010-05-01", media_type: "one_shot", status: "finished" }),
+    "May 1, 2010",
+  );
 });

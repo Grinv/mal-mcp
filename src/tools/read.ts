@@ -94,6 +94,8 @@ const limit = z.int().min(1).max(100).describe("Max results per page (1-100).");
 // Tenrai v1.0.24: one 20000-page ceiling on every page-taking route, top lists included
 // (verified live — `page=20001` is a 400 "Page must be 20000 or lower").
 const page = z.int().min(1).max(20000).describe("1-based page number for pagination (1-20000).");
+/** Every free-text query field: trimmed, non-empty, and within Tenrai's 300-character cap. */
+const qText = z.string().trim().min(1).max(300);
 const sfw = z
   .boolean()
   .describe(
@@ -208,6 +210,46 @@ const reviewSentiment = z
   .enum(REVIEW_SENTIMENTS)
   .describe("Restrict to reviews with this overall sentiment tag. Omit for all sentiments.");
 
+/** The filter set shared by get_seasonal_anime and get_upcoming_season (Tenrai's three
+ *  `/seasons/*` list endpoints all accept the same one). */
+const seasonListParams = {
+  filter: z.array(animeType).min(1).describe("Restrict to one or more media types.").optional(),
+  rating: ratingFilter.optional(),
+  unapproved: unapproved.optional(),
+  continuing: z
+    .boolean()
+    .describe(
+      "If true, also include TV series continuing from a previous season. Defaults to false.",
+    )
+    .optional(),
+  kids: kidsFlag.optional(),
+  order_by: z.enum(SEASON_ORDER_BY).describe("Field to order by. Defaults to members.").optional(),
+  sort: sortDir.optional(),
+  ...sfwParams,
+  limit: limit.optional(),
+  page: page.optional(),
+};
+/** Both season tools fall back the same way, so they share one description of it. */
+const SEASON_FALLBACK_NOTE =
+  "If Tenrai is unavailable and MAL_CLIENT_ID is set, transparently retries via the official " +
+  "API — `filter`/`rating`/`unapproved`/`continuing`/`kids` are silently dropped (no " +
+  "equivalent there), `order_by`/`sort` keep only the default members-descending order " +
+  `(anything else comes back unsorted), ${gapList(ANIME_LIST_FALLBACK_GAPS)} come back empty, ` +
+  "and `sfw_strict` degrades to the same filtering as `sfw` there (no Ecchi-genre " +
+  "distinction available).";
+/** The list params every interest-stack list tool takes (get_interest_stacks adds `q` and
+ *  `stack_type`; the per-title ones add `id`). */
+const stackListParams = {
+  order_by: stackOrderBy.optional(),
+  sort: sortDir.optional(),
+  spoilers: stackTriState("stacks flagged as containing spoilers"),
+  challenges: stackTriState("challenge stacks (watch-along style lists)"),
+  official: stackTriState("official MAL-editorial stacks"),
+  ...sfwParams,
+  limit: limit.optional(),
+  page: page.optional(),
+};
+
 /** Run a client call and wrap its result (or any failure) as a tool result. */
 const reply = (fn: () => Promise<Record<string, unknown>>): Promise<ToolResult> =>
   guard(async () => jsonResult(await fn()));
@@ -233,11 +275,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "a fallback).",
       inputSchema: z
         .strictObject({
-          q: z
-            .string()
-            .trim()
-            .min(1)
-            .max(300)
+          q: qText
             .describe(
               "Search query, e.g. an anime title. Omit to browse by the other filters alone " +
                 "(e.g. genres + order_by). Cannot be combined with `letter`.",
@@ -301,11 +339,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "a fallback).",
       inputSchema: z
         .strictObject({
-          q: z
-            .string()
-            .trim()
-            .min(1)
-            .max(300)
+          q: qText
             .describe(
               "Search query, e.g. a manga title. Omit to browse by the other filters alone " +
                 "(e.g. genres + order_by). Cannot be combined with `letter`.",
@@ -579,8 +613,11 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "Get anime ranked by all-time score/popularity, not tied to any season. Use `filter` for " +
         "special rankings (airing, upcoming, bypopularity, favorite); for a specific season's " +
         "lineup use get_seasonal_anime or get_upcoming_season instead. If Tenrai is unavailable " +
-        "and MAL_CLIENT_ID is set, transparently retries via the official API — `type`/`filter` " +
-        `are merged into one best-effort ranking, \`rating\` is ignored entirely, ` +
+        "and MAL_CLIENT_ID is set, transparently retries via the official API, which takes one " +
+        "ranking instead of `type` + `filter`: `filter` wins over `type`; a `type` with no " +
+        "official ranking (ona, music, cm, pv, tv_special) or more than one `type` is dropped, " +
+        "and with nothing usable left the all-time ranking is returned; " +
+        `\`rating\` is ignored entirely, ` +
         `${gapList(ANIME_LIST_FALLBACK_GAPS)} come back ` +
         "empty, and `sfw_strict` degrades to the same filtering as `sfw` (the official API can't " +
         "separate adult-rated from Ecchi-tagged-but-safely-rated).",
@@ -602,8 +639,12 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       description:
         "Get manga ranked by all-time score/popularity, not tied to any release window. Use " +
         "`filter` for special rankings (publishing, upcoming, bypopularity, favorite). If Tenrai is unavailable and " +
-        "MAL_CLIENT_ID is set, transparently retries via the official API — `type`/`filter` are " +
-        `merged into one best-effort ranking, ${gapList(MANGA_LIST_FALLBACK_GAPS)} come back ` +
+        "MAL_CLIENT_ID is set, transparently retries via the official API, which takes one " +
+        "ranking instead of `type` + `filter`: `filter` publishing/upcoming has no official " +
+        "ranking and is dropped, bypopularity/favorite win over `type`, a single `type` maps " +
+        "to its closest official ranking (novel and lightnovel share one), more than one `type` " +
+        "is dropped, and with nothing usable left the all-time ranking is returned; " +
+        `${gapList(MANGA_LIST_FALLBACK_GAPS)} come back ` +
         "empty, and `sfw_strict` degrades to the same filtering as `sfw` (the official API can't " +
         "separate adult-rated from Ecchi-tagged-but-safely-rated).",
       inputSchema: z.strictObject({
@@ -627,38 +668,12 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       description:
         "List anime from a given season — supply both `year` and `season` together, or omit both " +
         "for the current season; supplying only one is treated as omitting both. For next " +
-        "season's lineup use get_upcoming_season instead. If Tenrai is " +
-        "unavailable and MAL_CLIENT_ID is set, transparently retries via the official API — " +
-        "`filter`/`rating`/`unapproved`/`continuing`/`kids` are silently dropped (no equivalent " +
-        "there), `order_by`/`sort` keep only the default members-descending order (anything " +
-        `else comes back unsorted), ${gapList(ANIME_LIST_FALLBACK_GAPS)} come back empty, ` +
-        "and `sfw_strict` degrades to the same filtering as `sfw` there (no Ecchi-genre " +
-        "distinction available).",
+        "season's lineup use get_upcoming_season instead. " +
+        SEASON_FALLBACK_NOTE,
       inputSchema: z.strictObject({
         year: z.int().min(1900).max(2100).describe("Four-digit year, e.g. 2024.").optional(),
         season: z.enum(SEASON_NAMES).describe("Season name.").optional(),
-        filter: z
-          .array(animeType)
-          .min(1)
-          .describe("Restrict to one or more media types.")
-          .optional(),
-        rating: ratingFilter.optional(),
-        unapproved: unapproved.optional(),
-        continuing: z
-          .boolean()
-          .describe(
-            "If true, also include TV series continuing from a previous season. Defaults to false.",
-          )
-          .optional(),
-        kids: kidsFlag.optional(),
-        order_by: z
-          .enum(SEASON_ORDER_BY)
-          .describe("Field to order by. Defaults to members.")
-          .optional(),
-        sort: sortDir.optional(),
-        ...sfwParams,
-        limit: limit.optional(),
-        page: page.optional(),
+        ...seasonListParams,
       }),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
@@ -738,7 +753,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "by get_character. Use get_anime_characters instead if you already have an anime's " +
         "mal_id and want its full cast.",
       inputSchema: z.strictObject({
-        q: z.string().trim().min(1).max(300).describe("Character name."),
+        q: qText.describe("Character name."),
         order_by: z.enum(CHARACTER_ORDER_BY).describe("Field to order by.").optional(),
         sort: sortDir.optional(),
         letter: letterFilter.optional(),
@@ -772,7 +787,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "Search MyAnimeList people (voice actors, directors, authors) by name. Returns the mal_id " +
         "needed by get_person.",
       inputSchema: z.strictObject({
-        q: z.string().trim().min(1).max(300).describe("Person name."),
+        q: qText.describe("Person name."),
         order_by: z.enum(PERSON_ORDER_BY).describe("Field to order by.").optional(),
         sort: sortDir.optional(),
         letter: letterFilter.optional(),
@@ -833,7 +848,9 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       name: "get_random_anime",
       title: "Get a random anime",
       description:
-        "Return one random anime (full details). Good for discovery / suggestions. No " +
+        "Return one random anime (core details: no `relations`/`streaming`/`opening_themes`/" +
+        "`ending_themes`/`external` — call get_anime with the returned mal_id for those). " +
+        "Good for discovery / suggestions. No " +
         "official-API fallback exists for this tool — it always needs Tenrai itself to be " +
         "reachable.",
       inputSchema: z.strictObject({ ...sfwParams }),
@@ -845,7 +862,8 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       name: "get_random_manga",
       title: "Get a random manga",
       description:
-        "Return one random manga (full details). Good for discovery / suggestions. No " +
+        "Return one random manga (core details: no `relations`/`external` — call get_manga " +
+        "with the returned mal_id for those). Good for discovery / suggestions. No " +
         "official-API fallback exists for this tool — it always needs Tenrai itself to be " +
         "reachable.",
       inputSchema: z.strictObject({ ...sfwParams }),
@@ -858,35 +876,10 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       title: "Get upcoming season anime",
       description:
         "List anime scheduled for the upcoming season. Use get_seasonal_anime for the current or a " +
-        "specific past season. If Tenrai is unavailable and MAL_CLIENT_ID is set, transparently " +
-        "retries via the official API — `filter`/`rating`/`unapproved`/`continuing`/`kids` are " +
-        "silently dropped (no equivalent there), `order_by`/`sort` keep only the default " +
-        "members-descending order (anything else comes back unsorted), " +
-        `${gapList(ANIME_LIST_FALLBACK_GAPS)} come back empty, and \`sfw_strict\` degrades to ` +
-        "the same filtering as `sfw` there (no Ecchi-genre distinction available).",
+        "specific past season. " +
+        SEASON_FALLBACK_NOTE,
       inputSchema: z.strictObject({
-        filter: z
-          .array(animeType)
-          .min(1)
-          .describe("Restrict to one or more media types.")
-          .optional(),
-        rating: ratingFilter.optional(),
-        unapproved: unapproved.optional(),
-        continuing: z
-          .boolean()
-          .describe(
-            "If true, also include TV series continuing from a previous season. Defaults to false.",
-          )
-          .optional(),
-        kids: kidsFlag.optional(),
-        order_by: z
-          .enum(SEASON_ORDER_BY)
-          .describe("Field to order by. Defaults to members.")
-          .optional(),
-        sort: sortDir.optional(),
-        ...sfwParams,
-        limit: limit.optional(),
-        page: page.optional(),
+        ...seasonListParams,
       }),
       outputSchema: listPageSchema(animeSummarySchema),
       annotations: READ_ONLY,
@@ -928,7 +921,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "search by name, then get_producer for one studio's full profile (about text, external " +
         "links).",
       inputSchema: z.strictObject({
-        q: z.string().max(300).describe("Filter by name.").optional(),
+        q: qText.describe("Filter by name.").optional(),
         order_by: z.enum(PRODUCER_ORDER_BY).describe("Field to order by.").optional(),
         sort: sortDir.optional(),
         letter: letterFilter.optional(),
@@ -959,7 +952,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "with their MAL IDs and manga counts. Use `q` to search by name, or look up an ID here " +
         "for search_manga's `magazines` filter.",
       inputSchema: z.strictObject({
-        q: z.string().max(300).describe("Filter by name.").optional(),
+        q: qText.describe("Filter by name.").optional(),
         order_by: z.enum(MAGAZINE_ORDER_BY).describe("Field to order by.").optional(),
         sort: sortDir.optional(),
         letter: letterFilter.optional(),
@@ -1010,7 +1003,8 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       name: "get_random_character",
       title: "Get a random character",
       description:
-        "Return one random character (full details). Good for discovery / trivia. No " +
+        "Return one random character (core details: no `anime`/`manga`/`voice_actors` — call " +
+        "get_character with the returned mal_id for those). Good for discovery / trivia. No " +
         "official-API fallback exists for this tool — it always needs Tenrai itself to be " +
         "reachable.",
       inputSchema: z.strictObject({}),
@@ -1022,10 +1016,10 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       name: "get_random_person",
       title: "Get a random person",
       description:
-        "Return one random person — voice actor, director, author (full details, shaped exactly " +
-        "like get_person: staff credits capped at 200, `voice_roles` at 50). Good " +
-        "for discovery / trivia. No official-API fallback exists for this tool — it always needs " +
-        "Tenrai itself to be reachable.",
+        "Return one random person — voice actor, director, author (core details: no " +
+        "`anime`/`manga`/`voice_roles` — call get_person with the returned mal_id for those). " +
+        "Good for discovery / trivia. No official-API fallback exists for this tool — it always " +
+        "needs Tenrai itself to be reachable.",
       inputSchema: z.strictObject({}),
       outputSchema: personEntitySchema,
       annotations: READ_ONLY,
@@ -1084,25 +1078,14 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "use get_anime_interest_stacks/get_manga_interest_stacks instead. No official-API " +
         "fallback exists for this tool — it always needs Tenrai itself to be reachable.",
       inputSchema: z.strictObject({
-        q: z
-          .string()
-          .trim()
-          .min(1)
-          .max(300)
+        q: qText
           .describe("Free-text search over stack titles and descriptions. Omit to browse all.")
           .optional(),
         stack_type: z
           .enum(STACK_TYPES)
           .describe("Restrict to anime stacks or manga stacks. Omit for both.")
           .optional(),
-        order_by: stackOrderBy.optional(),
-        sort: sortDir.optional(),
-        spoilers: stackTriState("stacks flagged as containing spoilers"),
-        challenges: stackTriState("challenge stacks (watch-along style lists)"),
-        official: stackTriState("official MAL-editorial stacks"),
-        ...sfwParams,
-        limit: limit.optional(),
-        page: page.optional(),
+        ...stackListParams,
       }),
       outputSchema: stacksSchema,
       annotations: READ_ONLY,
@@ -1139,14 +1122,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "always needs Tenrai itself to be reachable.",
       inputSchema: z.strictObject({
         id: malId,
-        order_by: stackOrderBy.optional(),
-        sort: sortDir.optional(),
-        spoilers: stackTriState("stacks flagged as containing spoilers"),
-        challenges: stackTriState("challenge stacks (watch-along style lists)"),
-        official: stackTriState("official MAL-editorial stacks"),
-        ...sfwParams,
-        limit: limit.optional(),
-        page: page.optional(),
+        ...stackListParams,
       }),
       outputSchema: stacksSchema,
       annotations: READ_ONLY,
@@ -1163,14 +1139,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "to be reachable.",
       inputSchema: z.strictObject({
         id: malId,
-        order_by: stackOrderBy.optional(),
-        sort: sortDir.optional(),
-        spoilers: stackTriState("stacks flagged as containing spoilers"),
-        challenges: stackTriState("challenge stacks (watch-along style lists)"),
-        official: stackTriState("official MAL-editorial stacks"),
-        ...sfwParams,
-        limit: limit.optional(),
-        page: page.optional(),
+        ...stackListParams,
       }),
       outputSchema: stacksSchema,
       annotations: READ_ONLY,
@@ -1185,16 +1154,14 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "topic tag. Use get_anime_news/get_manga_news instead for news about one specific " +
         "anime/manga by mal_id. `sfw`/`sfw_strict` drop articles about adult content.",
       inputSchema: z.strictObject({
-        q: z
-          .string()
-          .max(300)
+        q: qText
           .describe(
             "Search query, e.g. a keyword or title. Verified live to search beyond just the " +
               "headline (a real, unfamiliar-sounding title can still match) — don't assume a " +
               "result's title visibly contains the term.",
           )
           .optional(),
-        tag: z.string().describe("Filter by topic tag.").optional(),
+        tag: z.string().max(300).describe("Filter by topic tag.").optional(),
         ...sfwParams,
         limit: limit.optional(),
         page: page.optional(),

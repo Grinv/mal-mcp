@@ -39,6 +39,71 @@ const OFFICIAL_MANGA_STATUS: Record<string, string> = {
   discontinued: "Discontinued",
 };
 
+// MAL's snake_case `media_type`/`rating` enums mapped to Tenrai's display text (verified live
+// against Tenrai, e.g. "TV", "Light Novel", "R - 17+ (violence & profanity)"), so a fallback
+// response reads the same as a Tenrai one. An unmapped value falls back to the raw value.
+export const OFFICIAL_ANIME_MEDIA_TYPE: Record<string, string> = {
+  tv: "TV",
+  ova: "OVA",
+  movie: "Movie",
+  special: "Special",
+  ona: "ONA",
+  music: "Music",
+  cm: "CM",
+  pv: "PV",
+  tv_special: "TV Special",
+};
+export const OFFICIAL_MANGA_MEDIA_TYPE: Record<string, string> = {
+  manga: "Manga",
+  novel: "Novel",
+  light_novel: "Light Novel",
+  one_shot: "One-shot",
+  doujinshi: "Doujinshi",
+  manhwa: "Manhwa",
+  manhua: "Manhua",
+  oel: "OEL",
+};
+export const OFFICIAL_RATING: Record<string, string> = {
+  g: "G - All Ages",
+  pg: "PG - Children",
+  pg_13: "PG-13 - Teens 13 or older",
+  r: "R - 17+ (violence & profanity)",
+  "r+": "R+ - Mild Nudity",
+  rx: "Rx - Hentai",
+};
+
+function mapped(table: Record<string, string>, v: string | null | undefined): string | undefined {
+  if (!v) return undefined;
+  return table[v] ?? v;
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// One official date ("1998", "1998-04" or "1998-04-03") in MAL's own display style ("1998",
+// "Apr 1998", "Apr 3, 1998"). Anything unparseable passes through unchanged.
+function formatOfficialDate(d: string): string {
+  const m = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/.exec(d);
+  const month = m?.[2] ? MONTHS[Number(m[2]) - 1] : undefined;
+  if (!m || (m[2] && !month)) return d;
+  if (!month) return m[1]!;
+  return m[3] ? `${month} ${Number(m[3])}, ${m[1]}` : `${month} ${m[1]}`;
+}
+
+/** Tenrai's `aired.string`/`published.string` format, rebuilt from the official start/end dates:
+ *  "Apr 3, 1998 to Apr 24, 1999" for a finished run, "Mar 19, 2026 to ?" for one still running,
+ *  and a bare "Jul 20, 2001" for a single-date release (a movie, a one-episode ONA, a one-shot:
+ *  end equals start, or there's no end but `singleDate` says the entry can't have one). */
+export function formatOfficialRange(
+  start: string | null | undefined,
+  end: string | null | undefined,
+  singleDate: boolean,
+): string | undefined {
+  if (!start) return undefined;
+  const from = formatOfficialDate(start);
+  if (end) return end === start ? from : `${from} to ${formatOfficialDate(end)}`;
+  return singleDate ? from : `${from} to ?`;
+}
+
 interface OfficialPicture {
   medium?: string;
   large?: string;
@@ -144,6 +209,7 @@ export interface OfficialAnimeNode {
   alternative_titles?: { en?: string | null; ja?: string | null; synonyms?: string[] };
   main_picture?: OfficialPicture;
   start_date?: string | null;
+  end_date?: string | null;
   start_season?: { year?: number; season?: string };
   synopsis?: string | null;
   mean?: number | null;
@@ -181,7 +247,7 @@ export function summarizeOfficialAnime(
     mal_id: n.id,
     title: n.title,
     title_english: n.alternative_titles?.en ?? undefined,
-    type: n.media_type ?? undefined,
+    type: mapped(OFFICIAL_ANIME_MEDIA_TYPE, n.media_type),
     episodes: n.num_episodes || undefined,
     status: (n.status && OFFICIAL_ANIME_STATUS[n.status]) ?? n.status ?? undefined,
     airing: n.status === "currently_airing",
@@ -191,8 +257,8 @@ export function summarizeOfficialAnime(
     members: n.num_list_users ?? undefined,
     year: n.start_season?.year ?? undefined,
     season: n.start_season?.season ?? undefined,
-    rating: n.rating ?? undefined,
-    aired: n.start_date ?? undefined,
+    rating: mapped(OFFICIAL_RATING, n.rating),
+    aired: formatOfficialRange(n.start_date, n.end_date, n.num_episodes === 1),
     genres: names(n.genres),
     // The official API doesn't split themes/demographics out of genres like Tenrai does.
     themes: [],
@@ -264,6 +330,7 @@ export interface OfficialMangaNode {
   alternative_titles?: { en?: string | null; ja?: string | null; synonyms?: string[] };
   main_picture?: OfficialPicture;
   start_date?: string | null;
+  end_date?: string | null;
   synopsis?: string | null;
   mean?: number | null;
   rank?: number | null;
@@ -360,7 +427,7 @@ export function summarizeOfficialManga(
     mal_id: n.id,
     title: n.title,
     title_english: n.alternative_titles?.en ?? undefined,
-    type: n.media_type ?? undefined,
+    type: mapped(OFFICIAL_MANGA_MEDIA_TYPE, n.media_type),
     chapters: n.num_chapters || undefined,
     volumes: n.num_volumes || undefined,
     status: (n.status && OFFICIAL_MANGA_STATUS[n.status]) ?? n.status ?? undefined,
@@ -368,7 +435,11 @@ export function summarizeOfficialManga(
     rank: n.rank ?? undefined,
     popularity: n.popularity ?? undefined,
     members: n.num_list_users ?? undefined,
-    published: n.start_date ?? undefined,
+    published: formatOfficialRange(
+      n.start_date,
+      n.end_date,
+      n.status === "finished" || n.media_type === "one_shot",
+    ),
     genres: names(n.genres),
     themes: [],
     demographics: [],

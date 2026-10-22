@@ -28,11 +28,15 @@ export function registerPrompts(server: McpServer, tenrai: TenraiClient): void {
                 "suggestions. Omit to be asked which title you mean.",
             ),
           async (value) => {
+            // Under 3 characters a title search is too broad to be useful, and live typing would
+            // otherwise cost one Tenrai request per keystroke against a 4 req/s budget.
+            const q = value.trim();
+            if (q.length < 3) return [];
             // Best-effort: a completion list is a nice-to-have, so a transient
             // upstream failure degrades to no suggestions instead of an error
             // surfacing in the client's live-typing UI.
             try {
-              const r = await tenrai.searchAnime({ q: value, limit: COMPLETION_LIMIT });
+              const r = await tenrai.searchAnime({ q, limit: COMPLETION_LIMIT });
               const results = r.results as { title?: string }[] | undefined;
               return (results ?? [])
                 .map((a) => a.title)
@@ -95,7 +99,7 @@ export function registerPrompts(server: McpServer, tenrai: TenraiClient): void {
         which = `the ${season} ${thisYear} season`;
         instruction = `Call get_seasonal_anime with year=${thisYear} and season=${season} (no year was given, so this is ${season} of the current year)`;
       } else if (year) {
-        which = `the ${year} anime year`;
+        which = `the year ${year}`;
         instruction = `Call get_seasonal_anime once per season with year=${year} and season=winter, spring, summer and fall in turn (that tool needs a year and a season together, and only the year was given)`;
       } else {
         which = "the current season";

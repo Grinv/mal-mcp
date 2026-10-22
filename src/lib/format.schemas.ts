@@ -236,7 +236,12 @@ export const reviewEntrySchema = z.strictObject({
   reactions: z.record(z.string(), z.int().nonnegative()).optional(),
 });
 
-export const reviewsSchema = z.strictObject({ reviews: z.array(reviewEntrySchema) });
+// `page` describes Tenrai's own 20-review upstream page (it has no `limit` param), not the
+// client-side `limit` slice — has_next_page means another `page` exists upstream.
+export const reviewsSchema = z.strictObject({
+  reviews: z.array(reviewEntrySchema),
+  page: pageSchema,
+});
 
 // ---- summarizeEpisodes -----------------------------------------------------------
 

@@ -142,11 +142,11 @@
     },
     {
       "name": "get_random_anime",
-      "description": "A random anime pick, with full details."
+      "description": "A random anime pick, with core details."
     },
     {
       "name": "get_random_manga",
-      "description": "A random manga pick, with full details."
+      "description": "A random manga pick, with core details."
     },
     {
       "name": "get_upcoming_season",
@@ -186,11 +186,11 @@
     },
     {
       "name": "get_random_character",
-      "description": "A random character pick, with full details."
+      "description": "A random character pick, with core details."
     },
     {
       "name": "get_random_person",
-      "description": "A random person pick, with full details."
+      "description": "A random person pick, with core details."
     },
     {
       "name": "get_anime_news",

@@ -32,10 +32,10 @@ import type { Config } from "../config.js";
 // `nsfw` (white/gray/black — verified live) is always requested so #list can backstop `sfw` by
 // filtering client-side — see #list for what the server-side `nsfw` param does and doesn't cover.
 const ANIME_FIELDS =
-  "alternative_titles,start_date,start_season,synopsis,mean,rank,popularity,num_list_users," +
+  "alternative_titles,start_date,end_date,start_season,synopsis,mean,rank,popularity,num_list_users," +
   "media_type,status,genres,num_episodes,rating,studios,nsfw";
 const MANGA_FIELDS =
-  "alternative_titles,start_date,synopsis,mean,rank,popularity,num_list_users,media_type,status," +
+  "alternative_titles,start_date,end_date,synopsis,mean,rank,popularity,num_list_users,media_type,status," +
   "genres,num_chapters,num_volumes,authors{first_name,last_name},nsfw";
 
 // Superset of the above for get_anime/get_manga's fallback (a single-item detail lookup, not a

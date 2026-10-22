@@ -346,3 +346,44 @@ test("a 200 with no data on a by-id lookup reports the upstream, not a shaper cr
     },
   );
 });
+
+test("getAnime falls back when Tenrai answers 200 with no data (e.g. a maintenance envelope)", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ message: "maintenance" }));
+  installFetch(t, mock);
+  const fallback = fakeFallback();
+  const res = await tenrai(fallback).getAnime(1);
+  assert.equal(res["title"], "Fallback Anime Details");
+  assert.deepEqual(fallback.calls, [{ kind: "animeDetails", args: { id: 1 } }]);
+});
+
+test("an array endpoint (reviews) answering 200 with no data throws an ApiError, not a TypeError", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ message: "maintenance" }));
+  installFetch(t, mock);
+  await assert.rejects(
+    () => tenrai().getAnimeReviews(1, 5),
+    (err: unknown) => {
+      assert.ok(err instanceof ApiError);
+      assert.equal(err.code, "server_error");
+      assert.match(err.message, /no data for anime\/1\/reviews/);
+      return true;
+    },
+  );
+});
+
+test("a too-short search q skips the fallback without a client_id_would_help hint, even with a Client ID", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ message: "boom" }, { status: 500 }));
+  installFetch(t, mock);
+  const fallback = fakeFallback(true);
+  for (const search of [
+    () => tenrai(fallback).searchAnime({ q: "ab" }),
+    () => tenrai(fallback).searchManga({ q: "ab" }),
+  ]) {
+    await assert.rejects(search, (err: unknown) => {
+      assert.ok(err instanceof ApiError);
+      assert.equal(err.code, "server_error");
+      assert.equal(err.hint, undefined);
+      return true;
+    });
+  }
+  assert.equal(fallback.calls.length, 0);
+});

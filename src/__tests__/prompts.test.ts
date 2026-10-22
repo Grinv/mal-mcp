@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { connectServer, promptText } from "./helpers.js";
+import { connectServer, promptText, mockFetch, installFetch, jsonResponse } from "./helpers.js";
 
 test("recommend_similar prompt embeds the title and tool guidance", async (t) => {
   const { client, close } = await connectServer();
@@ -64,8 +64,26 @@ test("seasonal_overview never silently drops a partial season/year argument", as
   );
   assert.match(yearOnly, /2024/);
   assert.match(yearOnly, /year=2024/);
+  assert.match(yearOnly, /overview of the year 2024 in anime/);
+  assert.doesNotMatch(yearOnly, /anime year in anime/);
   // Only a year was given, so the prompt has to spell out that all four seasons are in scope.
   for (const s of ["winter", "spring", "summer", "fall"]) {
     assert.match(yearOnly, new RegExp(s));
   }
+});
+
+test("recommend_similar title completion skips the upstream search under 3 characters", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [{ mal_id: 20, title: "Naruto" }] }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer();
+  t.after(close);
+  const complete = (value: string) =>
+    client.complete({
+      ref: { type: "ref/prompt", name: "recommend_similar" },
+      argument: { name: "title", value },
+    });
+  assert.deepEqual((await complete("na ")).completion.values, []);
+  assert.equal(mock.calls.length, 0);
+  assert.deepEqual((await complete("nar")).completion.values, ["Naruto"]);
+  assert.equal(mock.calls.length, 1);
 });
