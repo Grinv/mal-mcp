@@ -4,15 +4,40 @@ import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { get as httpGet } from "node:http";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createServer } from "node:net";
+import { randomUUID } from "node:crypto";
+import { createServer, type AddressInfo } from "node:net";
 import { MalClient } from "../clients/mal.ts";
 import { ApiError } from "../lib/errors.ts";
 import { TokenStore, type TokenState } from "../lib/tokenStore.ts";
 import { loadConfig } from "../config.ts";
 import { silentLogger, jsonResponse, mockFetch, installFetch } from "./helpers.ts";
 
+// Unique per call: a fixed name let two runs at once read and wipe each other's token file.
 function tempStorePath(name: string): string {
-  return join(tmpdir(), `mal-mcp-test-${name}.json`);
+  return join(tmpdir(), `mal-mcp-test-${name}-${randomUUID()}.json`);
+}
+
+// Login tests bind real localhost ports. Fixed numbers made two runs at once (two worktrees, a
+// watch run next to CI-style run) steal each other's port and fail; the OS hands out free ones.
+
+/** Hold a random free port on `host` for the rest of the test, to make the callback port busy. */
+async function occupyPort(t: TestContext, host = "127.0.0.1"): Promise<number> {
+  const server = createServer();
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, host, resolve);
+  });
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  return (server.address() as AddressInfo).port;
+}
+
+/** A port that was free a moment ago, for a test whose own login listener must bind it. */
+async function freePort(): Promise<number> {
+  const server = createServer();
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  return port;
 }
 
 test("silent refresh: 401 triggers refresh, retries, and persists the rotated token", async (t) => {
@@ -279,7 +304,8 @@ test("a stored token takes precedence over the env access token", async (t) => {
 
 describe("login", { timeout: 10_000 }, () => {
   test("startLogin builds an authorize URL; submitRedirect exchanges the code (no secret) and configures the client", async (t) => {
-    const config = loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: "8199" });
+    const port = await freePort();
+    const config = loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: String(port) });
     const tokenBodies: string[] = [];
     const mock = mockFetch((url, init) => {
       if (url.includes("/oauth2/token")) {
@@ -295,12 +321,12 @@ describe("login", { timeout: 10_000 }, () => {
     const { authorizeUrl, redirectUri } = await client.startLogin({ open: () => {} });
     assert.match(authorizeUrl, /\/authorize\?/);
     assert.match(authorizeUrl, /code_challenge_method=plain/);
-    assert.equal(redirectUri, "http://localhost:8199/callback");
+    assert.equal(redirectUri, `http://localhost:${port}/callback`);
 
     // Round-trip the exact `state` startLogin issued (MAL echoes it on the redirect).
     const state = new URL(authorizeUrl).searchParams.get("state");
     assert.ok(state, "authorize URL carries a random state");
-    await client.submitRedirect(`http://localhost:8199/callback?code=THECODE&state=${state}`);
+    await client.submitRedirect(`http://localhost:${port}/callback?code=THECODE&state=${state}`);
     assert.equal(client.isConfigured(), true); // token obtained → tools unlock live
 
     const body = tokenBodies[0] ?? "";
@@ -315,10 +341,7 @@ describe("login", { timeout: 10_000 }, () => {
   });
 
   test("falls back to manual-paste mode when the local callback port is busy", async (t) => {
-    const port = 8299;
-    const occupied = createServer();
-    await new Promise<void>((resolve) => occupied.listen(port, "127.0.0.1", resolve));
-    t.after(() => new Promise<void>((resolve) => occupied.close(() => resolve())));
+    const port = await occupyPort(t);
 
     const config = loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: String(port) });
     const client = new MalClient(config, silentLogger());
@@ -330,10 +353,7 @@ describe("login", { timeout: 10_000 }, () => {
   test("submitRedirect rejects a redirect whose state doesn't match the issued one", async (t) => {
     // Occupy the callback port so startLogin can't bind a localhost listener
     // (listening: false) — keeps this test from leaking an open server handle.
-    const port = 8198;
-    const occupied = createServer();
-    await new Promise<void>((resolve) => occupied.listen(port, "127.0.0.1", resolve));
-    t.after(() => new Promise<void>((resolve) => occupied.close(() => resolve())));
+    const port = await occupyPort(t);
 
     const config = loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: String(port) });
     const client = new MalClient(config, silentLogger());
@@ -638,10 +658,7 @@ test("a token that can't be saved still works, and login says it won't survive a
   t.after(() => rmSync(blocker, { force: true }));
   const store = new TokenStore(join(blocker, "tokens.json"), silentLogger());
 
-  const port = 8197;
-  const occupied = createServer();
-  await new Promise<void>((resolve) => occupied.listen(port, "127.0.0.1", resolve));
-  t.after(() => new Promise<void>((resolve) => occupied.close(() => resolve())));
+  const port = await occupyPort(t);
 
   installFetch(
     t,
@@ -696,7 +713,7 @@ describe("login callback listener", { timeout: 10_000 }, () => {
   }
 
   test("a redirect with the wrong state is not shown as a successful login", async (t) => {
-    const port = 8196;
+    const port = await freePort();
     const { client } = await started(t, port);
     const page = await get(port, "/callback?code=X&state=forged");
     assert.doesNotMatch(page, /Logged in/);
@@ -704,7 +721,7 @@ describe("login callback listener", { timeout: 10_000 }, () => {
   });
 
   test("the same code arriving by listener and by paste is exchanged once, and both succeed", async (t) => {
-    const port = 8195;
+    const port = await freePort();
     const { client, state, exchanges } = await started(t, port);
     const page = await get(port, `/callback?code=ONE&state=${state}`);
     assert.match(page, /Logged in/);
@@ -714,21 +731,19 @@ describe("login callback listener", { timeout: 10_000 }, () => {
   });
 
   test("a denied authorization ends the pending login", async (t) => {
-    const port = 8194;
+    const port = await freePort();
     const { client, state } = await started(t, port);
     await get(port, `/callback?error=access_denied&state=${state}`);
     await assert.rejects(() => client.submitRedirect("BARECODE"), /no login in progress/i);
   });
 
   test("a port already taken on ::1 counts as busy, so the redirect isn't lost to that server", async (t) => {
-    const port = 8193;
-    const other = createServer();
-    const bound = await new Promise<boolean>((resolve) => {
-      other.once("error", () => resolve(false));
-      other.listen(port, "::1", () => resolve(true));
-    });
-    if (!bound) return t.skip("no IPv6 loopback on this machine");
-    t.after(() => new Promise<void>((resolve) => other.close(() => resolve())));
+    let port: number;
+    try {
+      port = await occupyPort(t, "::1");
+    } catch {
+      return t.skip("no IPv6 loopback on this machine");
+    }
     const config = loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: String(port) });
     const client = new MalClient(config, silentLogger());
     const { listening } = await client.startLogin({ open: () => {} });
@@ -794,10 +809,7 @@ test("a process locked out by a lost refresh race recovers once the winner saves
 });
 
 test("a code exchange that failed on a blip can be retried with the same paste", async (t) => {
-  const port = 8192;
-  const occupied = createServer();
-  await new Promise<void>((resolve) => occupied.listen(port, "127.0.0.1", resolve));
-  t.after(() => new Promise<void>((resolve) => occupied.close(() => resolve())));
+  const port = await occupyPort(t);
   let exchanges = 0;
   installFetch(
     t,
@@ -832,7 +844,7 @@ test("the callback page says when the token couldn't be saved", { timeout: 10_00
     t,
     mockFetch(() => jsonResponse({ access_token: "acc", refresh_token: "ref", expires_in: 3600 })),
   );
-  const port = 8191;
+  const port = await freePort();
   const config = loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: String(port) });
   const client = new MalClient(
     config,
