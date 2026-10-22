@@ -829,3 +829,18 @@ test("update_my_manga_status rejects a calendar-invalid finish_date", async (t) 
   assert.equal(bad.isError, true);
   assert.equal(mock.calls.length, 0);
 });
+
+test("get_my_anime_list/get_my_manga_list accept limit up to MAL's 1000-entry ceiling", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], paging: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({ MAL_ACCESS_TOKEN: "tok" });
+  t.after(close);
+
+  for (const name of ["get_my_anime_list", "get_my_manga_list"]) {
+    const atCap = await client.callTool({ name, arguments: { limit: 1000 } });
+    assert.notEqual(atCap.isError, true, `${name} should accept 1000`);
+    assert.match(mock.calls.at(-1)!.url, /limit=1000/);
+    const overCap = await client.callTool({ name, arguments: { limit: 1001 } });
+    assert.equal(overCap.isError, true, `${name} should reject 1001`);
+  }
+});

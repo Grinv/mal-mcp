@@ -144,7 +144,16 @@ export class MalClient {
   ): Promise<z.infer<typeof myListSchema>> {
     const data = await this.#auth.withAuth((token) =>
       this.#http.getJson<unknown>(`users/@me/${resource}list`, {
-        query: { fields, status: p.status, sort: p.sort, limit: p.limit, offset: p.offset },
+        // Without nsfw=true MAL silently hides the user's own gray-rated entries from their list
+        // (verified live 2026-10-22: 118 vs 121 entries on the same list).
+        query: {
+          fields,
+          status: p.status,
+          sort: p.sort,
+          limit: p.limit,
+          offset: p.offset,
+          nsfw: "true",
+        },
         headers: bearer(token),
       }),
     );

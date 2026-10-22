@@ -224,9 +224,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "`rating`/`score`/`min_score`/`max_score`/`letter`/`producers`/`start_date`/`end_date`/" +
         "`unapproved`/`order_by`/`sort` are silently dropped), " +
         `always returns empty ${gapList(ANIME_LIST_FALLBACK_GAPS)} (no official-API ` +
-        "equivalent for any of these), enforces " +
-        "an explicit `sfw: true` client-side (a filtered page can come back shorter than " +
-        "`limit`), and — for a query with no real title match — comes back with a page of " +
+        "equivalent for any of these), and — for a query with no real title match — comes back with a page of " +
         "unrelated anime instead of an empty result (a quirk of the official search endpoint " +
         "itself, not a mal-mcp bug; don't treat a nonsense-query result as a real match during " +
         "a fallback).",
@@ -291,9 +289,8 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "ignores every filter except `q`/`sfw`/`limit`/`page` (`type`/`status`/`genres`/`genres_exclude`/" +
         "`score`/`min_score`/`max_score`/`letter`/`magazines`/`start_date`/`end_date`/" +
         "`unapproved`/`order_by`/`sort` are silently dropped), " +
-        `always returns empty ${gapList(MANGA_LIST_FALLBACK_GAPS)} (no official-API equivalent), enforces ` +
-        "an explicit `sfw: true` client-side (a filtered page can come back shorter than " +
-        "`limit`), and — for a query with no real title match — comes back with a page of " +
+        `always returns empty ${gapList(MANGA_LIST_FALLBACK_GAPS)} (no official-API equivalent), and — for` +
+        " a query with no real title match — comes back with a page of " +
         "unrelated manga instead of an empty result (a quirk of the official search endpoint " +
         "itself, not a mal-mcp bug; don't treat a nonsense-query result as a real match during " +
         "a fallback).",
@@ -626,11 +623,11 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "for the current season; supplying only one is treated as omitting both. For next " +
         "season's lineup use get_upcoming_season instead. If Tenrai is " +
         "unavailable and MAL_CLIENT_ID is set, transparently retries via the official API — " +
-        "`filter`/`rating`/`unapproved`/`continuing`/`kids`/`order_by`/`sort` are silently " +
-        `dropped (no equivalent there), ${gapList(ANIME_LIST_FALLBACK_GAPS)} come back empty, ` +
-        "an explicit `sfw: true` is enforced " +
-        "client-side (a filtered page can come back shorter than `limit`), and `sfw_strict` " +
-        "degrades to the same filtering as `sfw` there (no Ecchi-genre distinction available).",
+        "`filter`/`rating`/`unapproved`/`continuing`/`kids` are silently dropped (no equivalent " +
+        "there), `order_by`/`sort` keep only the default members-descending order (anything " +
+        `else comes back unsorted), ${gapList(ANIME_LIST_FALLBACK_GAPS)} come back empty, ` +
+        "and `sfw_strict` degrades to the same filtering as `sfw` there (no Ecchi-genre " +
+        "distinction available).",
       inputSchema: z.strictObject({
         year: z.int().min(1900).max(2100).describe("Four-digit year, e.g. 2024.").optional(),
         season: z.enum(SEASON_NAMES).describe("Season name.").optional(),
@@ -856,12 +853,11 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       description:
         "List anime scheduled for the upcoming season. Use get_seasonal_anime for the current or a " +
         "specific past season. If Tenrai is unavailable and MAL_CLIENT_ID is set, transparently " +
-        "retries via the official API — `filter`/`rating`/`unapproved`/`continuing`/`kids`/" +
-        `\`order_by\`/\`sort\` are silently dropped (no equivalent there), ` +
-        `${gapList(ANIME_LIST_FALLBACK_GAPS)} come back empty, an explicit ` +
-        "`sfw: true` is enforced client-side (a filtered page can come back shorter than " +
-        "`limit`), and `sfw_strict` degrades to the same filtering as `sfw` there (no " +
-        "Ecchi-genre distinction available).",
+        "retries via the official API — `filter`/`rating`/`unapproved`/`continuing`/`kids` are " +
+        "silently dropped (no equivalent there), `order_by`/`sort` keep only the default " +
+        "members-descending order (anything else comes back unsorted), " +
+        `${gapList(ANIME_LIST_FALLBACK_GAPS)} come back empty, and \`sfw_strict\` degrades to ` +
+        "the same filtering as `sfw` there (no Ecchi-genre distinction available).",
       inputSchema: z.strictObject({
         filter: z
           .array(animeType)

@@ -10,9 +10,12 @@ import type { Logger } from "../lib/logger.js";
 
 // Structurally satisfied by OfficialReadsClient (see server.ts wiring) — kept as an interface
 // here so this module doesn't need to import that client module directly. `sfw` is the one
-// filter the official API can approximate (client-side, via its `nsfw` response field —
-// see officialReads.ts); genre/status/order_by/sort have no official-API equivalent at all and
-// are simply unavailable during a fallback (documented degraded-mode trade-off).
+// content filter the official API can approximate (its `nsfw` param plus a client-side check of
+// the `nsfw` response field — see officialReads.ts), and a season's members-descending order is
+// the one ordering it can reproduce; genre/status/the rest of order_by/sort have no
+// official-API equivalent and are simply unavailable during a fallback (documented
+// degraded-mode trade-off).
+import type { SeasonOrderBy, SortDir } from "./tenraiEnums.js";
 export interface ReadFallback {
   hasClientId(): boolean;
   searchAnimeOfficial(p: {
@@ -44,7 +47,13 @@ export interface ReadFallback {
   seasonOfficial(
     year: number,
     season: string,
-    p: { limit?: number; page?: number; sfw?: boolean },
+    p: {
+      limit?: number;
+      page?: number;
+      sfw?: boolean;
+      order_by?: SeasonOrderBy;
+      sort?: SortDir;
+    },
   ): Promise<Record<string, unknown>>;
   animeRecommendationsOfficial(id: number): Promise<Record<string, unknown>>;
   mangaRecommendationsOfficial(id: number): Promise<Record<string, unknown>>;

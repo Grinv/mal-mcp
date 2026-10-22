@@ -42,7 +42,7 @@ const rewatchValue = z
   .max(5)
   .describe("Rewatch/reread value: 0 = none … 5 = very high.");
 const tags = z.string().describe("Comma-separated free-text tags.");
-const listLimit = z.int().min(1).max(100).describe("Max results (1-100).");
+const listLimit = z.int().min(1).max(1000).describe("Max results (1-1000).");
 const offset = z.int().min(0).describe("Offset for pagination.");
 const malId = z
   .int()

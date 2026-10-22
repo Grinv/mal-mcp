@@ -534,6 +534,8 @@ export class TenraiClient {
           limit: p.limit,
           page: p.page,
           sfw: p.sfw || p.sfw_strict,
+          order_by: p.order_by,
+          sort: p.sort,
         });
       },
     );
@@ -551,6 +553,8 @@ export class TenraiClient {
           limit: p.limit,
           page: p.page,
           sfw: p.sfw || p.sfw_strict,
+          order_by: p.order_by,
+          sort: p.sort,
         });
       },
     );

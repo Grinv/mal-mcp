@@ -163,8 +163,8 @@ export interface OfficialAnimeNode {
   broadcast?: OfficialBroadcast;
   related_anime?: OfficialRelationEdge[];
   related_manga?: OfficialRelationEdge[];
-  // Not surfaced in the summarized output — used by officialReads.ts's #list to honor an
-  // explicit `sfw: true` client-side (the official API has no server-side nsfw filter).
+  // Not surfaced in the summarized output — used by officialReads.ts's #list to backstop an
+  // explicit `sfw: true` client-side (ranking ignores the server-side `nsfw` param).
   nsfw?: string | null;
 }
 
@@ -280,8 +280,8 @@ export interface OfficialMangaNode {
   related_anime?: OfficialRelationEdge[];
   related_manga?: OfficialRelationEdge[];
   serialization?: { node?: { name?: string } }[];
-  // Not surfaced in the summarized output — used by officialReads.ts's #list to honor an
-  // explicit `sfw: true` client-side (the official API has no server-side nsfw filter).
+  // Not surfaced in the summarized output — used by officialReads.ts's #list to backstop an
+  // explicit `sfw: true` client-side (ranking ignores the server-side `nsfw` param).
   nsfw?: string | null;
 }
 

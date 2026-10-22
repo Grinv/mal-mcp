@@ -215,6 +215,16 @@ test("getMyAnimeList requests and round-trips the list_status annotation fields"
   assert.equal(res.has_next_page, true);
 });
 
+test("getMyAnimeList/getMyMangaList send nsfw=true — MAL otherwise hides the user's own gray entries", async (t) => {
+  const config = loadConfig({ MAL_ACCESS_TOKEN: "tok" });
+  const mock = mockFetch(() => jsonResponse({ data: [], paging: {} }));
+  installFetch(t, mock);
+  const client = new MalClient(config, silentLogger());
+  await client.getMyAnimeList({});
+  await client.getMyMangaList({});
+  for (const call of mock.calls) assert.match(call.url, /[?&]nsfw=true(&|$)/);
+});
+
 test("getMyMangaList requests the manga-specific annotation fields", async (t) => {
   const config = loadConfig({ MAL_ACCESS_TOKEN: "tok" });
   const mock = mockFetch(() => jsonResponse({ data: [], paging: {} }));

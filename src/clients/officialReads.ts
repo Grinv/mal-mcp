@@ -24,12 +24,13 @@ import {
   type OfficialAnimeStatistics,
 } from "../lib/formatOfficial.js";
 import type { Logger } from "../lib/logger.js";
+import type { SeasonOrderBy, SortDir } from "./tenraiEnums.js";
 import type { Config } from "../config.js";
 
 // The official API returns only `id,title,main_picture` unless every other field is requested
 // explicitly. `authors{first_name,last_name}` is the API's nested-field syntax for sub-objects.
-// `nsfw` (white/gray/black — verified live) is always requested so #list can honor `sfw` by
-// filtering client-side; the official API has no server-side nsfw-exclusion query param.
+// `nsfw` (white/gray/black — verified live) is always requested so #list can backstop `sfw` by
+// filtering client-side — see #list for what the server-side `nsfw` param does and doesn't cover.
 const ANIME_FIELDS =
   "alternative_titles,start_date,start_season,synopsis,mean,rank,popularity,num_list_users," +
   "media_type,status,genres,num_episodes,rating,studios,nsfw";
@@ -131,6 +132,18 @@ export interface OfficialSeasonParams {
   limit?: number;
   page?: number;
   sfw?: boolean;
+  order_by?: SeasonOrderBy;
+  sort?: SortDir;
+}
+
+// The season endpoint's `sort` only orders descending, and only `anime_num_list_users` actually
+// takes effect — `anime_score` returns the same order as no sort at all (verified live
+// 2026-10-22). So only Tenrai's members-descending order (also Tenrai's own season default) has
+// an official equivalent; score/start_date/ascending fall back to MAL's unsorted order.
+function pickSeasonSort(p: OfficialSeasonParams): "anime_num_list_users" | undefined {
+  return (p.order_by ?? "members") === "members" && p.sort !== "asc"
+    ? "anime_num_list_users"
+    : undefined;
 }
 
 // No documented rate limit for MAL's official API (unlike Tenrai's published 4/s+120/min — see
@@ -209,7 +222,7 @@ export class OfficialReadsClient {
     return this.#list<OfficialAnimeNode>(
       `anime/season/${year}/${season}`,
       ANIME_FIELDS,
-      {},
+      { sort: pickSeasonSort(p) },
       p,
       summarizeOfficialAnime,
     );
@@ -293,12 +306,15 @@ export class OfficialReadsClient {
       data: { node: T }[];
       paging?: { next?: string };
     }>(path, {
-      query: { ...extraQuery, limit, offset, fields },
+      // Search and season hide every non-"white" (gray) entry unless `nsfw=true` is sent —
+      // verified live: 57 vs 90 results for "kanojo", 298 vs 345 for 2024 spring. Without it the
+      // fallback would be quietly narrower than Tenrai, which includes NSFW unless `sfw` is set.
+      query: { ...extraQuery, limit, offset, fields, nsfw: p.sfw ? undefined : "true" },
     });
-    // Client-side nsfw exclusion (see isSfw): the official API has no server-side equivalent of
-    // Tenrai's `sfw` param, so this is the fallback's one way to honor an explicit `sfw: true`.
-    // Filtering after the page is fetched means a filtered page can come back shorter than
-    // `limit` even when more results exist upstream — an accepted degraded-mode trade-off.
+    // Client-side nsfw exclusion (see isSfw) still backstops an explicit `sfw: true`: ranking
+    // ignores the `nsfw` param and always includes gray entries (verified live). Filtering after
+    // the page is fetched means a filtered page can come back shorter than `limit` even when more
+    // results exist upstream — an accepted degraded-mode trade-off.
     if (!Array.isArray(res.data)) {
       // Same reasoning as tenrai.ts's #list guard: a 200 with no `data` array must surface as an
       // upstream failure, not as "res.data.filter is not a function" reaching the agent.

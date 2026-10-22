@@ -204,6 +204,43 @@ test("seasonOfficial honors sfw the same way as search", async (t) => {
   );
 });
 
+test("search/season send nsfw=true unless sfw is set — otherwise MAL hides every gray entry", async (t) => {
+  const config = loadConfig({ MAL_CLIENT_ID: "cid" });
+  const mock = mockFetch(() => jsonResponse({ data: [] }));
+  installFetch(t, mock);
+  const client = new OfficialReadsClient(config, silentLogger());
+  await client.searchAnimeOfficial({ q: "x" });
+  assert.match(mock.calls.at(-1)!.url, /[?&]nsfw=true(&|$)/);
+  await client.seasonOfficial(2024, "fall", {});
+  assert.match(mock.calls.at(-1)!.url, /[?&]nsfw=true(&|$)/);
+  await client.searchMangaOfficial({ q: "x", sfw: true });
+  assert.doesNotMatch(mock.calls.at(-1)!.url, /[?&]nsfw=/);
+});
+
+test("seasonOfficial maps the default/members-descending order onto sort=anime_num_list_users", async (t) => {
+  const config = loadConfig({ MAL_CLIENT_ID: "cid" });
+  const mock = mockFetch(() => jsonResponse({ data: [] }));
+  installFetch(t, mock);
+  const client = new OfficialReadsClient(config, silentLogger());
+  for (const p of [
+    {},
+    { order_by: "members" as const },
+    { order_by: "members" as const, sort: "desc" as const },
+  ]) {
+    await client.seasonOfficial(2024, "fall", p);
+    assert.match(mock.calls.at(-1)!.url, /[?&]sort=anime_num_list_users(&|$)/, JSON.stringify(p));
+  }
+  // No official equivalent: score (anime_score is a no-op upstream), start_date, ascending.
+  for (const p of [
+    { order_by: "score" as const },
+    { order_by: "start_date" as const },
+    { order_by: "members" as const, sort: "asc" as const },
+  ]) {
+    await client.seasonOfficial(2024, "fall", p);
+    assert.doesNotMatch(mock.calls.at(-1)!.url, /[?&]sort=/, JSON.stringify(p));
+  }
+});
+
 test("animeRecommendationsOfficial requests the recommendations field and maps its shape", async (t) => {
   const config = loadConfig({ MAL_CLIENT_ID: "cid" });
   const mock = mockFetch(() =>

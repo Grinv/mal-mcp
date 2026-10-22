@@ -275,17 +275,26 @@ bypopularity, favorite`. Both `client_auth (-)` — no OAuth scope needed,
     `start_season{year,season}` is the only way to get an anime's season/year
     from a search response (there's no separate `season`/`year` top-level field
     like Tenrai has). Pagination is `limit`/`offset` (not Tenrai's `page`).
-  - **No server-side content filter at all** — no query param excludes NSFW
-    results, and no genre/status/order_by/sort filter exists either (verified
-    against the v2 reference — search/ranking/season take only `q`/
-    `ranking_type`/`fields`/`limit`/`offset`, nothing else). For `sfw`
-    specifically, each anime/manga node carries an `nsfw` field
-    (`white`/`gray`/`black`, verified live) that `officialReads.ts` requests
-    and filters on client-side (fail-closed: keep only `"white"`) when
-    `sfw: true` was requested — the one Tenrai filter the fallback can
-    approximate. `genres`/`status`/`order_by`/`sort` have no equivalent at
-    all, client-side or otherwise, and are simply unavailable during a
-    fallback.
+  - **Filters, ordering and limits (verified live 2026-10-22)**:
+    - **`nsfw` param**: search, season _and the user's own list_ return only
+      `"white"` entries unless `nsfw=true` is sent ("kanojo" search 57 → 90,
+      2024 spring 298 → 345, a real `@me` anime list 118 → 121 — MAL hid three
+      gray titles from the owner's own list). `"black"` never showed up even
+      with `nsfw=true`. Ranking ignores the param and always includes gray.
+      So `officialReads.ts` sends `nsfw=true` unless `sfw` is set and keeps its
+      client-side `"white"` check only as a backstop (it still matters for
+      ranking); `mal.ts` always sends `nsfw=true` for `@me` lists.
+    - **Season `sort`**: only `anime_num_list_users` takes effect (descending);
+      `anime_score` returns the same order as no sort, and an unknown value is
+      silently ignored. The fallback maps Tenrai's default members-descending
+      order onto it; score/start_date/ascending stay unsorted.
+    - **List sort**: `anime_id`/`manga_id` (listed as "Under Development" in the
+      reference) is rejected with 400 "invalid sort order", so it's not exposed.
+    - **`limit` ceilings**: season and ranking 500 (`501` → 400), `@me` lists
+      1000 (`1001` → 400 — `get_my_*_list` allows up to 1000); search accepted
+      `limit=200` without complaint. mal-mcp's read tools stop at Tenrai's 100.
+    - No genre/status/rating/type filter exists on search/ranking/season, so
+      those Tenrai filters stay unavailable during a fallback.
   - **No-match search doesn't return empty** (verified live 2026-07-27, both
     through the fallback and directly against `GET /v2/anime?q=...`): a query
     with no real title match (e.g. a random unmatchable string) comes back
