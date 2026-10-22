@@ -103,6 +103,16 @@ test("searchAnime without q skips the fallback — the official search requires 
   assert.deepEqual(fallback.calls, []);
 });
 
+test("searchManga with a 1-2 character q skips the fallback — the official search 400s on it", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ message: "boom" }, { status: 500 }));
+  installFetch(t, mock);
+  const fallback = fakeFallback();
+  await assert.rejects(tenrai(fallback).searchManga({ q: "ab" }), ApiError);
+  assert.deepEqual(fallback.calls, []);
+  await tenrai(fallback).searchManga({ q: "abc" });
+  assert.equal(fallback.calls.length, 1);
+});
+
 test("searchManga falls back to the official MAL API on a retryable upstream failure", async (t) => {
   const mock = mockFetch(() => jsonResponse({ message: "boom" }, { status: 500 }));
   installFetch(t, mock);

@@ -89,6 +89,8 @@ const sortDir = z
 // Tenrai v1.0.24: every `limit`-taking list endpoint shares one 100-per-page ceiling (verified
 // live — `limit=101` is a 400 "must be <= 100").
 const limit = z.int().min(1).max(100).describe("Max results per page (1-100).");
+// Tenrai caps every `q` at 300 characters (verified live: 301 is a 400), so each query field
+// below carries .max(300) to fail fast with a clear message instead.
 // Tenrai v1.0.24: one 20000-page ceiling on every page-taking route, top lists included
 // (verified live — `page=20001` is a 400 "Page must be 20000 or lower").
 const page = z.int().min(1).max(20000).describe("1-based page number for pagination (1-20000).");
@@ -218,8 +220,9 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       description:
         "Search MyAnimeList anime by keyword; returns compact summaries (with the mal_id that " +
         "other anime tools require) plus pagination info. If Tenrai is unavailable and " +
-        "MAL_CLIENT_ID is set and `q` is given (a filter-only browse has no fallback — the " +
-        "official search requires a query), transparently retries via the official API, which " +
+        "MAL_CLIENT_ID is set and `q` has at least 3 characters (the official search rejects " +
+        "anything shorter, so a filter-only or 1-2 character search has no fallback), " +
+        "transparently retries via the official API, which " +
         "ignores every filter except `q`/`sfw`/`limit`/`page` (`type`/`status`/`genres`/`genres_exclude`/" +
         "`rating`/`score`/`min_score`/`max_score`/`letter`/`producers`/`start_date`/`end_date`/" +
         "`unapproved`/`order_by`/`sort` are silently dropped), " +
@@ -234,6 +237,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
             .string()
             .trim()
             .min(1)
+            .max(300)
             .describe(
               "Search query, e.g. an anime title. Omit to browse by the other filters alone " +
                 "(e.g. genres + order_by). Cannot be combined with `letter`.",
@@ -284,8 +288,9 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       description:
         "Search MyAnimeList manga by keyword (also light novels, manhwa/manhua); returns compact " +
         "summaries with the mal_id that other manga tools require. If Tenrai is unavailable and " +
-        "MAL_CLIENT_ID is set and `q` is given (a filter-only browse has no fallback — the " +
-        "official search requires a query), transparently retries via the official API, which " +
+        "MAL_CLIENT_ID is set and `q` has at least 3 characters (the official search rejects " +
+        "anything shorter, so a filter-only or 1-2 character search has no fallback), " +
+        "transparently retries via the official API, which " +
         "ignores every filter except `q`/`sfw`/`limit`/`page` (`type`/`status`/`genres`/`genres_exclude`/" +
         "`score`/`min_score`/`max_score`/`letter`/`magazines`/`start_date`/`end_date`/" +
         "`unapproved`/`order_by`/`sort` are silently dropped), " +
@@ -300,6 +305,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
             .string()
             .trim()
             .min(1)
+            .max(300)
             .describe(
               "Search query, e.g. a manga title. Omit to browse by the other filters alone " +
                 "(e.g. genres + order_by). Cannot be combined with `letter`.",
@@ -732,7 +738,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "by get_character. Use get_anime_characters instead if you already have an anime's " +
         "mal_id and want its full cast.",
       inputSchema: z.strictObject({
-        q: z.string().trim().min(1).describe("Character name."),
+        q: z.string().trim().min(1).max(300).describe("Character name."),
         order_by: z.enum(CHARACTER_ORDER_BY).describe("Field to order by.").optional(),
         sort: sortDir.optional(),
         letter: letterFilter.optional(),
@@ -766,7 +772,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "Search MyAnimeList people (voice actors, directors, authors) by name. Returns the mal_id " +
         "needed by get_person.",
       inputSchema: z.strictObject({
-        q: z.string().trim().min(1).describe("Person name."),
+        q: z.string().trim().min(1).max(300).describe("Person name."),
         order_by: z.enum(PERSON_ORDER_BY).describe("Field to order by.").optional(),
         sort: sortDir.optional(),
         letter: letterFilter.optional(),
@@ -922,7 +928,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "search by name, then get_producer for one studio's full profile (about text, external " +
         "links).",
       inputSchema: z.strictObject({
-        q: z.string().describe("Filter by name.").optional(),
+        q: z.string().max(300).describe("Filter by name.").optional(),
         order_by: z.enum(PRODUCER_ORDER_BY).describe("Field to order by.").optional(),
         sort: sortDir.optional(),
         letter: letterFilter.optional(),
@@ -953,7 +959,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
         "with their MAL IDs and manga counts. Use `q` to search by name, or look up an ID here " +
         "for search_manga's `magazines` filter.",
       inputSchema: z.strictObject({
-        q: z.string().describe("Filter by name.").optional(),
+        q: z.string().max(300).describe("Filter by name.").optional(),
         order_by: z.enum(MAGAZINE_ORDER_BY).describe("Field to order by.").optional(),
         sort: sortDir.optional(),
         letter: letterFilter.optional(),
@@ -1082,6 +1088,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
           .string()
           .trim()
           .min(1)
+          .max(300)
           .describe("Free-text search over stack titles and descriptions. Omit to browse all.")
           .optional(),
         stack_type: z
@@ -1180,6 +1187,7 @@ export function registerReadTools(server: McpServer, tenrai: TenraiClient): void
       inputSchema: z.strictObject({
         q: z
           .string()
+          .max(300)
           .describe(
             "Search query, e.g. a keyword or title. Verified live to search beyond just the " +
               "headline (a real, unfamiliar-sounding title can still match) — don't assume a " +

@@ -128,6 +128,13 @@ const TENRAI_RATE_RULES: RateRule[] = [
   { limit: 120, windowMs: 60_000 },
 ];
 
+/** The official search endpoint rejects a missing or sub-3-character `q` with a 400 "invalid q"
+ *  (verified live), so such a search has nothing to fall back to — the Tenrai failure surfaces
+ *  as-is instead of being replaced by a less useful official-API error. */
+function officialSearchable(q: string | undefined): boolean {
+  return q !== undefined && q.length >= 3;
+}
+
 export class TenraiClient {
   readonly #http: HttpClient;
   readonly #cache: TtlCache<Record<string, unknown>>;
@@ -228,9 +235,7 @@ export class TenraiClient {
   async searchAnime(p: AnimeSearchParams): Promise<Record<string, unknown>> {
     return withFallback(
       this.#logger,
-      // The official search endpoint requires a query — a filter-only browse has nothing to
-      // fall back to, so the Tenrai failure surfaces as-is.
-      p.q ? this.#fallback : undefined,
+      officialSearchable(p.q) ? this.#fallback : undefined,
       "anime search",
       () =>
         this.#list<RawAnime>(
@@ -254,7 +259,7 @@ export class TenraiClient {
   async searchManga(p: MangaSearchParams): Promise<Record<string, unknown>> {
     return withFallback(
       this.#logger,
-      p.q ? this.#fallback : undefined,
+      officialSearchable(p.q) ? this.#fallback : undefined,
       "manga search",
       () =>
         this.#list<RawManga>(

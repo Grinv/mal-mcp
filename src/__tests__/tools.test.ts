@@ -844,3 +844,28 @@ test("get_my_anime_list/get_my_manga_list accept limit up to MAL's 1000-entry ce
     assert.equal(overCap.isError, true, `${name} should reject 1001`);
   }
 });
+
+test("every q field rejects more than 300 characters — Tenrai's own query cap", async (t) => {
+  const mock = mockFetch(() => jsonResponse({ data: [], pagination: {} }));
+  installFetch(t, mock);
+  const { client, close } = await connectServer({});
+  t.after(close);
+
+  const long = "a".repeat(301);
+  for (const name of [
+    "search_anime",
+    "search_manga",
+    "search_characters",
+    "search_people",
+    "get_producers",
+    "get_magazines",
+    "get_interest_stacks",
+    "get_news",
+  ]) {
+    const res = await client.callTool({ name, arguments: { q: long } });
+    assert.equal(res.isError, true, `${name} should reject a 301-char q`);
+  }
+  assert.equal(mock.calls.length, 0);
+  const atCap = await client.callTool({ name: "search_anime", arguments: { q: "a".repeat(300) } });
+  assert.notEqual(atCap.isError, true);
+});

@@ -142,6 +142,8 @@ json.load(open('notes/tenrai-openapi-spec.json'))..."`) instead of re-fetching
     - `letter` **cannot be combined with `q`** on `/anime`/`/manga` (400 "The letter query
       parameter cannot be combined with q"); on `/characters`/`/people` the two combine fine.
       `search_anime`/`search_manga` therefore make `q` optional and reject `q`+`letter`.
+    - `q` is capped at 300 characters on every route (301 → 400); every `q`
+      field in `read.ts` carries `.max(300)`.
     - `sort` only applies together with `order_by` — on its own it's ignored (identical order
       for `sort=asc`/`desc`).
     - `unapproved` is tri-state `true`/`false`/`only` on `/anime`, `/manga`, `/seasons/*`,
@@ -293,6 +295,11 @@ bypopularity, favorite`. Both `client_auth (-)` — no OAuth scope needed,
     - **`limit` ceilings**: season and ranking 500 (`501` → 400), `@me` lists
       1000 (`1001` → 400 — `get_my_*_list` allows up to 1000); search accepted
       `limit=200` without complaint. mal-mcp's read tools stop at Tenrai's 100.
+    - **Search input limits**: `q` must be at least 3 characters (`q=ab` → 400
+      "invalid q"), and `offset + limit` must not exceed 100000 (400 past it —
+      i.e. beyond page 1000 at `limit=100` during a fallback). Ranking and
+      season just return an empty page past their end. `search_*` skip the
+      fallback for a missing or 1-2 character `q`.
     - No genre/status/rating/type filter exists on search/ranking/season, so
       those Tenrai filters stay unavailable during a fallback.
     - **Recommendations** (the `recommendations` detail field) come back capped
