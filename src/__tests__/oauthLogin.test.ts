@@ -7,7 +7,7 @@ import {
   extractCode,
   extractState,
   escapeForCmd,
-} from "../lib/oauthLogin.js";
+} from "../lib/oauthLogin.ts";
 
 test("generateVerifier returns a 43-128 char unreserved string (PKCE)", () => {
   const v = generateVerifier();

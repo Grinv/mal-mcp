@@ -3,11 +3,11 @@
 // readFallback.test.ts.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { TenraiClient } from "../clients/tenrai.js";
-import { currentSeason, nextSeason, type ReadFallback } from "../clients/readFallback.js";
-import { loadConfig } from "../config.js";
-import { silentLogger, jsonResponse, mockFetch, installFetch } from "./helpers.js";
-import { ApiError } from "../lib/errors.js";
+import { TenraiClient } from "../clients/tenrai.ts";
+import { currentSeason, nextSeason, type ReadFallback } from "../clients/readFallback.ts";
+import { loadConfig } from "../config.ts";
+import { silentLogger, jsonResponse, mockFetch, installFetch } from "./helpers.ts";
+import { ApiError } from "../lib/errors.ts";
 
 function tenrai(fallback?: ReadFallback) {
   // No rate-limit delay, no HTTP retries, small cache TTL — keeps fallback tests fast/deterministic.

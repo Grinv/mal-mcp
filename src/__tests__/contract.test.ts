@@ -4,9 +4,9 @@
 //   RUN_LIVE=1 npm test
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { TenraiClient } from "../clients/tenrai.js";
-import { loadConfig } from "../config.js";
-import { silentLogger } from "./helpers.js";
+import { TenraiClient } from "../clients/tenrai.ts";
+import { loadConfig } from "../config.ts";
+import { silentLogger } from "./helpers.ts";
 
 const skip = process.env.RUN_LIVE ? false : "set RUN_LIVE=1 to run live contract tests";
 const client = new TenraiClient(loadConfig({ TENRAI_MIN_INTERVAL_MS: "700" }), silentLogger());

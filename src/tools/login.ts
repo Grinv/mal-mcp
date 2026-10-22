@@ -6,10 +6,10 @@
 // callback can't be reached.
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
-import type { MalClient } from "../clients/mal.js";
-import { jsonResult } from "../lib/result.js";
-import { guard } from "./guard.js";
-import { defineTool, registerTools } from "./spec.js";
+import type { MalClient } from "../clients/mal.ts";
+import { jsonResult } from "../lib/result.ts";
+import { guard } from "./guard.ts";
+import { defineTool, registerTools } from "./spec.ts";
 
 const startLoginResultSchema = z.strictObject({
   authorize_url: z.string(),

@@ -49,7 +49,7 @@ import {
   stackEntrySchema,
   stackDetailSchema,
   stacksSchema,
-} from "./format.schemas.js";
+} from "./format.schemas.ts";
 
 interface NamedRef {
   mal_id?: number;

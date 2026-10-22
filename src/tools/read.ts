@@ -5,7 +5,7 @@
 // when to use a tool and the meaning/units of every parameter.
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
-import type { TenraiClient } from "../clients/tenrai.js";
+import type { TenraiClient } from "../clients/tenrai.ts";
 import {
   ANIME_MEDIA_TYPES,
   MANGA_MEDIA_TYPES,
@@ -30,10 +30,10 @@ import {
   GENRE_FILTERS,
   STACK_ORDER_BY,
   STACK_TYPES,
-} from "../clients/tenraiEnums.js";
-import { jsonResult, type ToolResult } from "../lib/result.js";
-import { guard } from "./guard.js";
-import { defineTool, registerTools } from "./spec.js";
+} from "../clients/tenraiEnums.ts";
+import { jsonResult, type ToolResult } from "../lib/result.ts";
+import { guard } from "./guard.ts";
+import { defineTool, registerTools } from "./spec.ts";
 import {
   animeDetailSchema,
   animeSummarySchema,
@@ -58,14 +58,14 @@ import {
   statisticsSchema,
   stacksSchema,
   stackDetailSchema,
-} from "../lib/format.schemas.js";
+} from "../lib/format.schemas.ts";
 import {
   ANIME_LIST_FALLBACK_GAPS,
   ANIME_DETAIL_FALLBACK_GAPS_FULL,
   ANIME_STATISTICS_FALLBACK_GAPS,
   MANGA_LIST_FALLBACK_GAPS,
   MANGA_DETAIL_FALLBACK_GAPS_FULL,
-} from "../lib/formatOfficial.js";
+} from "../lib/formatOfficial.ts";
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: true } as const;
 

@@ -1,12 +1,12 @@
 // Read-only client for the Tenrai API (a free, unofficial MyAnimeList mirror — no credentials
 // needed). Wraps HttpClient with a polite rate limiter and a TTL cache. It only fetches and
 // caches; all raw→agent-facing shaping lives in ../lib/format.js.
-import { ApiError } from "../lib/errors.js";
-import { HttpClient } from "../lib/http.js";
-import type { RateRule } from "../lib/rateLimit.js";
-import { TtlCache } from "../lib/cache.js";
-import { withThrottle } from "./httpClients.js";
-import { withFallback, currentSeason, nextSeason, type ReadFallback } from "./readFallback.js";
+import { ApiError } from "../lib/errors.ts";
+import { HttpClient } from "../lib/http.ts";
+import type { RateRule } from "../lib/rateLimit.ts";
+import { TtlCache } from "../lib/cache.ts";
+import { withThrottle } from "./httpClients.ts";
+import { withFallback, currentSeason, nextSeason, type ReadFallback } from "./readFallback.ts";
 import {
   pageInfo,
   summarizeAnime,
@@ -47,10 +47,10 @@ import {
   type RawSeasonEntry,
   type RawNewsItem,
   type RawStack,
-} from "../lib/format.js";
-import type { Logger } from "../lib/logger.js";
-import type { Config } from "../config.js";
-import type { GenreFilter } from "./tenraiEnums.js";
+} from "../lib/format.ts";
+import type { Logger } from "../lib/logger.ts";
+import type { Config } from "../config.ts";
+import type { GenreFilter } from "./tenraiEnums.ts";
 import type {
   CharacterSearchParams,
   PersonSearchParams,
@@ -65,7 +65,7 @@ import type {
   ReviewParams,
   StackParams,
   StackSearchParams,
-} from "./tenraiParams.js";
+} from "./tenraiParams.ts";
 
 type Query = Record<string, string | number | boolean | undefined>;
 

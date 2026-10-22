@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { connectServer, promptText, mockFetch, installFetch, jsonResponse } from "./helpers.js";
+import { connectServer, promptText, mockFetch, installFetch, jsonResponse } from "./helpers.ts";
 
 test("recommend_similar prompt embeds the title and tool guidance", async (t) => {
   const { client, close } = await connectServer();

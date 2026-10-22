@@ -5,8 +5,8 @@
 // itself a beta service (per its own docs) that can have its own outages independent of MAL's —
 // this fallback tier is defense-in-depth against that, not against any one upstream's specific
 // failure mode.
-import { ApiError, type ApiErrorCode } from "../lib/errors.js";
-import type { Logger } from "../lib/logger.js";
+import { ApiError, type ApiErrorCode } from "../lib/errors.ts";
+import type { Logger } from "../lib/logger.ts";
 
 // Structurally satisfied by OfficialReadsClient (see server.ts wiring) — kept as an interface
 // here so this module doesn't need to import that client module directly. `sfw` is the one
@@ -15,7 +15,7 @@ import type { Logger } from "../lib/logger.js";
 // the one ordering it can reproduce; genre/status/the rest of order_by/sort have no
 // official-API equivalent and are simply unavailable during a fallback (documented
 // degraded-mode trade-off).
-import type { SeasonOrderBy, SortDir } from "./tenraiEnums.js";
+import type { SeasonOrderBy, SortDir } from "./tenraiEnums.ts";
 export interface ReadFallback {
   hasClientId(): boolean;
   searchAnimeOfficial(p: {

@@ -3,17 +3,17 @@ import { McpServer } from "@modelcontextprotocol/server";
 
 // Server construction and stdio startup. Kept separate from the bin entry
 // (index.ts) so tests can import buildServer without triggering startup.
-import { loadConfig, type Config } from "./config.js";
-import { createLogger, type Logger } from "./lib/logger.js";
-import { TokenStore, defaultTokenStorePath } from "./lib/tokenStore.js";
-import { TenraiClient } from "./clients/tenrai.js";
-import { MalClient } from "./clients/mal.js";
-import { OfficialReadsClient } from "./clients/officialReads.js";
-import { registerReadTools } from "./tools/read.js";
-import { registerMyListTools } from "./tools/mylist.js";
-import { registerLoginTools } from "./tools/login.js";
-import { registerPrompts } from "./prompts.js";
-import { VERSION } from "./version.js";
+import { loadConfig, type Config } from "./config.ts";
+import { createLogger, type Logger } from "./lib/logger.ts";
+import { TokenStore, defaultTokenStorePath } from "./lib/tokenStore.ts";
+import { TenraiClient } from "./clients/tenrai.ts";
+import { MalClient } from "./clients/mal.ts";
+import { OfficialReadsClient } from "./clients/officialReads.ts";
+import { registerReadTools } from "./tools/read.ts";
+import { registerMyListTools } from "./tools/mylist.ts";
+import { registerLoginTools } from "./tools/login.ts";
+import { registerPrompts } from "./prompts.ts";
+import { VERSION } from "./version.ts";
 
 // Our tool/prompt catalog is fixed for the lifetime of a running process (no
 // dynamic registration) and isn't user-specific, so a 2026-07-28 client is

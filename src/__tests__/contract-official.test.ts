@@ -4,10 +4,10 @@
 //   RUN_LIVE=1 npm test   (reads .env via --env-file, see scripts/run-tests.mjs)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { OfficialReadsClient } from "../clients/officialReads.js";
-import { currentSeason } from "../clients/readFallback.js";
-import { loadConfig } from "../config.js";
-import { silentLogger } from "./helpers.js";
+import { OfficialReadsClient } from "../clients/officialReads.ts";
+import { currentSeason } from "../clients/readFallback.ts";
+import { loadConfig } from "../config.ts";
+import { silentLogger } from "./helpers.ts";
 
 const skip =
   process.env.RUN_LIVE && process.env.MAL_CLIENT_ID

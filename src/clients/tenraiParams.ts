@@ -25,7 +25,7 @@ import type {
   MagazineOrderBy,
   StackOrderBy,
   StackType,
-} from "./tenraiEnums.js";
+} from "./tenraiEnums.ts";
 
 // Shared by every "search by name" style endpoint — pagination, sort direction, and the
 // alphabetical `letter` browse are identical everywhere. `order_by` is deliberately NOT here:

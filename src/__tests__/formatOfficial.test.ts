@@ -18,13 +18,13 @@ import {
   type OfficialAnimeNode,
   type OfficialMangaNode,
   type OfficialAnimeStatistics,
-} from "../lib/formatOfficial.js";
+} from "../lib/formatOfficial.ts";
 import {
   animeSummarySchema,
   animeDetailSchema,
   mangaSummarySchema,
   mangaDetailSchema,
-} from "../lib/format.schemas.js";
+} from "../lib/format.schemas.ts";
 
 test("summarizeOfficialAnime passes an unmapped status string through unchanged", () => {
   const s = summarizeOfficialAnime({ id: 1, status: "some_new_status" } as OfficialAnimeNode);

@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "target": "ES2023",
+    "target": "ES2024",
     "module": "Node16",
     "moduleResolution": "Node16",
-    "lib": ["ES2023"],
+    "lib": ["ES2024"],
     "types": ["node"],
     "rootDir": "src",
     "strict": true,
@@ -11,6 +11,10 @@
     "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true,
     "verbatimModuleSyntax": true,
+    // Tests run as .ts straight through Node's type stripping: imports name the real .ts file,
+    // and only syntax Node can erase (no enums, namespaces, parameter properties) is allowed.
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,

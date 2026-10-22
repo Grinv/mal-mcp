@@ -2,7 +2,7 @@
 // is optional: the server always starts (so clients can list tools); the
 // personal-list tools report a clear error at call time when unconfigured.
 import { z } from "zod";
-import type { LogLevel } from "./lib/logger.js";
+import type { LogLevel } from "./lib/logger.ts";
 
 export const EnvSchema = z.object({
   MAL_ACCESS_TOKEN: z.string().min(1).optional(),

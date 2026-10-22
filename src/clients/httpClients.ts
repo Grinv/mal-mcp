@@ -4,10 +4,10 @@
 // same timeout/retry config — this keeps their construction in sync instead of duplicating
 // the options object in both files. `withThrottle`, below, is API-agnostic and is also used
 // by `TenraiClient` (the unofficial Tenrai API, not `config.malBaseUrl`).
-import { HttpClient, type HttpClientOptions } from "../lib/http.js";
-import { RateLimiter, type RateRule } from "../lib/rateLimit.js";
-import type { Logger } from "../lib/logger.js";
-import type { Config } from "../config.js";
+import { HttpClient, type HttpClientOptions } from "../lib/http.ts";
+import { RateLimiter, type RateRule } from "../lib/rateLimit.ts";
+import type { Logger } from "../lib/logger.ts";
+import type { Config } from "../config.ts";
 
 export function malApiHttpClient(
   config: Config,

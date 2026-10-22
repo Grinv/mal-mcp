@@ -17,14 +17,14 @@ import {
   projectMangaSummary,
   type AnimeSummaryFields,
   type MangaSummaryFields,
-} from "./format.js";
+} from "./format.ts";
 import {
   animeDetailSchema,
   mangaDetailSchema,
   recommendationEntrySchema,
   recommendationsSchema,
   statisticsSchema,
-} from "./format.schemas.js";
+} from "./format.schemas.ts";
 
 const OFFICIAL_ANIME_STATUS: Record<string, string> = {
   currently_airing: "Currently Airing",

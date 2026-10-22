@@ -23,7 +23,7 @@ import {
   pageInfo,
   type RawAnime,
   type RawManga,
-} from "../lib/format.js";
+} from "../lib/format.ts";
 
 const longSynopsis = "x".repeat(500);
 

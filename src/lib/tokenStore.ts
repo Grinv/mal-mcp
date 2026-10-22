@@ -5,7 +5,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync, renameSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { dirname, join } from "node:path";
-import type { Logger } from "./logger.js";
+import type { Logger } from "./logger.ts";
 
 export interface TokenState {
   accessToken: string;

@@ -59,7 +59,7 @@ src/
   prompts.ts      # registerPrompts(server, tenrai) — clients get threaded in as needed,
                   # e.g. for completable() autocomplete on recommend_similar's title
   __tests__/      # node:test (*.test.ts) + helpers.ts
-scripts/          # build-tests.mjs, run-tests.mjs, check-api.mjs, sync-version.mjs,
+scripts/          # run-tests.mjs, check-api.mjs, sync-version.mjs,
                   # preversion-check.mjs (npm version gate — see .agents/skills/release/SKILL.md),
                   # check-changelog-coverage.mjs (see docs-consistency-check skill),
                   # check-chainable-optional-fields.mjs (see tool-description-check skill)
@@ -79,7 +79,7 @@ scripts/          # build-tests.mjs, run-tests.mjs, check-api.mjs, sync-version.
 
 ```sh
 npm run build          # tsc --noEmit + tsup → dist/index.js (single ESM bundle)
-npm test               # build tests with esbuild, run with node:test
+npm test               # node:test over src/**/*.test.ts (native type stripping, no build)
 npm run test:coverage  # same, with coverage (gate: ~80%)
 npm run lint           # eslint
 npm run format         # prettier --write
@@ -90,14 +90,17 @@ npm run check:api      # live upstream health-check (network)
 
 - **Docs and in-code text are English** (README, docs, comments, tool
   descriptions, error messages).
-- Runtime floor is **Node ≥ 20.11** (global `fetch`/`AbortSignal.any` in
-  `lib/http.ts`, `import.meta.dirname` in `scripts/*.mjs`, the test suite's
-  `mock.timers` `'Date'` API). tsup targets `node20`. `manifest.json`'s
+- Runtime floor is **Node ≥ 22.18** — the first 22.x that runs `.ts` files
+  directly (type stripping on by default, no warning), which is how the test
+  suite runs: no build step, so relative imports name the real `.ts` file and
+  tsconfig's `erasableSyntaxOnly` rules out enums, namespaces and parameter
+  properties. The code also relies on `URL.parse` and `Promise.withResolvers`
+  (22.x). tsup targets `node22`. `manifest.json`'s
   `compatibility.runtimes.node` declares the same floor for `.mcpb` hosts
   (`manifest.test.ts` keeps it equal to `engines.node`). This floor covers
-  `scripts/` too, not just `src/` — CI's `node: 20` matrix entry always
-  resolves to the latest 20.x patch, so a script quietly needing a newer
-  Node than the declared floor won't fail CI.
+  `scripts/` too, not just `src/`. CI tests the exact floor (`"22.18.0"`)
+  plus the newer LTS lines: a bare `22` would resolve to the newest 22.x
+  and let code needing a later minor than the declared floor pass CI.
 - Log to **stderr only** — stdout is the MCP protocol channel. Use the logger;
   it redacts credentials. MCP protocol revision 2026-07-28 deprecated
   server→client log notifications in favor of stderr (SEP-2577); `createLogger()`

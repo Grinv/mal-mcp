@@ -49,13 +49,10 @@ export function buildAuthorizeUrl(opts: {
  *  undefined when the input is a bare code (no `=` at all). */
 function redirectParams(redirect: string): URLSearchParams | undefined {
   const text = redirect.trim();
-  try {
-    return new URL(text).searchParams;
-  } catch {
-    // Not a full URL — maybe "?code=…&state=…" or just the code.
-    if (text.includes("=")) return new URLSearchParams(text.replace(/^\?/, ""));
-    return undefined;
-  }
+  const url = URL.parse(text);
+  if (url) return url.searchParams;
+  // Not a full URL — maybe "?code=…&state=…" or just the code.
+  return text.includes("=") ? new URLSearchParams(text.replace(/^\?/, "")) : undefined;
 }
 
 /** Extract the `code` from a redirected URL, a bare `?code=…` query, or a raw

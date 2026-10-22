@@ -123,7 +123,9 @@ This produces a self-contained `dist/index.js`. Point your client at it (see bel
 ## Connect it to an MCP client
 
 Add the server to your client's MCP config (Claude Desktop/Code, Cursor, VS Code,
-Cline, …). The simplest option is `npx`, which needs no clone and no build:
+Cline, …). The simplest option is `npx`, which needs no clone and no build. It runs on
+your system Node, which must be 22.18 or newer (`node -v`); the `.mcpb` bundle above
+uses the client's built-in Node instead:
 
 ```json
 {
@@ -285,7 +287,7 @@ npm run check:api    # live health-check of upstream endpoints
 npm run inspector    # run under the MCP Inspector
 ```
 
-Runtime requires Node ≥ 20.11 (global `fetch`, `AbortSignal.any`). See
+Runtime requires Node ≥ 22.18. See
 [AGENTS.md](AGENTS.md) for contributor/agent guidance.
 
 ## Updating

@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { OfficialReadsClient } from "../clients/officialReads.js";
-import { loadConfig } from "../config.js";
-import { silentLogger, jsonResponse, mockFetch, installFetch } from "./helpers.js";
+import { OfficialReadsClient } from "../clients/officialReads.ts";
+import { loadConfig } from "../config.ts";
+import { silentLogger, jsonResponse, mockFetch, installFetch } from "./helpers.ts";
 
 test("searchAnimeOfficial sends the Client ID header and maps the official response shape", async (t) => {
   const config = loadConfig({ MAL_CLIENT_ID: "cid" });

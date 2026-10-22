@@ -5,9 +5,9 @@ import {
   currentSeason,
   nextSeason,
   type ReadFallback,
-} from "../clients/readFallback.js";
-import { ApiError } from "../lib/errors.js";
-import type { Logger } from "../lib/logger.js";
+} from "../clients/readFallback.ts";
+import { ApiError } from "../lib/errors.ts";
+import type { Logger } from "../lib/logger.ts";
 
 function fakeLogger(): Logger & { warnings: string[] } {
   const warnings: string[] = [];

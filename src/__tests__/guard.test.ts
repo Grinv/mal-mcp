@@ -4,10 +4,10 @@
 // including the non-Error-throw edge case those never hit.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { guard } from "../tools/guard.js";
-import { ApiError } from "../lib/errors.js";
-import { jsonResult, type ToolResult } from "../lib/result.js";
-import { toolText } from "./helpers.js";
+import { guard } from "../tools/guard.ts";
+import { ApiError } from "../lib/errors.ts";
+import { jsonResult, type ToolResult } from "../lib/result.ts";
+import { toolText } from "./helpers.ts";
 
 test("guard passes through a successful result unchanged", async () => {
   const res = await guard(() => Promise.resolve(jsonResult({ ok: true })));

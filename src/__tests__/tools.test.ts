@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { jsonResponse, mockFetch, installFetch, connectServer, toolText } from "./helpers.js";
+import { jsonResponse, mockFetch, installFetch, connectServer, toolText } from "./helpers.ts";
 
 test("search_anime tool returns structured results end-to-end", async (t) => {
   const mock = mockFetch(() =>

@@ -14,9 +14,9 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { TokenStore, defaultTokenStorePath, type TokenState } from "../lib/tokenStore.js";
-import { silentLogger } from "./helpers.js";
-import { createLogger, type Logger } from "../lib/logger.js";
+import { TokenStore, defaultTokenStorePath, type TokenState } from "../lib/tokenStore.ts";
+import { silentLogger } from "./helpers.ts";
+import { createLogger, type Logger } from "../lib/logger.ts";
 
 // POSIX modes are advisory on Windows (the file inherits directory ACLs), so the permission
 // assertions below would fail there for reasons that say nothing about this code.

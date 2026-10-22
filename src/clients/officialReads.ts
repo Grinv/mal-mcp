@@ -8,9 +8,9 @@
 // Structurally implements ReadFallback (see clients/readFallback.ts) — neither module imports
 // the other. Deliberately separate from MalClient: that class is about OAuth-authenticated
 // personal-list reads/writes, this one needs no user token at all, just an app registration.
-import { HttpClient } from "../lib/http.js";
-import { ApiError } from "../lib/errors.js";
-import { malApiHttpClient, withThrottle } from "./httpClients.js";
+import { HttpClient } from "../lib/http.ts";
+import { ApiError } from "../lib/errors.ts";
+import { malApiHttpClient, withThrottle } from "./httpClients.ts";
 import {
   summarizeOfficialAnime,
   summarizeOfficialManga,
@@ -22,10 +22,10 @@ import {
   type OfficialMangaNode,
   type OfficialRecommendationEdge,
   type OfficialAnimeStatistics,
-} from "../lib/formatOfficial.js";
-import type { Logger } from "../lib/logger.js";
-import type { SeasonOrderBy, SortDir } from "./tenraiEnums.js";
-import type { Config } from "../config.js";
+} from "../lib/formatOfficial.ts";
+import type { Logger } from "../lib/logger.ts";
+import type { SeasonOrderBy, SortDir } from "./tenraiEnums.ts";
+import type { Config } from "../config.ts";
 
 // The official API returns only `id,title,main_picture` unless every other field is requested
 // explicitly. `authors{first_name,last_name}` is the API's nested-field syntax for sub-objects.

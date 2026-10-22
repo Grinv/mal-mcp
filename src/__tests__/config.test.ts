@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { loadConfig } from "../config.js";
+import { loadConfig } from "../config.ts";
 
 test("no credentials → no auth fields set", () => {
   const c = loadConfig({});

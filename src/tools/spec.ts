@@ -8,7 +8,7 @@
 // server.registerTool() call already gets.
 import type { z } from "zod";
 import type { McpServer, ToolAnnotations } from "@modelcontextprotocol/server";
-import type { ToolResult } from "../lib/result.js";
+import type { ToolResult } from "../lib/result.ts";
 
 export interface ToolSpec<In extends z.ZodType, Out extends z.ZodType> {
   name: string;

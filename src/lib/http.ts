@@ -1,9 +1,9 @@
 // Thin fetch wrapper shared by both API clients: timeouts, bounded retries
 // with exponential backoff (honoring Retry-After), a default User-Agent, and
 // uniform mapping of failures to ApiError.
-import { ApiError, classifyStatus } from "./errors.js";
-import type { Logger } from "./logger.js";
-import { USER_AGENT } from "../version.js";
+import { ApiError, classifyStatus } from "./errors.ts";
+import type { Logger } from "./logger.ts";
+import { USER_AGENT } from "../version.ts";
 
 export interface RequestOptions {
   method?: string;

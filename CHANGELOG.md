@@ -8,6 +8,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Breaking:** raise the minimum Node version to 22.18 (was 20.11); Node 20 reached end of life in April 2026.
 - Raise `get_my_anime_list`/`get_my_manga_list` `limit` to 1000 ([dcf0aad](https://github.com/Grinv/mal-mcp/commit/dcf0aad)).
 - Keep the members-descending order of seasonal anime when falling back to the official API ([dcf0aad](https://github.com/Grinv/mal-mcp/commit/dcf0aad)).
 - **Breaking:** take `unapproved` as `"true"`/`"false"`/`"only"`, like the other tri-state filters ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c), [510693d](https://github.com/Grinv/mal-mcp/commit/510693d)).
@@ -21,7 +22,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Add `YYYY`/`YYYY-MM` dates to the anime/manga list filters ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
 - Add `sfw`/`sfw_strict` to `get_news`, `get_anime_genres` and `get_manga_genres` ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
-- Declare the Node ≥ 20.11 requirement in the `.mcpb` manifest, so a host can refuse an older runtime up front.
+- Declare the Node requirement in the `.mcpb` manifest, so a host can pick a suitable runtime up front ([915b885](https://github.com/Grinv/mal-mcp/commit/915b885)).
 - Add `page` to `get_anime_reviews`/`get_manga_reviews`, so a caller can tell whether more reviews exist ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5)).
 
 ### Fixed

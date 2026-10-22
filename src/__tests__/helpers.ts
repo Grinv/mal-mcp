@@ -4,9 +4,9 @@ import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
-import { createLogger, type Logger } from "../lib/logger.js";
-import { buildServer } from "../server.js";
-import { loadConfig } from "../config.js";
+import { createLogger, type Logger } from "../lib/logger.ts";
+import { buildServer } from "../server.ts";
+import { loadConfig } from "../config.ts";
 
 export function silentLogger(): Logger {
   return createLogger("silent");

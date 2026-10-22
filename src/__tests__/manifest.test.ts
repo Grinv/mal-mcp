@@ -2,10 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { connectServer } from "./helpers.js";
+import { connectServer } from "./helpers.ts";
 
-// Tests run from dist-tests/; repo root is one level up.
-const repoRoot = join(process.cwd(), "..");
+const repoRoot = join(import.meta.dirname, "..", "..");
 const manifest = JSON.parse(readFileSync(join(repoRoot, "manifest.json"), "utf8")) as {
   manifest_version: string;
   compatibility?: { runtimes?: { node?: string } };

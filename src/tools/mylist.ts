@@ -7,22 +7,22 @@ import {
   type MalClient,
   MyUserInfoSchema,
   ListStatusUpdateResponseSchema,
-} from "../clients/mal.js";
+} from "../clients/mal.ts";
 import {
   ANIME_LIST_STATUSES,
   MANGA_LIST_STATUSES,
   ANIME_LIST_SORT,
   MANGA_LIST_SORT,
-} from "../clients/malEnums.js";
+} from "../clients/malEnums.ts";
 import {
   myListSchema,
   deleteAnimeItemSchema,
   deleteMangaItemSchema,
-} from "../lib/format.schemas.js";
-import { errorResult, jsonResult, type ToolResult } from "../lib/result.js";
-import { ApiError } from "../lib/errors.js";
-import { guard } from "./guard.js";
-import { defineTool, registerTools } from "./spec.js";
+} from "../lib/format.schemas.ts";
+import { errorResult, jsonResult, type ToolResult } from "../lib/result.ts";
+import { ApiError } from "../lib/errors.ts";
+import { guard } from "./guard.ts";
+import { defineTool, registerTools } from "./spec.ts";
 
 const NEEDS_TOKEN =
   "This tool needs a MyAnimeList login, which isn't set up yet. Register a MAL API " +

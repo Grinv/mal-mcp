@@ -4,21 +4,21 @@
 // delegated to MalAuthManager (malAuth.ts) — this class owns only the
 // personal-list CRUD calls and their request/response shaping.
 import { z } from "zod";
-import { ApiError } from "../lib/errors.js";
-import { TokenStore } from "../lib/tokenStore.js";
-import { malApiHttpClient, formBody } from "./httpClients.js";
-import { MalAuthManager } from "./malAuth.js";
-import type { HttpClient } from "../lib/http.js";
-import type { Logger } from "../lib/logger.js";
-import type { Config } from "../config.js";
+import { ApiError } from "../lib/errors.ts";
+import { TokenStore } from "../lib/tokenStore.ts";
+import { malApiHttpClient, formBody } from "./httpClients.ts";
+import { MalAuthManager } from "./malAuth.ts";
+import type { HttpClient } from "../lib/http.ts";
+import type { Logger } from "../lib/logger.ts";
+import type { Config } from "../config.ts";
 import {
   myListSchema,
   myListItemSchema,
   deleteAnimeItemSchema,
   deleteMangaItemSchema,
-} from "../lib/format.schemas.js";
-import { mapLenient } from "../lib/format.js";
-import type { AnimeListStatus, MangaListStatus, AnimeListSort, MangaListSort } from "./malEnums.js";
+} from "../lib/format.schemas.ts";
+import { mapLenient } from "../lib/format.ts";
+import type { AnimeListStatus, MangaListStatus, AnimeListSort, MangaListSort } from "./malEnums.ts";
 
 // Request the full list_status the update tools can WRITE, so reads round-trip
 // them (priority/tags/comments/rewatch counters were previously write-only —

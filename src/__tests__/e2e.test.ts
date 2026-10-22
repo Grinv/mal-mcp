@@ -5,9 +5,9 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { Client } from "@modelcontextprotocol/client";
-import { toolText } from "./helpers.js";
-import { VERSION } from "../version.js";
-import { CACHE_HINT } from "../server.js";
+import { toolText } from "./helpers.ts";
+import { VERSION } from "../version.ts";
+import { CACHE_HINT } from "../server.ts";
 
 // The unit suite exercises the code via an in-memory transport against src (see
 // helpers.ts's connectServer()) — that only ever drives a bare McpServer, never
@@ -20,7 +20,7 @@ import { CACHE_HINT } from "../server.js";
 // self-contained (a non-inlined dep would crash the child with
 // ERR_MODULE_NOT_FOUND; see tsup.config.ts noExternal and bundle.test.ts), and
 // shut down cleanly when signalled.
-const distPath = join(process.cwd(), "..", "dist", "index.js");
+const distPath = join(import.meta.dirname, "..", "..", "dist", "index.js");
 
 // read.ts (34) + mylist.ts (7) + login.ts (2). Bump when a tool is added/removed.
 const EXPECTED_TOOLS = 54;

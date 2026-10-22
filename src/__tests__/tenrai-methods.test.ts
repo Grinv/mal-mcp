@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { TenraiClient } from "../clients/tenrai.js";
-import { loadConfig } from "../config.js";
-import { silentLogger, mockFetch, installFetch } from "./helpers.js";
+import { TenraiClient } from "../clients/tenrai.ts";
+import { loadConfig } from "../config.ts";
+import { silentLogger, mockFetch, installFetch } from "./helpers.ts";
 
 function tenrai() {
   return new TenraiClient(

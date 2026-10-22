@@ -2,8 +2,8 @@
 // one-click flows without the user having to chain tool calls manually.
 import { z } from "zod";
 import { completable, type McpServer } from "@modelcontextprotocol/server";
-import type { TenraiClient } from "./clients/tenrai.js";
-import { currentSeason } from "./clients/readFallback.js";
+import type { TenraiClient } from "./clients/tenrai.ts";
+import { currentSeason } from "./clients/readFallback.ts";
 
 const COMPLETION_LIMIT = 8;
 

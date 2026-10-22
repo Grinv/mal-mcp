@@ -5,7 +5,7 @@
 // in favor of stderr (SEP-2577) — the host process already reads a spawned
 // stdio server's stderr, so stderr is the only channel; there is no client-push
 // sink here anymore.
-import { redact } from "./errors.js";
+import { redact } from "./errors.ts";
 
 export type LogLevel = "debug" | "info" | "warn" | "error" | "silent";
 

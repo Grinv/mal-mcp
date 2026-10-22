@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { HttpClient } from "../lib/http.js";
-import { ApiError } from "../lib/errors.js";
-import { silentLogger, jsonResponse, mockFetch, installFetch } from "./helpers.js";
+import { HttpClient } from "../lib/http.ts";
+import { ApiError } from "../lib/errors.ts";
+import { silentLogger, jsonResponse, mockFetch, installFetch } from "./helpers.ts";
 
 function client(extra: { retries?: number; timeoutMs?: number } = {}): HttpClient {
   return new HttpClient({ baseUrl: "https://example.test/api", logger: silentLogger(), ...extra });

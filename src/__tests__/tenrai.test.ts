@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { TenraiClient } from "../clients/tenrai.js";
-import { loadConfig } from "../config.js";
-import { silentLogger, jsonResponse, mockFetch, installFetch } from "./helpers.js";
+import { TenraiClient } from "../clients/tenrai.ts";
+import { loadConfig } from "../config.ts";
+import { silentLogger, jsonResponse, mockFetch, installFetch } from "./helpers.ts";
 
 function tenrai() {
   // No rate-limit delay in tests; small cache TTL.

@@ -7,9 +7,9 @@
 //   RUN_LIVE=1 npm test   (reads .env via --env-file, see scripts/run-tests.mjs)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MalClient } from "../clients/mal.js";
-import { loadConfig } from "../config.js";
-import { silentLogger } from "./helpers.js";
+import { MalClient } from "../clients/mal.ts";
+import { loadConfig } from "../config.ts";
+import { silentLogger } from "./helpers.ts";
 
 const hasCreds = Boolean(
   process.env.MAL_ACCESS_TOKEN || (process.env.MAL_CLIENT_ID && process.env.MAL_REFRESH_TOKEN),

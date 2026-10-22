@@ -86,8 +86,8 @@ write to the repo happens in the main thread, one change at a time. This is
 not a stylistic preference. Parallel writers collide on shared files
 (`read.ts` descriptions and the `formatOfficial.ts` constants they render,
 `tenrai.ts` and the `withFallback` signature it calls), they collide on
-shared build output (`npm test` and `npm run build` both write `dist-tests/`
-and `dist/`, so concurrent runs clobber each other), and any agent stopped
+shared build output (`npm run build` writes `dist/`, which the bundle and e2e
+tests read, so concurrent runs clobber each other), and any agent stopped
 mid-task leaves a half-applied change with no test behind it. Tried it once
 here: five fix agents produced 582 changed lines across 16 files, several of
 them incomplete and most without the tests they were asked to add, and the

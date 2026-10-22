@@ -5,11 +5,11 @@ import { get as httpGet } from "node:http";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createServer } from "node:net";
-import { MalClient } from "../clients/mal.js";
-import { ApiError } from "../lib/errors.js";
-import { TokenStore, type TokenState } from "../lib/tokenStore.js";
-import { loadConfig } from "../config.js";
-import { silentLogger, jsonResponse, mockFetch, installFetch } from "./helpers.js";
+import { MalClient } from "../clients/mal.ts";
+import { ApiError } from "../lib/errors.ts";
+import { TokenStore, type TokenState } from "../lib/tokenStore.ts";
+import { loadConfig } from "../config.ts";
+import { silentLogger, jsonResponse, mockFetch, installFetch } from "./helpers.ts";
 
 function tempStorePath(name: string): string {
   return join(tmpdir(), `mal-mcp-test-${name}.json`);
@@ -602,8 +602,7 @@ test("a refresh response without a refresh_token keeps the one we have", async (
 test("a 401 that lands after another call already refreshed reuses that token", async (t) => {
   // Not coalesced by the single-flight refresh: by the time B's 401 arrives, A's refresh is over.
   let refreshCalls = 0;
-  let releaseB!: () => void;
-  const aDone = new Promise<void>((resolve) => (releaseB = resolve));
+  const { promise: aDone, resolve: releaseB } = Promise.withResolvers<void>();
   installFetch(
     t,
     mockFetch(async (url, init) => {

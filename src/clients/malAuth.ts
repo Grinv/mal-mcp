@@ -3,10 +3,10 @@
 // login_mal/submit_mal_redirect PKCE flow. Split out of mal.ts, which composes an instance of
 // this alongside its own personal-list CRUD operations — this class owns nothing about anime
 // or manga, just "how do we get/keep a valid access token."
-import { HttpClient } from "../lib/http.js";
-import { formBody } from "./httpClients.js";
-import { ApiError } from "../lib/errors.js";
-import { TokenStore, type TokenState } from "../lib/tokenStore.js";
+import { HttpClient } from "../lib/http.ts";
+import { formBody } from "./httpClients.ts";
+import { ApiError } from "../lib/errors.ts";
+import { TokenStore, type TokenState } from "../lib/tokenStore.ts";
 import {
   buildAuthorizeUrl,
   extractCode,
@@ -15,9 +15,9 @@ import {
   generateVerifier,
   listenForCode,
   openBrowser,
-} from "../lib/oauthLogin.js";
-import type { Logger } from "../lib/logger.js";
-import type { Config } from "../config.js";
+} from "../lib/oauthLogin.ts";
+import type { Logger } from "../lib/logger.ts";
+import type { Config } from "../config.ts";
 
 const REFRESH_SKEW_MS = 60_000;
 
