@@ -6,6 +6,7 @@ import {
   buildAuthorizeUrl,
   extractCode,
   extractState,
+  escapeForCmd,
 } from "../lib/oauthLogin.js";
 
 test("generateVerifier returns a 43-128 char unreserved string (PKCE)", () => {
@@ -56,4 +57,12 @@ test("extractState reads state from a redirect/query, null from a bare code", ()
   assert.equal(extractState("http://localhost:8080/callback?code=XYZ&state=abc"), "abc");
   assert.equal(extractState("?code=XYZ&state=abc"), "abc");
   assert.equal(extractState("XYZ"), null); // bare code carries no state
+});
+
+test("escapeForCmd keeps cmd.exe from cutting the authorize URL at its first &", () => {
+  assert.equal(
+    escapeForCmd("https://x/authorize?response_type=code&client_id=c&state=s"),
+    "https://x/authorize?response_type=code^&client_id=c^&state=s",
+  );
+  assert.equal(escapeForCmd("a^b|c<d>e"), "a^^b^|c^<d^>e");
 });

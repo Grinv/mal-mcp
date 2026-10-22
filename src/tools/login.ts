@@ -78,14 +78,20 @@ export function registerLoginTools(server: McpServer, mal: MalClient): void {
       annotations: { readOnlyHint: false, openWorldHint: true },
       handler: ({ redirect_url }) =>
         guard(async () => {
-          await mal.submitRedirect(redirect_url);
-          const info = await mal.getMyUserInfo();
+          const saveWarning = await mal.submitRedirect(redirect_url);
+          // The login itself is done at this point; failing to fetch the name (a network blip)
+          // must not report it as failed and send the user through the flow again.
+          const user = await mal.getMyUserInfo().then(
+            (info) => info.name,
+            () => undefined,
+          );
           return jsonResult(
             submitRedirectResultSchema.parse({
               logged_in: true,
-              user: info.name,
-              message:
-                "MyAnimeList login complete. The token is stored and refreshes automatically.",
+              user,
+              message: saveWarning
+                ? `MyAnimeList login complete, but: ${saveWarning}`
+                : "MyAnimeList login complete. The token is stored and refreshes automatically.",
             }),
           );
         }),

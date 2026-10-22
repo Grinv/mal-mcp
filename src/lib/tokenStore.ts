@@ -62,7 +62,6 @@ export class TokenStore {
     // result is 0600 even when the destination already exists: writeFileSync's
     // `mode` only applies when it creates the file, so an in-place rewrite of a
     // pre-existing looser-permissioned file would otherwise keep the old mode.
-    // The pid suffix keeps two processes' temp files from colliding.
     // The pid suffix keeps two processes' temp files from colliding. It does not make the name
     // unique over time, though: pids are reused, so a temp file left behind by a killed process
     // can still be sitting there. Writing into that leftover would hit the very `mode`-only-on-
@@ -70,8 +69,14 @@ export class TokenStore {
     // permissions onto the real file. `wx` fails instead of reusing it, so clear it out first.
     const tmp = `${this.#path}.${process.pid}.tmp`;
     rmSync(tmp, { force: true });
-    writeFileSync(tmp, JSON.stringify(state, null, 2), { mode: 0o600, flag: "wx" });
-    renameSync(tmp, this.#path);
+    try {
+      writeFileSync(tmp, JSON.stringify(state, null, 2), { mode: 0o600, flag: "wx" });
+      renameSync(tmp, this.#path);
+    } catch (err) {
+      // Don't leave a stray copy of live tokens next to the real file.
+      rmSync(tmp, { force: true });
+      throw err;
+    }
   }
 }
 

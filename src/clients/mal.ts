@@ -110,8 +110,9 @@ export class MalClient {
   }
 
   /** Finish an interactive login from the redirected URL (or bare code) the user
-   *  pasted back — the remote/headless path. */
-  submitRedirect(redirect: string): Promise<void> {
+   *  pasted back — the remote/headless path. Resolves to a warning when the token
+   *  works but could not be saved. */
+  submitRedirect(redirect: string): Promise<string | undefined> {
     return this.#auth.submitRedirect(redirect);
   }
 

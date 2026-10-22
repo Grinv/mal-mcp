@@ -1,6 +1,7 @@
-import { test, describe } from "node:test";
+import { test, describe, type TestContext } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, rmSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { get as httpGet } from "node:http";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createServer } from "node:net";
@@ -276,7 +277,7 @@ test("a stored token takes precedence over the env access token", async (t) => {
   }
 });
 
-describe("login", () => {
+describe("login", { timeout: 10_000 }, () => {
   test("startLogin builds an authorize URL; submitRedirect exchanges the code (no secret) and configures the client", async (t) => {
     const config = loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: "8199" });
     const tokenBodies: string[] = [];
@@ -447,4 +448,291 @@ test("a 5xx during refresh does not discard the stored refresh token", async (t)
   } finally {
     rmSync(storePath, { force: true });
   }
+});
+
+describe("token store shared by several server processes", () => {
+  // Each MCP client runs its own server process, and they all share one token file. MAL rotates
+  // the refresh token on every use, so a process still holding the old one is holding a dead one.
+  function rotatingTokenEndpoint(): { posted: string[]; handler: (body: string) => Response } {
+    const valid = new Set(["r0"]);
+    const posted: string[] = [];
+    let n = 0;
+    return {
+      posted,
+      handler: (body) => {
+        const token = new URLSearchParams(body).get("refresh_token") ?? "";
+        posted.push(token);
+        if (!valid.delete(token)) return jsonResponse({ error: "invalid_grant" }, { status: 400 });
+        n += 1;
+        valid.add(`r${n}`);
+        return jsonResponse({ access_token: `a${n}`, refresh_token: `r${n}`, expires_in: 3600 });
+      },
+    };
+  }
+
+  function sharedSetup(t: TestContext, name: string) {
+    const storePath = tempStorePath(name);
+    rmSync(storePath, { force: true });
+    t.after(() => rmSync(storePath, { force: true }));
+    new TokenStore(storePath, silentLogger()).save({
+      accessToken: "a0",
+      refreshToken: "r0",
+      expiresAt: 0,
+    });
+    const endpoint = rotatingTokenEndpoint();
+    installFetch(
+      t,
+      mockFetch((url, init) =>
+        url.includes("/oauth2/token")
+          ? endpoint.handler(String(init?.body ?? ""))
+          : jsonResponse({ id: 1, name: "tester" }),
+      ),
+    );
+    const config = loadConfig({ MAL_CLIENT_ID: "id" });
+    const client = () =>
+      new MalClient(config, silentLogger(), new TokenStore(storePath, silentLogger()));
+    return { storePath, endpoint, client };
+  }
+
+  test("a process that starts with an outdated token takes over the one another process saved", async (t) => {
+    const { storePath, endpoint, client } = sharedSetup(t, "shared-adopt");
+    const a = client();
+    const b = client(); // both loaded r0
+    await a.getMyUserInfo(); // A spends r0, saves r1
+    await b.getMyUserInfo(); // B must not spend r0 again
+    assert.deepEqual(endpoint.posted, ["r0"]);
+    const persisted = JSON.parse(readFileSync(storePath, "utf8")) as TokenState;
+    assert.equal(persisted.refreshToken, "r1");
+  });
+
+  test("losing a refresh race to another process doesn't wipe the shared store", async (t) => {
+    const { storePath, endpoint, client } = sharedSetup(t, "shared-race");
+    const a = client();
+    const b = client();
+    await a.getMyUserInfo(); // saves r1 + a fresh a1
+    // B rereads the store before refreshing; make it look unchanged then, as if A's write landed
+    // just after B's read, so B really does post its spent r0 and gets the 400.
+    const realLoad = TokenStore.prototype.load;
+    let first = true;
+    t.mock.method(TokenStore.prototype, "load", function (this: TokenStore) {
+      if (first) {
+        first = false;
+        return { accessToken: "a0", refreshToken: "r0", expiresAt: 0 };
+      }
+      return realLoad.call(this);
+    });
+    const info = await b.getMyUserInfo();
+    assert.equal(info.name, "tester");
+    assert.deepEqual(endpoint.posted, ["r0", "r0"]);
+    const persisted = JSON.parse(readFileSync(storePath, "utf8")) as TokenState;
+    assert.equal(persisted.refreshToken, "r1");
+  });
+});
+
+test("an empty token store (left by a rejected refresh) doesn't shadow an env access token", async (t) => {
+  const storePath = tempStorePath("empty-store");
+  const store = new TokenStore(storePath, silentLogger());
+  store.save({ accessToken: "", refreshToken: "", expiresAt: 0 });
+  t.after(() => rmSync(storePath, { force: true }));
+  installFetch(
+    t,
+    mockFetch((_url, init) => {
+      const auth = (init?.headers as Record<string, string>)["Authorization"];
+      return jsonResponse({ id: 1, name: "tester", used: auth });
+    }),
+  );
+  const client = new MalClient(
+    loadConfig({ MAL_ACCESS_TOKEN: "env-token" }),
+    silentLogger(),
+    store,
+  );
+  assert.equal(client.isConfigured(), true);
+  const res = (await client.getMyUserInfo()) as Record<string, unknown>;
+  assert.equal(res["used"], "Bearer env-token");
+});
+
+test("a rejected env refresh token isn't replayed against MAL on every call", async (t) => {
+  let refreshCalls = 0;
+  installFetch(
+    t,
+    mockFetch((url) => {
+      if (url.includes("/oauth2/token")) {
+        refreshCalls += 1;
+        return jsonResponse({ error: "invalid_grant" }, { status: 400 });
+      }
+      return jsonResponse({ error: "unauthorized" }, { status: 401 });
+    }),
+  );
+  const config = loadConfig({ MAL_CLIENT_ID: "id", MAL_REFRESH_TOKEN: "dead" });
+  const client = new MalClient(config, silentLogger());
+  await assert.rejects(() => client.getMyUserInfo(), /login_mal/);
+  await assert.rejects(() => client.getMyUserInfo());
+  assert.equal(refreshCalls, 1);
+  assert.equal(client.isConfigured(), false);
+});
+
+test("a refresh response without a refresh_token keeps the one we have", async (t) => {
+  // The token comes from the store, not the env, so losing it can't be masked by the env copy.
+  const storePath = tempStorePath("keep-refresh");
+  const store = new TokenStore(storePath, silentLogger());
+  store.save({ accessToken: "a0", refreshToken: "keep-me", expiresAt: 0 });
+  t.after(() => rmSync(storePath, { force: true }));
+  const bodies: string[] = [];
+  let calls = 0;
+  installFetch(
+    t,
+    mockFetch((url, init) => {
+      if (url.includes("/oauth2/token")) {
+        bodies.push(String(init?.body ?? ""));
+        calls += 1;
+        // Already expired on arrival, so the next call has to refresh again.
+        return jsonResponse({ access_token: `a${calls}`, expires_in: 0 });
+      }
+      return jsonResponse({ id: 1, name: "tester" });
+    }),
+  );
+  const client = new MalClient(loadConfig({ MAL_CLIENT_ID: "id" }), silentLogger(), store);
+  await client.getMyUserInfo();
+  await client.getMyUserInfo();
+  assert.equal(bodies.length, 2);
+  assert.match(bodies[1]!, /refresh_token=keep-me/);
+  assert.equal((JSON.parse(readFileSync(storePath, "utf8")) as TokenState).refreshToken, "keep-me");
+});
+
+test("a 401 that lands after another call already refreshed reuses that token", async (t) => {
+  // Not coalesced by the single-flight refresh: by the time B's 401 arrives, A's refresh is over.
+  let refreshCalls = 0;
+  let releaseB!: () => void;
+  const aDone = new Promise<void>((resolve) => (releaseB = resolve));
+  installFetch(
+    t,
+    mockFetch(async (url, init) => {
+      if (url.includes("/oauth2/token")) {
+        refreshCalls += 1;
+        return jsonResponse({ access_token: "new", refresh_token: "r1", expires_in: 3600 });
+      }
+      const auth = (init?.headers as Record<string, string>)["Authorization"];
+      if (auth === "Bearer old") {
+        if (url.includes("/animelist")) await aDone;
+        return jsonResponse({ error: "unauthorized" }, { status: 401 });
+      }
+      return jsonResponse({ id: 1, name: "tester", data: [], paging: {} });
+    }),
+  );
+  const config = loadConfig({
+    MAL_ACCESS_TOKEN: "old",
+    MAL_CLIENT_ID: "id",
+    MAL_REFRESH_TOKEN: "r0",
+  });
+  const client = new MalClient(config, silentLogger());
+  const b = client.getMyAnimeList({});
+  await client.getMyUserInfo();
+  releaseB();
+  await b;
+  assert.equal(refreshCalls, 1);
+});
+
+test("a token that can't be saved still works, and login says it won't survive a restart", async (t) => {
+  // The store's parent "directory" is a file, so every save fails.
+  const blocker = tempStorePath("save-blocker");
+  writeFileSync(blocker, "");
+  t.after(() => rmSync(blocker, { force: true }));
+  const store = new TokenStore(join(blocker, "tokens.json"), silentLogger());
+
+  const port = 8197;
+  const occupied = createServer();
+  await new Promise<void>((resolve) => occupied.listen(port, "127.0.0.1", resolve));
+  t.after(() => new Promise<void>((resolve) => occupied.close(() => resolve())));
+
+  installFetch(
+    t,
+    mockFetch((url) =>
+      url.includes("/oauth2/token")
+        ? jsonResponse({ access_token: "acc", refresh_token: "ref", expires_in: 3600 })
+        : jsonResponse({ id: 1, name: "me" }),
+    ),
+  );
+  const config = loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: String(port) });
+  const client = new MalClient(config, silentLogger(), store);
+  const { authorizeUrl } = await client.startLogin({ open: () => {} });
+  const state = new URL(authorizeUrl).searchParams.get("state");
+  const warning = await client.submitRedirect(
+    `http://localhost:${port}/callback?code=C&state=${state}`,
+  );
+  assert.match(warning ?? "", /could not save/i);
+  assert.equal((await client.getMyUserInfo()).name, "me");
+});
+
+describe("login callback listener", { timeout: 10_000 }, () => {
+  function get(port: number, path: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      httpGet({ host: "127.0.0.1", port, path }, (res) => {
+        let body = "";
+        res.on("data", (c: Buffer) => (body += c.toString()));
+        res.on("end", () => resolve(body));
+      }).on("error", reject);
+    });
+  }
+
+  async function started(t: TestContext, port: number) {
+    let exchanges = 0;
+    installFetch(
+      t,
+      mockFetch((url) => {
+        if (url.includes("/oauth2/token")) {
+          exchanges += 1;
+          return jsonResponse({ access_token: "acc", refresh_token: "ref", expires_in: 3600 });
+        }
+        return jsonResponse({ id: 1, name: "me" });
+      }),
+    );
+    const config = loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: String(port) });
+    const client = new MalClient(config, silentLogger());
+    const { authorizeUrl, listening } = await client.startLogin({ open: () => {} });
+    assert.equal(listening, true);
+    const state = new URL(authorizeUrl).searchParams.get("state")!;
+    // A denial ends the login and closes the listener; a no-op if the test already finished it.
+    t.after(() => get(port, `/callback?error=cleanup&state=${state}`).catch(() => undefined));
+    return { client, state, exchanges: () => exchanges };
+  }
+
+  test("a redirect with the wrong state is not shown as a successful login", async (t) => {
+    const port = 8196;
+    const { client } = await started(t, port);
+    const page = await get(port, "/callback?code=X&state=forged");
+    assert.doesNotMatch(page, /Logged in/);
+    assert.equal(client.isConfigured(), false);
+  });
+
+  test("the same code arriving by listener and by paste is exchanged once, and both succeed", async (t) => {
+    const port = 8195;
+    const { client, state, exchanges } = await started(t, port);
+    const page = await get(port, `/callback?code=ONE&state=${state}`);
+    assert.match(page, /Logged in/);
+    await client.submitRedirect(`http://localhost:${port}/callback?code=ONE&state=${state}`);
+    assert.equal(exchanges(), 1);
+    assert.equal(client.isConfigured(), true);
+  });
+
+  test("a denied authorization ends the pending login", async (t) => {
+    const port = 8194;
+    const { client, state } = await started(t, port);
+    await get(port, `/callback?error=access_denied&state=${state}`);
+    await assert.rejects(() => client.submitRedirect("BARECODE"), /no login in progress/i);
+  });
+
+  test("a port already taken on ::1 counts as busy, so the redirect isn't lost to that server", async (t) => {
+    const port = 8193;
+    const other = createServer();
+    const bound = await new Promise<boolean>((resolve) => {
+      other.once("error", () => resolve(false));
+      other.listen(port, "::1", () => resolve(true));
+    });
+    if (!bound) return t.skip("no IPv6 loopback on this machine");
+    t.after(() => new Promise<void>((resolve) => other.close(() => resolve())));
+    const config = loadConfig({ MAL_CLIENT_ID: "cid", MAL_OAUTH_PORT: String(port) });
+    const client = new MalClient(config, silentLogger());
+    const { listening } = await client.startLogin({ open: () => {} });
+    assert.equal(listening, false);
+  });
 });

@@ -45,6 +45,12 @@ export class MalAuthManager {
   readonly #logger: Logger;
   readonly #store: TokenStore | undefined;
   #state: TokenState;
+  // The refresh token the store held when we last read or wrote it. Several server processes (one
+  // per MCP client) can share one token file; a different value there means another process has
+  // rotated the token since, and ours is now spent.
+  #storeRefreshToken: string | undefined;
+  // A refresh token MAL rejected. Never offered again, even though the env copy is still set.
+  #rejectedRefreshToken: string | undefined;
   // Single-flight: dedupe concurrent refreshes so parallel 401s don't each spend
   // the (rotating) refresh token and clobber each other.
   #refreshing: Promise<string> | undefined;
@@ -53,6 +59,10 @@ export class MalAuthManager {
   #pendingLogin: { verifier: string; redirectUri: string; state: string } | undefined;
   #loginServer: { close: () => void } | undefined;
   #loginExpiry: ReturnType<typeof setTimeout> | undefined;
+  // The code exchange in flight or done for the current login. The same redirect can arrive twice
+  // (the listener plus a manual paste, or a browser reload), and a code is single-use: a second
+  // exchange would fail and report an error for a login that worked.
+  #exchange: { code: string; done: Promise<string | undefined> } | undefined;
 
   constructor(config: Config, logger: Logger, store?: TokenStore) {
     this.#auth = config.auth;
@@ -67,7 +77,11 @@ export class MalAuthManager {
     this.#oauthBaseUrl = config.malOauthBaseUrl;
     this.#oauthPort = config.oauthPort;
 
-    const stored = store?.load();
+    // A store holding no token at all (what a rejected refresh leaves behind) counts as absent, so
+    // credentials set in the env afterwards are used instead of being shadowed by it.
+    const loaded = store?.load();
+    const stored = loaded && (loaded.accessToken || loaded.refreshToken) ? loaded : undefined;
+    this.#storeRefreshToken = loaded?.refreshToken;
     this.#state = stored ?? {
       accessToken: this.#auth.accessToken ?? "",
       refreshToken: this.#auth.refreshToken ?? "",
@@ -88,7 +102,44 @@ export class MalAuthManager {
   // state — e.g. just saved by login — or from env). The client secret is
   // optional (public PKCE client).
   #canRefresh(): boolean {
-    return Boolean(this.#auth.clientId && (this.#state.refreshToken || this.#auth.refreshToken));
+    return Boolean(this.#auth.clientId && this.#refreshToken());
+  }
+
+  #refreshToken(): string | undefined {
+    const token = this.#state.refreshToken || this.#auth.refreshToken;
+    return token && token !== this.#rejectedRefreshToken ? token : undefined;
+  }
+
+  #hasFreshAccessToken(): boolean {
+    return Boolean(this.#state.accessToken) && this.#state.expiresAt - REFRESH_SKEW_MS > Date.now();
+  }
+
+  /** Take over the tokens another server process wrote to the shared store since we last read or
+   *  wrote it. Returns whether anything changed. */
+  #adoptStoreUpdate(): boolean {
+    const stored = this.#store?.load();
+    if (!stored?.refreshToken || stored.refreshToken === this.#storeRefreshToken) return false;
+    this.#state = stored;
+    this.#storeRefreshToken = stored.refreshToken;
+    return true;
+  }
+
+  /** Persist the token state. A failed write must not turn a successful refresh or login into an
+   *  error — the tokens are valid and in memory, they just won't survive a restart — so it is
+   *  logged and returned as a warning instead of thrown. */
+  #persist(): string | undefined {
+    if (!this.#store) return undefined;
+    try {
+      this.#store.save(this.#state);
+      this.#storeRefreshToken = this.#state.refreshToken;
+      return undefined;
+    } catch (err) {
+      const warning =
+        `Could not save the MyAnimeList token to ${this.#store.path} (${errMsg(err)}); ` +
+        "it works for now but will be lost when the server restarts.";
+      this.#logger.warn(warning);
+      return warning;
+    }
   }
 
   /** Run `fn` with a valid access token, refreshing once on 401 if possible. */
@@ -113,8 +164,7 @@ export class MalAuthManager {
   }
 
   async #ensureAccessToken(): Promise<string> {
-    const valid = this.#state.accessToken && this.#state.expiresAt - REFRESH_SKEW_MS > Date.now();
-    if (valid) return this.#state.accessToken;
+    if (this.#hasFreshAccessToken()) return this.#state.accessToken;
     if (this.#canRefresh()) return this.#refresh();
     if (this.#state.accessToken) return this.#state.accessToken;
     throw new ApiError({
@@ -131,8 +181,10 @@ export class MalAuthManager {
     return this.#refreshing;
   }
 
-  async #doRefresh(): Promise<string> {
-    const refreshToken = this.#state.refreshToken || this.#auth.refreshToken;
+  async #doRefresh(retried = false): Promise<string> {
+    // Another process sharing the store may have refreshed already; its token is as good as ours.
+    if (this.#adoptStoreUpdate() && this.#hasFreshAccessToken()) return this.#state.accessToken;
+    const refreshToken = this.#refreshToken();
     if (!this.#auth.clientId || !refreshToken) {
       throw new ApiError({
         code: "unauthorized",
@@ -161,10 +213,17 @@ export class MalAuthManager {
       // says nothing about the token, and discarding it there would log the user out over a
       // blip.
       if (err instanceof ApiError && !err.retryable) {
+        // MAL rotates the refresh token on every use, so another process that spent this same
+        // token a moment earlier makes ours fail. If it saved the new pair, carry on with that;
+        // wiping the store here would log that other process out as well.
+        if (!retried && this.#adoptStoreUpdate()) {
+          return this.#hasFreshAccessToken() ? this.#state.accessToken : this.#doRefresh(true);
+        }
         // Drop the dead token so the next personal-list call fails fast with the same advice
         // instead of replaying this exchange against MAL every time.
+        this.#rejectedRefreshToken = refreshToken;
         this.#state = { ...this.#state, accessToken: "", refreshToken: "", expiresAt: 0 };
-        this.#store?.save(this.#state);
+        this.#persist();
         throw new ApiError({
           code: "unauthorized",
           message:
@@ -181,7 +240,7 @@ export class MalAuthManager {
       refreshToken: res.refresh_token ?? refreshToken,
       expiresAt: Date.now() + (res.expires_in ?? 0) * 1000,
     };
-    this.#store?.save(this.#state);
+    this.#persist();
     this.#logger.info("refreshed MyAnimeList access token");
     return this.#state.accessToken;
   }
@@ -207,11 +266,13 @@ export class MalAuthManager {
       throw new ApiError({ code: "unauthorized", message: "Set MAL_CLIENT_ID before login." });
     }
     this.#abandonPendingLogin(); // supersede any prior pending login
+    this.#exchange = undefined;
 
     const verifier = generateVerifier();
     const state = generateState();
     const redirectUri = this.redirectUri;
-    this.#pendingLogin = { verifier, redirectUri, state };
+    const pending = { verifier, redirectUri, state };
+    this.#pendingLogin = pending;
     const authorizeUrl = buildAuthorizeUrl({
       oauthBaseUrl: this.#oauthBaseUrl,
       clientId: this.#auth.clientId,
@@ -225,50 +286,80 @@ export class MalAuthManager {
       this.#loginServer = await listenForCode({
         port: this.#oauthPort,
         path: "/callback",
-        onCode: (code, state) => {
-          void this.#completeWithCode(code, state).catch((err) =>
-            this.#logger.warn(`login_mal callback exchange failed: ${errMsg(err)}`),
-          );
+        onCode: async (code, returnedState) => {
+          try {
+            await this.#completeWithCode(code, returnedState);
+          } catch (err) {
+            this.#logger.warn(`login_mal callback exchange failed: ${errMsg(err)}`);
+            throw err;
+          }
+        },
+        onDenied: (error, returnedState) => {
+          if (this.#pendingLogin !== pending || returnedState !== state) return;
+          this.#logger.info(`login_mal: authorization denied (${error})`);
+          this.#abandonPendingLogin();
         },
       });
       listening = true;
-      this.#armLoginExpiry();
     } catch (err) {
       // Port busy / can't bind → user completes via submit_mal_redirect instead.
       this.#logger.info(`login_mal: local callback unavailable (${errMsg(err)}); use manual paste`);
     }
+    // Armed with or without a listener: otherwise the verifier of a login nobody finishes stays in
+    // memory until the next login_mal.
+    this.#armLoginExpiry();
 
     (options.open ?? openBrowser)(authorizeUrl);
     return { authorizeUrl, redirectUri, listening };
   }
 
   /** Finish an interactive login from the redirected URL (or bare code) the user
-   *  pasted back — the remote/headless path. */
-  async submitRedirect(redirect: string): Promise<void> {
+   *  pasted back — the remote/headless path. Resolves to a warning when the token
+   *  works but could not be saved. */
+  async submitRedirect(redirect: string): Promise<string | undefined> {
+    const code = extractCode(redirect);
+    // The listener may already have this code (in flight or done); share that outcome.
+    if (this.#exchange?.code === code) return this.#exchange.done;
     if (!this.#pendingLogin) {
       throw new ApiError({
         code: "bad_request",
         message: "No login in progress; run login_mal first.",
       });
     }
-    await this.#completeWithCode(extractCode(redirect), extractState(redirect));
+    return this.#completeWithCode(code, extractState(redirect));
   }
 
-  // Exchange an authorization code for tokens (public PKCE client → no secret),
-  // persist them, and clear the pending-login state.
-  async #completeWithCode(code: string, returnedState: string | null): Promise<void> {
+  #completeWithCode(code: string, returnedState: string | null): Promise<string | undefined> {
+    if (this.#exchange?.code === code) return this.#exchange.done;
     const pending = this.#pendingLogin;
-    if (!pending) throw new ApiError({ code: "bad_request", message: "No login in progress." });
+    if (!pending) {
+      return Promise.reject(
+        new ApiError({ code: "bad_request", message: "No login in progress." }),
+      );
+    }
     // CSRF / authorization-code-injection guard: MAL echoes back the `state` we
     // sent, so a present-but-mismatched state means this isn't the redirect we
     // initiated — reject it. A bare-code paste carries no state to check; there the
     // per-login PKCE code_verifier (unknown to any third party) is the protection.
     if (returnedState !== null && returnedState !== pending.state) {
-      throw new ApiError({
-        code: "bad_request",
-        message: "OAuth state mismatch; ignoring this redirect.",
-      });
+      return Promise.reject(
+        new ApiError({
+          code: "bad_request",
+          message: "OAuth state mismatch; ignoring this redirect.",
+        }),
+      );
     }
+    const done = this.#exchangeCode(code, pending);
+    this.#exchange = { code, done };
+    return done;
+  }
+
+  // Exchange an authorization code for tokens (public PKCE client → no secret),
+  // persist them, and clear the pending-login state.
+  async #exchangeCode(
+    code: string,
+    pending: { verifier: string; redirectUri: string },
+  ): Promise<string | undefined> {
     const body = formBody({
       grant_type: "authorization_code",
       client_id: this.#auth.clientId,
@@ -287,9 +378,13 @@ export class MalAuthManager {
       refreshToken: res.refresh_token ?? "",
       expiresAt: Date.now() + (res.expires_in ?? 0) * 1000,
     };
-    this.#store?.save(this.#state);
-    this.#abandonPendingLogin();
-    this.#logger.info("login_mal: obtained and stored a MyAnimeList token");
+    this.#rejectedRefreshToken = undefined;
+    const warning = this.#persist();
+    // A newer login_mal may have started while this exchange was in flight. The token is good
+    // either way, but that login's listener and verifier are not ours to close.
+    if (this.#pendingLogin === pending) this.#abandonPendingLogin();
+    this.#logger.info("login_mal: obtained a MyAnimeList token");
+    return warning;
   }
 
   /** Give up on an unfinished login after LOGIN_TTL_MS. Without this an abandoned login (the user

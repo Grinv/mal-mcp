@@ -3,7 +3,15 @@
 // before — went unverified, and that is the one worth pinning: it guards a credential at rest.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TokenStore, defaultTokenStorePath, type TokenState } from "../lib/tokenStore.js";
@@ -121,6 +129,36 @@ test("load warns and ignores valid JSON of the wrong shape", () => {
     assert.equal(new TokenStore(path, logger).load(), undefined);
     assert.equal(logger.warnings.length, 1);
     assert.match(logger.warnings[0]!, /is malformed; ignoring it/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("load rejects a file where any one field has the wrong type", () => {
+  const dir = tempDir();
+  try {
+    const path = join(dir, "tokens.json");
+    for (const bad of [
+      { accessToken: "a", expiresAt: 1 }, // refreshToken missing
+      { accessToken: "a", refreshToken: "r", expiresAt: "1" }, // string expiry → NaN math later
+    ]) {
+      writeFileSync(path, JSON.stringify(bad));
+      assert.equal(new TokenStore(path, silentLogger()).load(), undefined, JSON.stringify(bad));
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a failed save leaves no temp copy of the tokens behind", () => {
+  const dir = tempDir();
+  try {
+    // A directory where the file should be makes the final rename fail after the temp write.
+    const path = join(dir, "tokens.json");
+    mkdirSync(join(path, "occupied"), { recursive: true });
+    assert.throws(() => new TokenStore(path, silentLogger()).save(STATE));
+    const leftovers = readdirSync(dir).filter((f) => f.endsWith(".tmp"));
+    assert.deepEqual(leftovers, []);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
