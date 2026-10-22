@@ -21,6 +21,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Add `YYYY`/`YYYY-MM` dates to the anime/manga list filters ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
 - Add `sfw`/`sfw_strict` to `get_news`, `get_anime_genres` and `get_manga_genres` ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
+- Declare the Node ≥ 20.11 requirement in the `.mcpb` manifest, so a host can refuse an older runtime up front.
 - Add `page` to `get_anime_reviews`/`get_manga_reviews`, so a caller can tell whether more reviews exist ([a841bf5](https://github.com/Grinv/mal-mcp/commit/a841bf5)).
 
 ### Fixed

@@ -38,6 +38,11 @@
       }
     }
   },
+  "compatibility": {
+    "runtimes": {
+      "node": ">=20.11.0"
+    }
+  },
   "tools_generated": false,
   "tools": [
     {

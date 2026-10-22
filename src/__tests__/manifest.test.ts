@@ -8,6 +8,7 @@ import { connectServer } from "./helpers.js";
 const repoRoot = join(process.cwd(), "..");
 const manifest = JSON.parse(readFileSync(join(repoRoot, "manifest.json"), "utf8")) as {
   manifest_version: string;
+  compatibility?: { runtimes?: { node?: string } };
   tools: { name: string }[];
 };
 
@@ -24,6 +25,15 @@ test("manifest_version is still supported by the installed @anthropic-ai/mcpb", 
     supported.includes(manifest.manifest_version),
     `manifest_version ${manifest.manifest_version} not in supported [${supported.join(", ")}]`,
   );
+});
+
+test("manifest.json declares the same Node floor as package.json engines", () => {
+  // The .mcpb host checks compatibility.runtimes.node; npm checks engines. Raising the floor in
+  // one place only would let the other keep promising a runtime the code no longer supports.
+  const pkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as {
+    engines: { node: string };
+  };
+  assert.equal(manifest.compatibility?.runtimes?.node, pkg.engines.node);
 });
 
 // manifest.json's `tools` list is manually curated (tools_generated: false) — it drifted

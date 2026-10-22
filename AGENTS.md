@@ -92,7 +92,9 @@ npm run check:api      # live upstream health-check (network)
   descriptions, error messages).
 - Runtime floor is **Node ≥ 20.11** (global `fetch`/`AbortSignal.any` in
   `lib/http.ts`, `import.meta.dirname` in `scripts/*.mjs`, the test suite's
-  `mock.timers` `'Date'` API). tsup targets `node20`. This floor covers
+  `mock.timers` `'Date'` API). tsup targets `node20`. `manifest.json`'s
+  `compatibility.runtimes.node` declares the same floor for `.mcpb` hosts
+  (`manifest.test.ts` keeps it equal to `engines.node`). This floor covers
   `scripts/` too, not just `src/` — CI's `node: 20` matrix entry always
   resolves to the latest 20.x patch, so a script quietly needing a newer
   Node than the declared floor won't fail CI.
