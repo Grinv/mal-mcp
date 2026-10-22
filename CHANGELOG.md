@@ -22,6 +22,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Reject a `q` longer than 300 characters up front instead of after a failed upstream call ([f96d407](https://github.com/Grinv/mal-mcp/commit/f96d407)).
+- Skip the official-API fallback for a 1-2 character search, which the official API rejects ([f96d407](https://github.com/Grinv/mal-mcp/commit/f96d407)).
 - Fix `get_my_anime_list`/`get_my_manga_list` silently omitting the user's own NSFW-flagged entries ([dcf0aad](https://github.com/Grinv/mal-mcp/commit/dcf0aad)).
 - Fix the official-API fallback dropping NSFW-flagged search and seasonal results when `sfw` is not set ([dcf0aad](https://github.com/Grinv/mal-mcp/commit/dcf0aad)).
 - Fix `letter` in `search_anime`/`search_manga`, which always failed because it can't be combined with `q` ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c)).
