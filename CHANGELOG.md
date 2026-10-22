@@ -8,7 +8,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- **Breaking:** raise the minimum Node version to 22.18 (was 20.11); Node 20 reached end of life in April 2026.
+- **Breaking:** raise the minimum Node version to 22.18 (was 20.11); Node 20 reached end of life in April 2026 ([0e2cf84](https://github.com/Grinv/mal-mcp/commit/0e2cf84)).
 - Raise `get_my_anime_list`/`get_my_manga_list` `limit` to 1000 ([dcf0aad](https://github.com/Grinv/mal-mcp/commit/dcf0aad)).
 - Keep the members-descending order of seasonal anime when falling back to the official API ([dcf0aad](https://github.com/Grinv/mal-mcp/commit/dcf0aad)).
 - **Breaking:** take `unapproved` as `"true"`/`"false"`/`"only"`, like the other tri-state filters ([efad85c](https://github.com/Grinv/mal-mcp/commit/efad85c), [510693d](https://github.com/Grinv/mal-mcp/commit/510693d)).
