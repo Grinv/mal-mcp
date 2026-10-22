@@ -30,8 +30,7 @@ json.load(open('notes/tenrai-openapi-spec.json'))..."`) instead of re-fetching
   - **HTTP responses:** `200`, `404`, `429` (with a `Retry-After` header —
     verified live), `5xx` for a genuine outage.
   - **Error body:** `{ status, type, message, error, path }` — `http.ts`
-    surfaces `message`. (`report_url` isn't populated by Tenrai; the parser
-    tolerates its absence.)
+    surfaces `message`.
   - **Schema compatibility:** Tenrai's `/v1/*` routes return a response shape
     (top-level `data`/`pagination`, nested `{mal_id,url,images,...}` entities)
     that already matched every `Raw*` interface in `format.ts` field-for-field

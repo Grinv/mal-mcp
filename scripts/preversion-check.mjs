@@ -29,6 +29,8 @@ function remoteTagCommitSha(tag, root) {
     execFileSync("git", ["fetch", "--quiet", "origin", `refs/tags/${tag}:${tmpRef}`], {
       cwd: root,
       stdio: ["ignore", "ignore", "pipe"],
+      // Pin the locale so the "couldn't find remote ref" match below holds on any machine.
+      env: { ...process.env, LC_ALL: "C" },
     });
   } catch (err) {
     // Only a genuinely missing remote ref means "no such tag on origin" — any

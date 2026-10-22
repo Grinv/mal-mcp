@@ -34,20 +34,14 @@ test("does not retry a 404 and maps it to not_found", async (t) => {
   assert.equal(mock.calls.length, 1);
 });
 
-test("surfaces an upstream's structured error message and report_url", async (t) => {
+test("surfaces an upstream's structured error message", async (t) => {
   const mock = mockFetch(() =>
-    jsonResponse(
-      { status: 500, type: "InternalException", message: "boom", report_url: "https://gh/issue" },
-      { status: 500 },
-    ),
+    jsonResponse({ status: 500, type: "InternalException", message: "boom" }, { status: 500 }),
   );
   installFetch(t, mock);
   await assert.rejects(
     () => client({ retries: 0 }).getJson("oops"),
-    (err: unknown) =>
-      err instanceof ApiError &&
-      /boom/.test(err.message) &&
-      /report: https:\/\/gh/.test(err.message),
+    (err: unknown) => err instanceof ApiError && /boom/.test(err.message),
   );
 });
 
@@ -148,41 +142,6 @@ test("honors Retry-After given as an HTTP date rather than seconds", async (t) =
   assert.ok(elapsed >= 1200, `expected the HTTP-date Retry-After to be honored, took ${elapsed}ms`);
 });
 
-test("detectEmbeddedError converts a 200 response carrying an upstream's own error body into a retryable ApiError", async (t) => {
-  const mock = mockFetch(() =>
-    jsonResponse({ status: 500, type: "UpstreamException", message: "timed out" }, { status: 200 }),
-  );
-  installFetch(t, mock);
-  const c = new HttpClient({
-    baseUrl: "https://example.test/api",
-    logger: silentLogger(),
-    retries: 0,
-    detectEmbeddedError: (body) => {
-      const rec = body as Record<string, unknown>;
-      return typeof rec.status === "number" && rec.status >= 400
-        ? { status: rec.status, message: String(rec.message) }
-        : undefined;
-    },
-  });
-  await assert.rejects(
-    () => c.getJson("thing"),
-    (err: unknown) =>
-      err instanceof ApiError &&
-      err.code === "server_error" &&
-      err.retryable === true &&
-      /timed out/.test(err.message),
-  );
-});
-
-test("without detectEmbeddedError configured, a 200 body is returned as-is even if it looks like an error", async (t) => {
-  const mock = mockFetch(() =>
-    jsonResponse({ status: 500, type: "UpstreamException", message: "timed out" }, { status: 200 }),
-  );
-  installFetch(t, mock);
-  const res = await client().getJson<{ status: number }>("thing");
-  assert.equal(res.status, 500);
-});
-
 test("aborts on timeout and maps to a timeout error", async (t) => {
   const mock = mockFetch(
     (_url, init) =>
@@ -274,3 +233,36 @@ test("a caller abort during the body read stays non-retryable", { timeout: 5000 
   );
   assert.equal(mock.calls.length, 1);
 });
+
+test("returns undefined for an empty 200 body (some DELETEs answer that way)", async (t) => {
+  installFetch(
+    t,
+    mockFetch(() => new Response("", { status: 200 })),
+  );
+  assert.equal(await client().getJson("thing"), undefined);
+});
+
+test(
+  "caps a huge Retry-After so one tool call can't stall for an hour",
+  { timeout: 5000 },
+  async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    let calls = 0;
+    installFetch(
+      t,
+      mockFetch(() =>
+        ++calls === 1
+          ? jsonResponse({}, { status: 429, headers: { "retry-after": "3600" } })
+          : jsonResponse({ ok: true }),
+      ),
+    );
+    const pending = client({ retries: 1 }).getJson("thing");
+    // 20 × 8s is far short of the hour asked for; only the cap lets the retry happen in time.
+    for (let i = 0; i < 20 && calls < 2; i += 1) {
+      await new Promise((resolve) => setImmediate(resolve));
+      t.mock.timers.tick(8000);
+    }
+    assert.equal(calls, 2, "the retry should fire within the 8s cap");
+    assert.deepEqual(await pending, { ok: true });
+  },
+);

@@ -48,13 +48,6 @@ export interface MalAuth {
   clientId: string | undefined;
   refreshToken: string | undefined;
   tokenStorePath: string | undefined;
-  /** Has a client id + a refresh token → can silently refresh. mal-mcp is a
-   *  public (secret-less) PKCE client, so there is no client secret. This is a
-   *  startup snapshot from env — MalClient recomputes it live once a token store
-   *  is loaded (see there). */
-  canRefresh: boolean;
-  /** Has an access token or can refresh → personal-list tools are usable. */
-  configured: boolean;
 }
 
 export interface Config {
@@ -89,10 +82,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   );
   const parsed = EnvSchema.parse(cleaned);
 
-  // Public (secret-less) PKCE client: refresh needs just client_id + refresh_token.
-  const canRefresh = Boolean(parsed.MAL_CLIENT_ID && parsed.MAL_REFRESH_TOKEN);
-  const configured = canRefresh || Boolean(parsed.MAL_ACCESS_TOKEN);
-
   return {
     tenraiBaseUrl: parsed.TENRAI_BASE_URL,
     malBaseUrl: parsed.MAL_BASE_URL,
@@ -108,8 +97,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       clientId: parsed.MAL_CLIENT_ID,
       refreshToken: parsed.MAL_REFRESH_TOKEN,
       tokenStorePath: parsed.MAL_TOKEN_STORE,
-      canRefresh,
-      configured,
     },
   };
 }

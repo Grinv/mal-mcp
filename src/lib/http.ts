@@ -25,13 +25,6 @@ export interface HttpClientOptions {
   retries?: number;
   /** Called before each request; lets callers throttle (rate limiting). */
   beforeRequest?: () => Promise<void> | void;
-  /** Some upstreams occasionally report their own failure inside a 200
-   *  response instead of a real non-2xx status (confirmed live against a
-   *  previous read backend; no current client supplies this) — if this
-   *  returns a status, it's thrown as an ApiError the same way a real HTTP
-   *  error would be, instead of reaching the caller as if it were a
-   *  successful body. */
-  detectEmbeddedError?: (body: unknown) => { status: number; message: string } | undefined;
 }
 
 const MAX_BACKOFF_MS = 8000;
@@ -142,16 +135,6 @@ export class HttpClient {
           cause: err,
         });
       }
-      const embedded = this.#opts.detectEmbeddedError?.(parsed);
-      if (embedded) {
-        const { code, retryable } = classifyStatus(embedded.status);
-        throw new ApiError({
-          code,
-          status: embedded.status,
-          retryable,
-          message: `HTTP ${embedded.status} (embedded in a 200 response): ${embedded.message}`,
-        });
-      }
       return parsed as T;
     } finally {
       clearTimeout(timer);
@@ -169,12 +152,10 @@ export class HttpClient {
   }
 }
 
-// Common upstream JSON error body shape: { status, type, message, error, ... }. `report_url` was
-// a previous backend's own extra field; Tenrai's equivalent is `path` instead — parsed generically
-// here since only `message` is actually used across backends and an absent `report_url` is harmless.
+// Common upstream JSON error body shape: { status, type, message, error, path, ... }. Only
+// `message` is read; every other field is ignored.
 interface UpstreamErrorBody {
   message?: string;
-  report_url?: string;
 }
 
 async function toHttpError(res: Response): Promise<ApiError> {
@@ -188,13 +169,12 @@ async function toHttpError(res: Response): Promise<ApiError> {
   // Prefer the structured `message`; fall back to the raw body for non-JSON.
   const parsed = parseErrorBody(raw);
   const detail = parsed?.message ?? raw.slice(0, 500);
-  const report = parsed?.report_url ? ` (report: ${parsed.report_url})` : "";
   const retryAfter = parseRetryAfter(res.headers.get("retry-after"));
   return new ApiError({
     code,
     status: res.status,
     retryable,
-    message: `HTTP ${res.status} ${res.statusText}${detail ? `: ${detail}` : ""}${report}`,
+    message: `HTTP ${res.status} ${res.statusText}${detail ? `: ${detail}` : ""}`,
     ...(retryAfter === undefined ? {} : { cause: { retryAfterMs: retryAfter } }),
   });
 }
@@ -207,7 +187,6 @@ function parseErrorBody(raw: string): UpstreamErrorBody | undefined {
     const rec = obj as Record<string, unknown>;
     return {
       message: typeof rec.message === "string" ? rec.message : undefined,
-      report_url: typeof rec.report_url === "string" ? rec.report_url : undefined,
     };
   } catch {
     return undefined; // not JSON — caller falls back to the raw body

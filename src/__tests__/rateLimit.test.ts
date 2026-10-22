@@ -47,3 +47,19 @@ test("first acquisition never waits, even when the clock starts at/near the epoc
   const realElapsed = performance.now() - realStart;
   assert.ok(realElapsed < 20, `first acquisition should not really wait, took ${realElapsed}ms`);
 });
+
+test("the window counts from the oldest request still inside it", async () => {
+  // Requests at ~0, ~60 and ~120ms with a 3-per-200ms rule: the 4th may go once the one at 0
+  // leaves the window (~200ms), not once the one at 60 does (~260ms).
+  const limiter = new RateLimiter(0, [{ limit: 3, windowMs: 200 }]);
+  const start = Date.now();
+  const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  await limiter.acquire();
+  await pause(60);
+  await limiter.acquire();
+  await pause(60);
+  await limiter.acquire();
+  await limiter.acquire();
+  const elapsed = Date.now() - start;
+  assert.ok(elapsed >= 190 && elapsed < 245, `4th should go at ~200ms, went at ${elapsed}ms`);
+});

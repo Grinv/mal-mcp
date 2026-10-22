@@ -152,6 +152,16 @@ test("currentSeason/nextSeason follow MAL's month grouping and wrap the year at 
   assert.deepEqual(nextSeason(new Date(Date.UTC(2026, 9, 1))), { year: 2027, season: "winter" });
 });
 
+test("currentSeason puts every month, first and last day, in MAL's season", () => {
+  const seasons = ["winter", "spring", "summer", "fall"];
+  for (let month = 0; month < 12; month += 1) {
+    const expected = { year: 2026, season: seasons[Math.floor(month / 3)] };
+    const lastDay = new Date(Date.UTC(2026, month + 1, 0, 23, 59, 59));
+    assert.deepEqual(currentSeason(new Date(Date.UTC(2026, month, 1))), expected, `month ${month}`);
+    assert.deepEqual(currentSeason(lastDay), expected, `end of month ${month}`);
+  }
+});
+
 test("withFallback falls back on a Tenrai 429 rather than surfacing the rate limit", async () => {
   const logger = fakeLogger();
   const out = await withFallback(

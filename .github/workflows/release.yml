@@ -19,6 +19,10 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: Verify tag matches package.json version
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          [ "v${PKG_VERSION}" = "${GITHUB_REF_NAME}" ] || { echo "::error::tag ${GITHUB_REF_NAME} does not match package.json version ${PKG_VERSION}"; exit 1; }
       - run: npm ci
       - name: Health-check upstream APIs (gate)
         run: npm run check:api
@@ -51,11 +55,6 @@ jobs:
             echo "::error::No CHANGELOG.md section found for '## [$VERSION]' — RELEASE_NOTES.md is empty. Check that CHANGELOG.md's heading was renamed from '## [Unreleased]'."
             exit 1
           fi
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
-        with:
-          files: mal-mcp.mcpb
-          body_path: RELEASE_NOTES.md
       # Idempotency guard: npm rejects re-publishing an existing version outright,
       # which would otherwise abort this job before the MCP Registry steps below
       # ever run (e.g. a tag re-run, or a version published manually as a
@@ -64,10 +63,19 @@ jobs:
         id: npm_check
         run: |
           PKG_VERSION="$(node -p "require('./package.json').version")"
-          if npm view "mal-mcp@${PKG_VERSION}" version >/dev/null 2>&1; then
+          # Only a 404 means "not published yet"; any other failure (network, auth,
+          # registry outage) must fail the job rather than be misread as unpublished.
+          set +e
+          out=$(npm view "mal-mcp@${PKG_VERSION}" version 2>&1)
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
             echo "already_published=true" >> "$GITHUB_OUTPUT"
-          else
+          elif echo "$out" | grep -q E404; then
             echo "already_published=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "$out"
+            exit 1
           fi
       # Trusted Publishing (OIDC): no token. Requires npm >= 11.5.1. Pin an
       # exact, verified-good version rather than floating `@latest` — matches
@@ -82,6 +90,13 @@ jobs:
       - name: Publish to npm (trusted publishing + provenance)
         if: steps.npm_check.outputs.already_published != 'true'
         run: npm publish --provenance --access public
+      # Runs after npm publish so a failed publish never leaves a GitHub Release
+      # pointing at a version that isn't on npm.
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
+        with:
+          files: mal-mcp.mcpb
+          body_path: RELEASE_NOTES.md
 
       # Publish to the official MCP Registry (registry.modelcontextprotocol.io).
       # Runs after npm publish so the npm package (with its mcpName marker) is

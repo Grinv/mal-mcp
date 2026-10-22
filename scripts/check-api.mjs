@@ -22,7 +22,10 @@ async function fetchResilient(url, attempts = 3) {
   let last;
   for (let i = 0; ; i += 1) {
     try {
-      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      const res = await fetch(url, {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(15_000),
+      });
       if (res.status !== 429 && res.status < 500) return res;
       last = new TransientError(`upstream ${res.status}`);
     } catch (err) {

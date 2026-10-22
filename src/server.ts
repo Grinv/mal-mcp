@@ -39,6 +39,11 @@ export function buildServer(config: Config, logger: Logger): McpServer {
   const tokenStore = new TokenStore(config.auth.tokenStorePath ?? defaultTokenStorePath(), logger);
 
   const mal = new MalClient(config, logger, tokenStore);
+  // Checked against the live token store (via isConfigured), not env vars alone, so a user
+  // who already ran login_mal sees the accurate state at startup.
+  logger.info(
+    `personal-list tools ${mal.isConfigured() ? "enabled" : "not yet authorized — run login_mal"}`,
+  );
   // OfficialReadsClient is the fallback for read tools when Tenrai (the primary read backend,
   // itself a beta service) fails; it structurally satisfies ReadFallback, needs only a Client ID
   // (no user token), and is kept separate from MalClient's OAuth/personal-list concern.
@@ -72,11 +77,7 @@ export async function start(): Promise<void> {
   const config = loadConfig();
   const logger = createLogger(config.logLevel);
   const handle = serveStdio(() => buildServer(config, logger));
-  logger.info(
-    `mal-mcp ${VERSION} ready (personal-list tools ${
-      config.auth.configured ? "enabled" : "not yet authorized — run login_mal"
-    })`,
-  );
+  logger.info(`mal-mcp ${VERSION} ready`);
 
   const shutdown = (signal: string): void => {
     logger.info(`received ${signal}, shutting down`);

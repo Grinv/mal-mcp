@@ -10,8 +10,9 @@ Check every one of these, not just a sample:
 - `README.md`'s tool table matches `src/tools/*.ts`'s registrations (names,
   and the auth-tier column — none / Client ID / OAuth token, per
   `docs/auth.md` — against what each tool actually needs).
-- `manifest.json`'s and `server.json`'s `tools` arrays list the same tool
-  **names** as what's actually registered — treat a test failure here as
+- `manifest.json`'s `tools` array lists the same tool **names** as what's
+  actually registered (`server.json` has no `tools` array — the MCP Registry
+  schema doesn't define one) — treat a test failure here as
   authoritative if one exists. Their `description` fields are deliberately
   short, independent marketing-style summaries, NOT a copy of the tool's full
   `.describe()`/`description` text in `src/tools/*.ts` — don't "fix" them to
