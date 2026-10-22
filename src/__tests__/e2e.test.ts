@@ -32,9 +32,8 @@ function makeSandbox(): string {
   mkdirSync(sandbox, { recursive: true });
   copyFileSync(distPath, join(sandbox, "index.js"));
   // The bundle is ESM; ship the package.json that flags it as such, exactly as
-  // the real npm/.mcpb artifact does. Without it a bare `.js` is parsed as CJS
-  // on Node < 20.19 (which lacks ESM syntax auto-detection) and the child dies
-  // with "Cannot use import statement outside a module".
+  // the real npm/.mcpb artifact does, so the child loads it the way users' Node
+  // will rather than leaning on Node's ESM syntax auto-detection.
   writeFileSync(join(sandbox, "package.json"), JSON.stringify({ type: "module" }));
   return sandbox;
 }

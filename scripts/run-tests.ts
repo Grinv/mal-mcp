@@ -9,7 +9,8 @@ const COVERAGE_LINES_THRESHOLD = 80;
 
 // Any arg besides --coverage is passed straight through to `node --test`, so
 // e.g. `npm test -- --test-name-pattern=foo` can run a subset locally, and a
-// file path (`npm test -- src/__tests__/http.test.ts`) narrows the run to it.
+// file path (`npm test -- src/__tests__/http.test.ts`) narrows the run to it. Give flag
+// values with `=` (`--test-name-pattern=foo`): a bare `foo` would be taken for a file path.
 const rawArgs = process.argv.slice(2);
 const coverage = rawArgs.includes("--coverage");
 const passthrough = rawArgs.filter((a) => a !== "--coverage");

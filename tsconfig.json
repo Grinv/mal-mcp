@@ -1,8 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2024",
-    "module": "Node16",
-    "moduleResolution": "Node16",
+    "module": "node20",
     "lib": ["ES2024"],
     "types": ["node"],
     "strict": true,
@@ -18,7 +17,12 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "noEmit": true
+    "noEmit": true,
+    // eslint.config.js stays JS: ESLint loads a .ts config only through the jiti package or an
+    // unstable flag that editor integrations don't pass. checkJs still type-checks it; it is
+    // the only .js file included.
+    "allowJs": true,
+    "checkJs": true
   },
-  "include": ["src/**/*", "scripts/**/*"]
+  "include": ["src/**/*", "scripts/**/*", "tsup.config.ts", "eslint.config.js"]
 }

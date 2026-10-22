@@ -1,11 +1,12 @@
 import js from "@eslint/js";
+import { defineConfig, globalIgnores } from "eslint/config";
 import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier";
 
-export default tseslint.config(
-  { ignores: ["dist/", "coverage/"] },
+export default defineConfig(
+  globalIgnores(["dist/", "coverage/"]),
   js.configs.recommended,
-  ...tseslint.configs.recommended,
+  tseslint.configs.recommended,
   {
     rules: {
       "@typescript-eslint/no-unused-vars": [
