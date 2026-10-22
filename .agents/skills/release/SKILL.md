@@ -62,8 +62,10 @@ The tag push (`v*`) runs the **Release** workflow: tag-matches-version gate (the
 tag must equal `v<package.json version>`) → `check:api` gate (15s per-request
 timeout) → build → test → pack `.mcpb` → `npm publish` (OIDC trusted publishing,
 with provenance — no token) → GitHub Release (after npm, so a failed publish
-never leaves a Release for a version that isn't on npm) → **publish to the
-official MCP Registry** (`mcp-publisher`,
+never leaves a Release for a version that isn't on npm) → wait until npm actually
+serves the new version (up to 5 min; npm accepts a publish before it serves it, and
+the registry's npm lookup 404s in that gap, which failed the v0.11.0 release on
+its first attempt) → **publish to the official MCP Registry** (`mcp-publisher`,
 GitHub OIDC; the binary is pinned to an exact version + verified SHA-256 rather
 than `latest`). The workflow's CHANGELOG-extraction step fails loudly (not silently)
 if it can't find a `## [<version>]` section, as a backstop if the heading rename

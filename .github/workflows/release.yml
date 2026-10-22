@@ -134,6 +134,21 @@ jobs:
           curl -sL -o mcp-publisher.tar.gz "https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
           echo "${MCP_PUBLISHER_SHA256}  mcp-publisher.tar.gz" | sha256sum -c -
           tar xzf mcp-publisher.tar.gz mcp-publisher
+      # npm accepts a publish before it serves it ("may take a few minutes to become
+      # available"), and the registry looks up this exact version on npm: for v0.11.0 it
+      # looked 20s after the publish, got a 404 and failed the job. Wait until npm serves
+      # it (up to 5 minutes) instead of racing. Also covers a re-run, where it's instant.
+      - name: Wait for npm to serve this version
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          for _ in $(seq 1 30); do
+            if [ "$(npm view "mal-mcp@${PKG_VERSION}" version 2>/dev/null)" = "${PKG_VERSION}" ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::npm still doesn't serve mal-mcp@${PKG_VERSION} after 5 minutes"
+          exit 1
       - name: Authenticate to MCP Registry (GitHub OIDC)
         run: ./mcp-publisher login github-oidc
       - name: Publish to MCP Registry
